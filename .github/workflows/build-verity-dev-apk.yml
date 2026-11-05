@@ -11,7 +11,7 @@ on:
       - "Verity-5.0.1-Minecraft-2D-Build-Fix.zip"
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 jobs:
@@ -61,3 +61,17 @@ jobs:
           path: Verity-main/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Record build run ID for artifact retrieval
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p dev-build-info
+          printf '%s\n%s\n%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_NUMBER" "$GITHUB_SHA" > /tmp/verity-dev-run.txt
+          CONTENT="$(base64 -w0 /tmp/verity-dev-run.txt)"
+          FILE_SHA="$(gh api "/repos/$GITHUB_REPOSITORY/contents/dev-build-info/latest-run.txt" --jq .sha 2>/dev/null || true)"
+          if [ -n "$FILE_SHA" ]; then
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/dev-build-info/latest-run.txt" -f message="Record Verity Developer build run" -f content="$CONTENT" -f sha="$FILE_SHA" -f branch="$GITHUB_REF_NAME" >/dev/null
+          else
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/dev-build-info/latest-run.txt" -f message="Record Verity Developer build run" -f content="$CONTENT" -f branch="$GITHUB_REF_NAME" >/dev/null
+          fi
