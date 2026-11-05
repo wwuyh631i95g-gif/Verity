@@ -60,7 +60,7 @@ store.write_text(
 main = JAVA / "MainActivity.kt"
 text = main.read_text(encoding="utf-8")
 patches = [
-    ('private enum class Screen { CHAT, GAME, SETTINGS, PLUS, ABOUT, SKIN_EDITOR, CHARACTERS, APP_BUILDER, HOME_ASSISTANT, FRIENDS, FEATURES }',
+    ('private enum class Screen { CHAT, GAME, SETTINGS, PLUS, CUSTOMIZATIONS, ABOUT, SKIN_EDITOR, CHARACTERS, APP_BUILDER, HOME_ASSISTANT, FRIENDS, FEATURES }',
      'private enum class Screen { CHAT, GAME, SETTINGS, PLUS, ABOUT, SKIN_EDITOR, CHARACTERS, APP_BUILDER, HOME_ASSISTANT, FRIENDS, FEATURES, DEVELOPER }'),
     ('if (preferences.getBoolean("verityPlus", false)) preferences.getString("uiStyle", "material") ?: "material"',
      'if (BuildConfig.DEVELOPER_TEST_BUILD || preferences.getBoolean("verityPlus", false)) preferences.getString("uiStyle", "material") ?: "material"'),
