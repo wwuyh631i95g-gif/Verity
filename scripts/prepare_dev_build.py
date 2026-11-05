@@ -58,7 +58,7 @@ store.write_text(
 )
 
 main = JAVA / "MainActivity.kt"
-replace_once(main, "import androidx.compose.material.icons.rounded.ChatBubbleOutline\\n", "import androidx.compose.material.icons.rounded.ChatBubbleOutline\\nimport androidx.compose.material.icons.rounded.Code\\n", "developer tab Code icon import")
+replace_once(main, "import androidx.compose.material.icons.rounded.ChatBubbleOutline\n", "import androidx.compose.material.icons.rounded.ChatBubbleOutline\nimport androidx.compose.material.icons.rounded.Code\n", "developer tab Code icon import")
 text = main.read_text(encoding="utf-8")
 patches = [
     ('private enum class Screen { CHAT, GAME, SETTINGS, PLUS, ABOUT, SKIN_EDITOR, CHARACTERS, APP_BUILDER, HOME_ASSISTANT, FRIENDS, FEATURES }',
