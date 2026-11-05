@@ -58,7 +58,6 @@ store.write_text(
 )
 
 main = JAVA / "MainActivity.kt"
-replace_once(main, "import androidx.compose.material.icons.rounded.ChatBubbleOutline\n", "import androidx.compose.material.icons.rounded.ChatBubbleOutline\nimport androidx.compose.material.icons.rounded.Code\n", "developer tab Code icon import")
 text = main.read_text(encoding="utf-8")
 patches = [
     ('private enum class Screen { CHAT, GAME, SETTINGS, PLUS, ABOUT, SKIN_EDITOR, CHARACTERS, APP_BUILDER, HOME_ASSISTANT, FRIENDS, FEATURES }',
@@ -74,6 +73,8 @@ patches = [
     ('        AdaptiveNavigationBarItem(\n            index = 3,\n            onClick = { onSelected(Screen.PLUS) },\n            icon = { StyleTabIcon(sfStyle, R.drawable.sf_star) { Icon(Icons.Rounded.Star, null) } },\n            label = { Text("Verity+") }\n        )',
      '        AdaptiveNavigationBarItem(\n            index = 3,\n            onClick = { onSelected(Screen.PLUS) },\n            icon = { StyleTabIcon(sfStyle, R.drawable.sf_star) { Icon(Icons.Rounded.Star, null) } },\n            label = { Text("Verity+") }\n        )\n        AdaptiveNavigationBarItem(\n            index = 4,\n            onClick = { onSelected(Screen.DEVELOPER) },\n            icon = { StyleTabIcon(sfStyle, R.drawable.sf_gear) { Icon(Icons.Rounded.Code, null) } },\n            label = { Text("Разраб.") }\n        )')
 ]
+replace_once(main, "Icon(Icons.Rounded.Code, null)", "Icon(Icons.Rounded.Settings, null)", "developer tab icon")
+
 for old, new in patches:
     if text.count(old) != 1:
         raise SystemExit(f"MainActivity patch point count mismatch ({text.count(old)}): {old[:70]}")
