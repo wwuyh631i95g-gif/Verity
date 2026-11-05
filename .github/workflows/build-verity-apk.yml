@@ -35,10 +35,11 @@ jobs:
           root = Path("Verity-main/app/src/main/java/dev/veriti/app")
           main = root / "MainActivity.kt"
           source = main.read_text(encoding="utf-8")
-          old = "private fun VeritiApp(onStyleChange: (String) -> Unit, onAccentChange: (String) -> Unit, vm: ChatViewModel = viewModel()) {\\n    val state = vm.state"
-          new = "private fun VeritiApp(onStyleChange: (String) -> Unit, onAccentChange: (String) -> Unit, vm: ChatViewModel = viewModel()) {\\n    val context = LocalContext.current\\n    val state = vm.state"
-          assert source.count(old) == 1, "VeritiApp insertion point was not unique"
-          main.write_text(source.replace(old, new, 1), encoding="utf-8")
+          start = source.index("private fun VeritiApp(")
+          marker = "    val state = vm.state"
+          index = source.index(marker, start)
+          source = source[:index] + "    val context = LocalContext.current" + chr(10) + source[index:]
+          main.write_text(source, encoding="utf-8")
           service = root / "service/FloatingAssistantService.kt"
           code = service.read_text(encoding="utf-8")
           assert code.count("antiAlias = true") == 1, "antiAlias replacement point was not unique"
