@@ -1,0 +1,63 @@
+name: Build Verity Developer APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - ".github/workflows/build-verity-dev-apk.yml"
+      - "developer/DeveloperWorkbenchScreen.kt"
+      - "scripts/prepare_dev_build.py"
+      - "Verity-5.0.1-Minecraft-2D-Build-Fix.zip"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android API 37 preview platform
+        run: |
+          sdkmanager --channel=3 --install "platforms;android-37.0" "build-tools;36.0.0"
+          SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          test -d "$SDK_ROOT/platforms/android-37.0"
+          ln -sfn android-37.0 "$SDK_ROOT/platforms/android-37"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Extract Verity 5.0.1 and prepare developer edition
+        run: |
+          unzip -q Verity-5.0.1-Minecraft-2D-Build-Fix.zip -d .
+          python3 scripts/prepare_dev_build.py
+
+      - name: Build developer debug APK
+        working-directory: Verity-main
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Upload Verity Developer APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Verity-5.0.1-Developer-APK
+          path: Verity-main/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
