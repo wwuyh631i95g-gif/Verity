@@ -23,8 +23,7 @@ jobs:
         with:
           packages: platform-tools
       - name: Install Android SDK packages
-        run: |
-          sdkmanager --install "platforms;android-37" "build-tools;36.0.0"
+        run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
       - name: Extract Verity project
@@ -33,6 +32,7 @@ jobs:
         working-directory: Verity-main
         run: |
           chmod +x ./gradlew
+          sed -i 's/compileSdk = 37/compileSdk = 36/' app/build.gradle.kts
           ./gradlew --no-daemon --stacktrace assembleDebug
       - name: Upload APK
         uses: actions/upload-artifact@v4
