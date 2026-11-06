@@ -51,10 +51,10 @@ jobs:
           anti_count = code.count("antiAlias = true")
           if anti_count == 1:
               code = code.replace("antiAlias = true", "setAntiAlias(true)", 1)
-          elif anti_count == 0 and code.count("isAntiAlias = true") == 1:
-              pass  # Latest customization patch already uses RoundedBitmapDrawable's property.
+          elif anti_count == 0 and code.count("setAntiAlias(true)") >= 1:
+              pass  # Latest customization patch already uses the explicit drawable setter.
           else:
-              raise SystemExit(f"antiAlias compatibility point unexpected (plain={anti_count}, drawable={code.count('isAntiAlias = true')})")
+              raise SystemExit(f"antiAlias compatibility point unexpected (plain={anti_count}, setter={code.count('setAntiAlias(true)')})")
           service.write_text(code, encoding="utf-8")
       - name: Build debug APK
         working-directory: Verity-main
