@@ -61,7 +61,7 @@ main = JAVA / "MainActivity.kt"
 text = main.read_text(encoding="utf-8")
 patches = [
     ('private enum class Screen { CHAT, GAME, SETTINGS, PLUS, CUSTOMIZATIONS, ABOUT, SKIN_EDITOR, CHARACTERS, APP_BUILDER, HOME_ASSISTANT, FRIENDS, FEATURES }',
-     'private enum class Screen { CHAT, GAME, SETTINGS, PLUS, ABOUT, SKIN_EDITOR, CHARACTERS, APP_BUILDER, HOME_ASSISTANT, FRIENDS, FEATURES, DEVELOPER }'),
+     'private enum class Screen { CHAT, GAME, SETTINGS, PLUS, CUSTOMIZATIONS, ABOUT, SKIN_EDITOR, CHARACTERS, APP_BUILDER, HOME_ASSISTANT, FRIENDS, FEATURES, DEVELOPER }'),
     ('if (preferences.getBoolean("verityPlus", false)) preferences.getString("uiStyle", "material") ?: "material"',
      'if (BuildConfig.DEVELOPER_TEST_BUILD || preferences.getBoolean("verityPlus", false)) preferences.getString("uiStyle", "material") ?: "material"'),
     ('            Screen.FEATURES -> FeatureListScreen(onBack = { screen = Screen.SETTINGS })',
@@ -71,7 +71,7 @@ patches = [
     ('            Triple(Screen.PLUS, R.drawable.sf_star, "Verity+")\n        )',
      '            Triple(Screen.PLUS, R.drawable.sf_star, "Verity+"),\n            Triple(Screen.DEVELOPER, R.drawable.sf_gear, "Разраб.")\n        )'),
     ('        AdaptiveNavigationBarItem(\n            index = 3,\n            onClick = { onSelected(Screen.PLUS) },\n            icon = { StyleTabIcon(sfStyle, R.drawable.sf_star) { Icon(Icons.Rounded.Star, null) } },\n            label = { Text("Verity+") }\n        )',
-     '        AdaptiveNavigationBarItem(\n            index = 3,\n            onClick = { onSelected(Screen.PLUS) },\n            icon = { StyleTabIcon(sfStyle, R.drawable.sf_star) { Icon(Icons.Rounded.Star, null) } },\n            label = { Text("Verity+") }\n        )\n        AdaptiveNavigationBarItem(\n            index = 4,\n            onClick = { onSelected(Screen.DEVELOPER) },\n            icon = { StyleTabIcon(sfStyle, R.drawable.sf_gear) { Icon(Icons.Rounded.Code, null) } },\n            label = { Text("Разраб.") }\n        )')
+     '        AdaptiveNavigationBarItem(\n            index = 3,\n            onClick = { onSelected(Screen.PLUS) },\n            icon = { StyleTabIcon(sfStyle, R.drawable.sf_star) { Icon(Icons.Rounded.Star, null) } },\n            label = { Text("Verity+") }\n        )\n        AdaptiveNavigationBarItem(\n            index = 4,\n            onClick = { onSelected(Screen.DEVELOPER) },\n            icon = { StyleTabIcon(sfStyle, R.drawable.sf_gear) { Icon(Icons.Rounded.Settings, null) } },\n            label = { Text("Разраб.") }\n        )')
 ]
 icon_old = "Icon(Icons.Rounded.Code, null)"
 icon_new = "Icon(Icons.Rounded.Settings, null)"
