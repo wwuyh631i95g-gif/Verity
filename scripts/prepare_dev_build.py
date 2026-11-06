@@ -103,9 +103,11 @@ main.write_text(text, encoding="utf-8")
 
 service = JAVA / "service/FloatingAssistantService.kt"
 service_text = service.read_text(encoding="utf-8")
-if service_text.count("antiAlias = true") != 1:
-    raise SystemExit("FloatingAssistantService antiAlias patch point is not unique")
-service.write_text(service_text.replace("antiAlias = true", "setAntiAlias(true)", 1), encoding="utf-8")
+anti_alias_count = service_text.count("antiAlias = true")
+if anti_alias_count == 0 and service_text.count("setAntiAlias(true)") < 2:
+    raise SystemExit("FloatingAssistantService antiAlias compatibility point is missing")
+service_text = service_text.replace("antiAlias = true", "setAntiAlias(true)")
+service.write_text(service_text, encoding="utf-8")
 
 shutil.copy2(Path("developer/DeveloperWorkbenchScreen.kt"), JAVA / "DeveloperWorkbenchScreen.kt")
 print("Verity Developer patches applied successfully.")
