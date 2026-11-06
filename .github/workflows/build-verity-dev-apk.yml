@@ -8,6 +8,7 @@ on:
       - ".github/workflows/build-verity-dev-apk.yml"
       - "developer/DeveloperWorkbenchScreen.kt"
       - "scripts/prepare_dev_build.py"
+      - "scripts/apply_custom_updates.py"
       - "Verity-5.0.1-Minecraft-2D-Build-Fix.zip"
 
 permissions:
@@ -60,6 +61,7 @@ jobs:
       - name: Extract Verity 5.0.1 and prepare developer edition
         run: |
           unzip -q Verity-5.0.1-Minecraft-2D-Build-Fix.zip -d .
+          python3 scripts/apply_custom_updates.py
           python3 scripts/prepare_dev_build.py
 
       - name: Build developer debug APK
