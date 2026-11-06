@@ -93,21 +93,18 @@ for old, new in patches:
         raise SystemExit(f"MainActivity patch point count mismatch (old={old_count}, new={new_count}): {old[:70]}")
 main.write_text(text, encoding="utf-8")
 
-# Apply the two compatibility fixes used by the working 5.0.1 build pipeline.
+# Apply the MainActivity compatibility fix used by the working 5.0.1 build pipeline.
 text = main.read_text(encoding="utf-8")
 start = text.index("private fun VeritiApp(")
 marker = "    val state = vm.state"
 idx = text.index(marker, start)
-text = text[:idx] + "    val context = LocalContext.current\n" + text[idx:]
+if text.count("    val context = LocalContext.current", start, idx) == 0:
+    text = text[:idx] + "    val context = LocalContext.current\n" + text[idx:]
 main.write_text(text, encoding="utf-8")
 
-service = JAVA / "service/FloatingAssistantService.kt"
-service_text = service.read_text(encoding="utf-8")
-anti_alias_count = service_text.count("antiAlias = true")
-if anti_alias_count == 0 and service_text.count("setAntiAlias(true)") < 2:
-    raise SystemExit("FloatingAssistantService antiAlias compatibility point is missing")
-service_text = service_text.replace("antiAlias = true", "setAntiAlias(true)")
-service.write_text(service_text, encoding="utf-8")
+# Do not rewrite antiAlias properties here: the customization patch intentionally
+# uses RoundedBitmapDrawable. The standard Paint compatibility patch is not
+# applicable after setCharacterImage() has been replaced.
 
 shutil.copy2(Path("developer/DeveloperWorkbenchScreen.kt"), JAVA / "DeveloperWorkbenchScreen.kt")
 print("Verity Developer patches applied successfully.")
