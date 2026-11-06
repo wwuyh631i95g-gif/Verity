@@ -21,6 +21,23 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Record current build run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "Run ID: $GITHUB_RUN_ID"
+            echo "Run number: $GITHUB_RUN_NUMBER"
+            echo "Status: in_progress"
+            echo "Commit: $GITHUB_SHA"
+            echo "Run URL: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > SBA-Skin-Studio-CURRENT-RUN.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SBA-Skin-Studio-CURRENT-RUN.txt
+          git commit -m "Record current SBA Skin Studio build run" || true
+          git push origin HEAD:main
+
       - name: Install Java 17
         uses: actions/setup-java@v4
         with:
