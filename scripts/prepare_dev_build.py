@@ -73,7 +73,14 @@ patches = [
     ('        AdaptiveNavigationBarItem(\n            index = 3,\n            onClick = { onSelected(Screen.PLUS) },\n            icon = { StyleTabIcon(sfStyle, R.drawable.sf_star) { Icon(Icons.Rounded.Star, null) } },\n            label = { Text("Verity+") }\n        )',
      '        AdaptiveNavigationBarItem(\n            index = 3,\n            onClick = { onSelected(Screen.PLUS) },\n            icon = { StyleTabIcon(sfStyle, R.drawable.sf_star) { Icon(Icons.Rounded.Star, null) } },\n            label = { Text("Verity+") }\n        )\n        AdaptiveNavigationBarItem(\n            index = 4,\n            onClick = { onSelected(Screen.DEVELOPER) },\n            icon = { StyleTabIcon(sfStyle, R.drawable.sf_gear) { Icon(Icons.Rounded.Code, null) } },\n            label = { Text("Разраб.") }\n        )')
 ]
-replace_once(main, "Icon(Icons.Rounded.Code, null)", "Icon(Icons.Rounded.Settings, null)", "developer tab icon")
+icon_old = "Icon(Icons.Rounded.Code, null)"
+icon_new = "Icon(Icons.Rounded.Settings, null)"
+if main.read_text(encoding="utf-8").count(icon_old) == 1:
+    replace_once(main, icon_old, icon_new, "developer tab icon")
+elif main.read_text(encoding="utf-8").count(icon_new) == 1:
+    pass  # The source already contains the compatible Settings icon.
+else:
+    raise SystemExit("developer tab icon: neither expected icon occurs exactly once")
 
 for old, new in patches:
     if text.count(old) != 1:
