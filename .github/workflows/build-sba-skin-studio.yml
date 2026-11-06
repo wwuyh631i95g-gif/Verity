@@ -113,6 +113,33 @@ jobs:
           PY
           tar -xzf /tmp/sba-project.tar.gz -C .
 
+      - name: Use Chaquopy-supported Pillow wheel
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path("SBA-Skin-Studio-Android")
+          changed = []
+          allowed = {".txt", ".toml", ".in", ".cfg", ".gradle", ".kts"}
+          for path in root.rglob("*"):
+              if not path.is_file() or path.suffix.lower() not in allowed:
+                  continue
+              try:
+                  source = path.read_text(encoding="utf-8")
+              except (UnicodeDecodeError, OSError):
+                  continue
+              updated = source.replace("Pillow==11.3.0", "Pillow==11.0.0")
+              updated = updated.replace("pillow==11.3.0", "pillow==11.0.0")
+              if updated != source:
+                  path.write_text(updated, encoding="utf-8")
+                  changed.append(str(path))
+
+          if not changed:
+              raise SystemExit("Could not find the Pillow 11.3.0 pin to patch.")
+          print("Updated Pillow pin in:")
+          print("\\n".join(changed))
+          PY
+
       - name: Fetch pinned UnityPy Python package
         run: |
           git lfs install
