@@ -40,19 +40,46 @@ jobs:
           yes | "$SDKMANAGER" --licenses
           "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.2.12479018"
 
-      - name: Extract SBA Skin Studio Android project
+      - name: Extract and validate SBA Skin Studio Android project
         run: |
-          cat SBA-Skin-Studio-Android.project.b64/part00 \
-              SBA-Skin-Studio-Android.project.b64/part01 \
-              SBA-Skin-Studio-Android.project.b64/part02 \
-              SBA-Skin-Studio-Android.project.b64/part03 \
-              SBA-Skin-Studio-Android.project.tail/part0400 \
-              SBA-Skin-Studio-Android.project.tail/part0401 \
-              SBA-Skin-Studio-Android.project.tail/part0402 \
-              SBA-Skin-Studio-Android.project.tail/part0403 \
-              SBA-Skin-Studio-Android.project.tail/part0404 \
-              SBA-Skin-Studio-Android.project.tail/part0405 > /tmp/sba-project.tar.gz.b64
-          base64 --decode /tmp/sba-project.tar.gz.b64 > /tmp/sba-project.tar.gz
+          python3 - <<'PY'
+          import base64, gzip, io, tarfile
+          from pathlib import Path
+
+          b64dir = Path("SBA-Skin-Studio-Android.project.b64")
+          taildir = Path("SBA-Skin-Studio-Android.project.tail")
+          first = (b64dir / "part00").read_text().strip()
+          common = [(b64dir / f"part{i:02d}").read_text().strip() for i in range(4)]
+          legacy = common + [(b64dir / "part04").read_text().strip()]
+          tail = [(taildir / f"part04{i}").read_text().strip() for i in range(6)]
+
+          candidates = [
+              ("corrected tail chunks (trim stray character in part00)", [first[:-1], *common[1:], *tail]),
+              ("complete numbered archive chunks", legacy),
+              ("corrected tail chunks as stored", [*common, *tail]),
+          ]
+
+          errors = []
+          for label, pieces in candidates:
+              encoded = "".join(pieces)
+              try:
+                  compressed = base64.b64decode(encoded, validate=True)
+                  archive_bytes = gzip.decompress(compressed)
+                  with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:") as archive:
+                      members = archive.getmembers()
+                      if not members:
+                          raise RuntimeError("tar archive is empty")
+                  Path("/tmp/sba-project.tar.gz").write_bytes(compressed)
+                  print(f"Validated archive using: {label}")
+                  print(f"Archive entries: {len(members)}; compressed bytes: {len(compressed)}")
+                  break
+              except Exception as exc:
+                  errors.append(f"{label}: {type(exc).__name__}: {exc}")
+          else:
+              print("\n".join(errors))
+              raise SystemExit("Could not reconstruct a valid SBA Skin Studio source archive.")
+
+          PY
           tar -xzf /tmp/sba-project.tar.gz -C .
 
       - name: Fetch pinned UnityPy Python package
