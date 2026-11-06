@@ -1,0 +1,105 @@
+name: Build SBA Skin Studio APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "SBA-Skin-Studio-Android.project.b64/**"
+      - ".github/workflows/build-sba-skin-studio.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build-sba-skin-studio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Python 3.10 for Chaquopy
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Android SDK, NDK and CMake
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
+            cmake;3.22.1
+            ndk;27.2.12479018
+
+      - name: Extract SBA Skin Studio Android project
+        run: |
+          cat SBA-Skin-Studio-Android.project.b64/part* > /tmp/sba-project.tar.gz.b64
+          base64 --decode /tmp/sba-project.tar.gz.b64 > /tmp/sba-project.tar.gz
+          tar -xzf /tmp/sba-project.tar.gz -C .
+
+      - name: Fetch pinned UnityPy Python package
+        run: |
+          git lfs install
+          git clone https://github.com/K0lb3/UnityPy.git /tmp/UnityPy
+          git -C /tmp/UnityPy checkout 417d59522a998fdee9a9c2b29fe35f3063222457
+          git -C /tmp/UnityPy lfs pull
+          cp -a /tmp/UnityPy/UnityPy SBA-Skin-Studio-Android/app/src/main/python/UnityPy
+          cp /tmp/UnityPy/LICENSE SBA-Skin-Studio-Android/app/src/main/assets/skin_studio/licenses/UnityPy-LICENSE.txt
+
+      - name: Fetch pinned native texture decoder sources
+        run: |
+          git clone https://github.com/K0lb3/texture2ddecoder.git /tmp/texture2ddecoder
+          git -C /tmp/texture2ddecoder checkout 3ebc3b758bd6b1a3108b50148f7998ee34f058c6
+          mkdir -p SBA-Skin-Studio-Android/third_party
+          cp -a /tmp/texture2ddecoder SBA-Skin-Studio-Android/third_party/texture2ddecoder
+          cp /tmp/texture2ddecoder/LICENSE SBA-Skin-Studio-Android/app/src/main/assets/skin_studio/licenses/texture2ddecoder-LICENSE.txt
+
+      - name: Fetch pure-Python TPK parser
+        run: |
+          git clone https://github.com/K0lb3/tpk_ar.git SBA-Skin-Studio-Android/app/third_party/tpk_ar
+          git -C SBA-Skin-Studio-Android/app/third_party/tpk_ar checkout 42f247847993b822000d8c09b35ac72451a0353a
+          cp SBA-Skin-Studio-Android/app/third_party/tpk_ar/LICENSE SBA-Skin-Studio-Android/app/src/main/assets/skin_studio/licenses/tpk_ar-LICENSE.txt
+
+      - name: Validate bundled project sources
+        run: |
+          test -f SBA-Skin-Studio-Android/app/src/main/python/app.py
+          test -f SBA-Skin-Studio-Android/app/src/main/python/UnityPy/__init__.py
+          test -f SBA-Skin-Studio-Android/app/src/main/cpp/jni_texture_decoder.cpp
+          test -f SBA-Skin-Studio-Android/third_party/texture2ddecoder/src/Texture2DDecoder/astc.cpp
+
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+
+      - name: Build SBA Skin Studio debug APK
+        working-directory: SBA-Skin-Studio-Android
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8"
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Verify APK package
+        run: |
+          APK="SBA-Skin-Studio-Android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -n 5
+          mkdir -p dist
+          cp "$APK" dist/SBA-Skin-Studio-1.0.0-debug.apk
+
+      - name: Upload SBA Skin Studio APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SBA-Skin-Studio-APK
+          path: dist/SBA-Skin-Studio-1.0.0-debug.apk
+          if-no-files-found: error
+          retention-days: 30
