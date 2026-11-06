@@ -54,15 +54,25 @@ jobs:
           tail = [(taildir / f"part040{i}").read_text().strip() for i in range(6)]
 
           candidates = [
-              ("corrected tail chunks (trim stray character in part00)", [first[:-1], *common[1:], *tail]),
-              ("complete numbered archive chunks", legacy),
-              ("corrected tail chunks as stored", [*common, *tail]),
+              # part00 contains one extra trailing character. Removing it leaves
+              # a base64 stream one character short, so restore base64 padding
+              # at the very end (not in the middle of the stream).
+              ("trim part00 + original part04 + base64 padding",
+               [first[:-1], *common[1:], (b64dir / "part04").read_text().strip()], True),
+              ("complete numbered archive chunks",
+               legacy, False),
+              ("trim part00 + extended tail chunks",
+               [first[:-1], *common[1:], *tail], False),
+              ("extended tail chunks as stored",
+               [*common, *tail], False),
           ]
 
           errors = []
-          for label, pieces in candidates:
+          for label, pieces, pad_end in candidates:
               encoded = "".join(pieces)
               try:
+                  if pad_end:
+                      encoded += "=" * ((-len(encoded)) % 4)
                   compressed = base64.b64decode(encoded, validate=True)
                   archive_bytes = gzip.decompress(compressed)
                   with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:") as archive:
