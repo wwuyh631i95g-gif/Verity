@@ -67,44 +67,48 @@ jobs:
           taildir = Path("SBA-Skin-Studio-Android.project.tail")
           first = (b64dir / "part00").read_text().strip()
           common = [(b64dir / f"part{i:02d}").read_text().strip() for i in range(4)]
-          legacy = common + [(b64dir / "part04").read_text().strip()]
+          legacy_last = (b64dir / "part04").read_text().strip()
           tail = [(taildir / f"part040{i}").read_text().strip() for i in range(6)]
 
-          candidates = [
-              # part00 contains one extra trailing character. Removing it leaves
-              # a base64 stream one character short, so restore base64 padding
-              # at the very end (not in the middle of the stream).
-              ("trim part00 + original part04 + base64 padding",
-               [first[:-1], *common[1:], (b64dir / "part04").read_text().strip()], True),
-              ("complete numbered archive chunks",
-               legacy, False),
-              ("trim part00 + extended tail chunks",
-               [first[:-1], *common[1:], *tail], False),
-              ("extended tail chunks as stored",
-               [*common, *tail], False),
+          # The saved part00 is 8001 chars while the other normal chunks are
+          # 8000 chars. Test every possible one-character deletion from part00.
+          # Two versions of the last chunk exist in the repo; test both.
+          last_chunk_variants = [
+              ("original part04", legacy_last),
+              ("extended tail chunks", "".join(tail)),
           ]
 
-          errors = []
-          for label, pieces, pad_end in candidates:
-              encoded = "".join(pieces)
-              try:
-                  if pad_end:
-                      encoded += "=" * ((-len(encoded)) % 4)
-                  compressed = base64.b64decode(encoded, validate=True)
-                  archive_bytes = gzip.decompress(compressed)
-                  with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:") as archive:
-                      members = archive.getmembers()
-                      if not members:
-                          raise RuntimeError("tar archive is empty")
-                  Path("/tmp/sba-project.tar.gz").write_bytes(compressed)
-                  print(f"Validated archive using: {label}")
-                  print(f"Archive entries: {len(members)}; compressed bytes: {len(compressed)}")
+          failures = []
+          found = False
+          for last_label, last_chunk in last_chunk_variants:
+              middle = "".join(common[1:]) + last_chunk
+              for remove_at in range(len(first)):
+                  encoded = first[:remove_at] + first[remove_at + 1:] + middle
+                  encoded += "=" * ((-len(encoded)) % 4)
+                  try:
+                      compressed = base64.b64decode(encoded, validate=True)
+                      archive_bytes = gzip.decompress(compressed)
+                      with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:") as archive:
+                          members = archive.getmembers()
+                          if not members:
+                              raise RuntimeError("empty tar archive")
+                          names = [m.name for m in members]
+                          if not any("app/" in n or n.endswith("settings.gradle") or n.endswith("settings.gradle.kts") for n in names):
+                              raise RuntimeError("decompressed tar does not look like an Android project")
+                      Path("/tmp/sba-project.tar.gz").write_bytes(compressed)
+                      print(f"VALID ARCHIVE: last={last_label}; removed part00 char index={remove_at}")
+                      print(f"Archive entries: {len(members)}; compressed bytes: {len(compressed)}")
+                      found = True
+                      break
+                  except Exception as exc:
+                      if remove_at in (0, 1, 2, 3, 4, 8000):
+                          failures.append(f"{last_label}, remove {remove_at}: {type(exc).__name__}: {exc}")
+              if found:
                   break
-              except Exception as exc:
-                  errors.append(f"{label}: {type(exc).__name__}: {exc}")
-          else:
-              print("\n".join(errors))
-              raise SystemExit("Could not reconstruct a valid SBA Skin Studio source archive.")
+
+          if not found:
+              print("\n".join(failures))
+              raise SystemExit("No valid Android source archive found after scanning all 8001 possible extra-character positions in part00.")
 
           PY
           tar -xzf /tmp/sba-project.tar.gz -C .
