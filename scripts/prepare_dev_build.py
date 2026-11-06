@@ -83,9 +83,14 @@ else:
     raise SystemExit("developer tab icon: neither expected icon occurs exactly once")
 
 for old, new in patches:
-    if text.count(old) != 1:
-        raise SystemExit(f"MainActivity patch point count mismatch ({text.count(old)}): {old[:70]}")
-    text = text.replace(old, new, 1)
+    old_count = text.count(old)
+    new_count = text.count(new)
+    if old_count == 1:
+        text = text.replace(old, new, 1)
+    elif old_count == 0 and new_count == 1:
+        pass  # This patch is already present in the source archive.
+    else:
+        raise SystemExit(f"MainActivity patch point count mismatch (old={old_count}, new={new_count}): {old[:70]}")
 main.write_text(text, encoding="utf-8")
 
 # Apply the two compatibility fixes used by the working 5.0.1 build pipeline.
