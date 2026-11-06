@@ -51,7 +51,7 @@ jobs:
           first = (b64dir / "part00").read_text().strip()
           common = [(b64dir / f"part{i:02d}").read_text().strip() for i in range(4)]
           legacy = common + [(b64dir / "part04").read_text().strip()]
-          tail = [(taildir / f"part04{i}").read_text().strip() for i in range(6)]
+          tail = [(taildir / f"part040{i}").read_text().strip() for i in range(6)]
 
           candidates = [
               ("corrected tail chunks (trim stray character in part00)", [first[:-1], *common[1:], *tail]),
