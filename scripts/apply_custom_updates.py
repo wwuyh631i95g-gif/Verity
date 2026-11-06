@@ -40,7 +40,7 @@ s=s[:a]+'''    private fun setCharacterImage(fallback: Int, moodOverride: String
             when {
                 catalog != null -> target.setImageBitmap(catalog)
                 slot == 0 && avatar != null -> {
-                    val rounded=RoundedBitmapDrawableFactory.create(resources,avatar).apply { isCircular=true; isAntiAlias=true }
+                    val rounded=RoundedBitmapDrawableFactory.create(resources,avatar).apply { isCircular=true; setAntiAlias(true) }
                     target.setImageDrawable(rounded)
                 }
                 else -> {
