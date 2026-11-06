@@ -10,7 +10,7 @@ on:
       - ".github/workflows/build-sba-skin-studio.yml"
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 jobs:
@@ -138,3 +138,33 @@ jobs:
           path: dist/SBA-Skin-Studio-1.0.0-debug.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish APK release
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG_NAME="sba-skin-studio-build-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG_NAME" \
+            dist/SBA-Skin-Studio-1.0.0-debug.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "SBA Skin Studio APK build #${GITHUB_RUN_NUMBER}" \
+            --notes "Automatically built Android APK. Built from the dedicated SBA Skin Studio project archive in this repository."
+
+      - name: Record build result
+        if: always()
+        env:
+          BUILD_RESULT: ${{ job.status }}
+        run: |
+          {
+            echo "Result: $BUILD_RESULT"
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "Commit: $GITHUB_SHA"
+            echo "Updated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > SBA-Skin-Studio-BUILD-STATUS.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SBA-Skin-Studio-BUILD-STATUS.txt
+          git commit -m "Record SBA Skin Studio build result" || true
+          git push origin HEAD:main
+
