@@ -60,6 +60,8 @@ jobs:
           service.write_text(code, encoding="utf-8")
       - name: Apply Verity Widget V2
         run: python3 scripts/apply_widget_v2.py
+      - name: Apply Verity Life V6 systems
+        run: python3 scripts/apply_life_v6.py
       - name: Build debug APK
         working-directory: Verity-main
         run: |
