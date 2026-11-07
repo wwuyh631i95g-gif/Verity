@@ -5,11 +5,11 @@ import re
 import subprocess
 
 ROOT = Path("Verity-main")
-BUNDLE = Path("scripts/life_v6_bundle.b64")
-if not ROOT.is_dir() or not BUNDLE.is_file():
-    raise SystemExit("Life V6: project or patch bundle is missing")
-
-patch_bytes = gzip.decompress(base64.b64decode(BUNDLE.read_text(encoding="ascii").strip()))
+BUNDLE_PARTS = sorted(Path("scripts").glob("life_v6_bundle_*.txt"))
+if not ROOT.is_dir() or len(BUNDLE_PARTS) != 7:
+    raise SystemExit("Life V6: project or patch bundle parts are missing")
+bundle_text = "".join(p.read_text(encoding="ascii").strip() for p in BUNDLE_PARTS)
+patch_bytes = gzip.decompress(base64.b64decode(bundle_text))
 patch_file = Path("/tmp/verity-life-v6.patch")
 patch_file.write_bytes(patch_bytes)
 result = subprocess.run(["patch", "--batch", "-p1", "-i", str(patch_file)], text=True, capture_output=True)
