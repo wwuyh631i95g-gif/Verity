@@ -75,6 +75,12 @@ jobs:
 
       - name: Apply Verity Life V6 systems
         run: python3 scripts/apply_life_v6.py
+      - name: Apply Verity Life V7 integration and fixes
+        run: |
+          cat scripts/apply_life_v7.py.gz.b64.part0 scripts/apply_life_v7.py.gz.b64.part1 > /tmp/verity-life-v7.py.gz.b64
+          base64 -d /tmp/verity-life-v7.py.gz.b64 | gzip -dc > scripts/apply_life_v7.py
+          python3 -m py_compile scripts/apply_life_v7.py
+          python3 scripts/apply_life_v7.py
 
       - name: Build developer debug APK
         working-directory: Verity-main
