@@ -9,6 +9,7 @@ on:
       - "developer/DeveloperWorkbenchScreen.kt"
       - "scripts/prepare_dev_build.py"
       - "scripts/apply_custom_updates.py"
+      - "scripts/apply_widget_v2.py"
       - "Verity-5.0.1-Minecraft-2D-Build-Fix.zip"
 
 permissions:
@@ -63,6 +64,12 @@ jobs:
           unzip -q Verity-5.0.1-Minecraft-2D-Build-Fix.zip -d .
           python3 scripts/apply_custom_updates.py
           python3 scripts/prepare_dev_build.py
+
+      - name: Install image processing helpers
+        run: python3 -m pip install --user pillow numpy
+
+      - name: Apply Verity Widget V2
+        run: python3 scripts/apply_widget_v2.py
 
       - name: Build developer debug APK
         working-directory: Verity-main
