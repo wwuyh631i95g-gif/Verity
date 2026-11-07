@@ -10,6 +10,8 @@ on:
       - "scripts/prepare_dev_build.py"
       - "scripts/apply_custom_updates.py"
       - "scripts/apply_widget_v2.py"
+      - "scripts/apply_life_v6.py"
+      - "scripts/life_v6_bundle_*.txt"
       - "Verity-5.0.1-Minecraft-2D-Build-Fix.zip"
 
 permissions:
@@ -70,6 +72,9 @@ jobs:
 
       - name: Apply Verity Widget V2
         run: python3 scripts/apply_widget_v2.py
+
+      - name: Apply Verity Life V6 systems
+        run: python3 scripts/apply_life_v6.py
 
       - name: Build developer debug APK
         working-directory: Verity-main
