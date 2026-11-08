@@ -23,10 +23,13 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Android SDK 35
-        uses: android-actions/setup-android@v3
-      - name: Install SDK packages
-        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Install Android SDK packages
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT" -name sdkmanager -type f | sort | tail -n 1)"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
       - name: Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
         with:
