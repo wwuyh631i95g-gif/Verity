@@ -16,7 +16,7 @@ on:
       - "scripts/verity52_payload*.b64"
       - "scripts/apply_verity_53.py"
       - "scripts/apply_verity_54.py"
-      - "scripts/verity53/VerityOsUniverse.kt.gz.b64"
+      - "scripts/verity53/VerityOsUniverse.part*"
       - "scripts/verity53/**"
 
 permissions:
