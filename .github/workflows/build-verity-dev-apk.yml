@@ -86,7 +86,9 @@ jobs:
       - name: Apply Verity 5.2.0 unified Studio, voice weather and skin animation
         run: |
           cat scripts/verity52_payload.b64 scripts/verity52_payload.part1.b64 scripts/verity52_payload.part2.b64 scripts/verity52_payload.part3.b64 > /tmp/verity52_payload.b64
-          base64 -d /tmp/verity52_payload.b64 | tar -xz -C /tmp
+          printf '%s  %s\n' '510bd9cb1145b586462fc9ea7fbbf805687cf71ff16a0937d168e8f84d2bc3ef' '/tmp/verity52_payload.gz' | sha256sum -c -
+          base64 -d /tmp/verity52_payload.b64 > /tmp/verity52_payload.gz
+          tar -xz -f /tmp/verity52_payload.gz -C /tmp
           python3 -m py_compile /tmp/apply_verity_52.py
           python3 /tmp/apply_verity_52.py Verity-main
       - name: Build developer debug APK
