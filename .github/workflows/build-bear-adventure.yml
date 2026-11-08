@@ -1,0 +1,65 @@
+name: Build Mishka Honey Adventure APK
+
+on:
+  push:
+    branches: [ bear-adventure ]
+    paths:
+      - "Mishka-Honey-Adventure-Project.zip"
+      - ".github/workflows/build-bear-adventure.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout project branch
+        uses: actions/checkout@v4
+        with:
+          ref: bear-adventure
+
+      - name: Extract Android project
+        run: unzip -q Mishka-Honey-Adventure-Project.zip -d .
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK 35
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Build debug APK
+        working-directory: BearAdventure
+        run: gradle --no-daemon --stacktrace :app:assembleDebug
+
+      - name: Verify APK
+        run: |
+          APK="BearAdventure/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -n 8
+          mkdir -p dist
+          cp "$APK" dist/Mishka-Honey-Adventure-0.1.0-debug.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mishka-Honey-Adventure-APK
+          path: dist/Mishka-Honey-Adventure-0.1.0-debug.apk
+          if-no-files-found: error
+          retention-days: 30
