@@ -14,6 +14,8 @@ on:
       - "scripts/life_v6_bundle_*.txt"
       - "Verity-5.0.1-Minecraft-2D-Build-Fix.zip"
       - "scripts/verity52_payload*.b64"
+      - "scripts/apply_verity_53.py"
+      - "scripts/verity53/**"
 
 permissions:
   contents: write
@@ -91,6 +93,10 @@ jobs:
           tar -xz --no-overwrite-dir --no-same-owner --no-same-permissions -f /tmp/verity52_payload.gz -C /tmp
           python3 -m py_compile /tmp/apply_verity_52.py
           python3 /tmp/apply_verity_52.py Verity-main
+      - name: Apply Verity 5.3.0 virtual OS and animated Studio
+        run: |
+          python3 -m py_compile scripts/apply_verity_53.py
+          python3 scripts/apply_verity_53.py Verity-main
       - name: Build developer debug APK
         working-directory: Verity-main
         run: |
@@ -103,14 +109,14 @@ jobs:
       - name: Upload patched source snapshot
         uses: actions/upload-artifact@v4
         with:
-          name: Verity-5.2.0-prepared-source-Developer
+          name: Verity-5.3.0-prepared-source-Developer
           path: /tmp/Verity-prepared-source.zip
           if-no-files-found: error
           retention-days: 3
       - name: Upload Verity Developer APK
         uses: actions/upload-artifact@v4
         with:
-          name: Verity-5.2.0-Developer-APK
+          name: Verity-5.3.0-Developer-APK
           path: Verity-main/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
