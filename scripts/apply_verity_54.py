@@ -8,9 +8,10 @@ REPO = Path(__file__).resolve().parent.parent
 ROOT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("Verity-main")
 JAVA = ROOT / "app/src/main/java/dev/veriti/app"
 
-payload = REPO / "scripts/verity53/VerityOsUniverse.kt.gz.b64"
+parts = [REPO / f"scripts/verity53/VerityOsUniverse.part{i:02d}" for i in range(5)]
 try:
-    source = gzip.decompress(base64.b64decode(payload.read_text(encoding="ascii")))
+    encoded = "".join(part.read_text(encoding="ascii").strip() for part in parts)
+    source = gzip.decompress(base64.b64decode(encoded, validate=True))
 except Exception as exc:
     raise SystemExit(f"Unable to decode Verity Universe module: {exc}")
 (JAVA / "VerityOsUniverse.kt").write_bytes(source)
