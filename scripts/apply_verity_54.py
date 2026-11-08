@@ -4,7 +4,7 @@ import gzip
 import re
 import sys
 
-REPO = Path(__file__).resolve().parent
+REPO = Path(__file__).resolve().parent.parent
 ROOT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("Verity-main")
 JAVA = ROOT / "app/src/main/java/dev/veriti/app"
 
