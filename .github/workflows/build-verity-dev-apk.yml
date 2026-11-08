@@ -13,6 +13,7 @@ on:
       - "scripts/apply_life_v6.py"
       - "scripts/life_v6_bundle_*.txt"
       - "Verity-5.0.1-Minecraft-2D-Build-Fix.zip"
+      - "scripts/verity52_payload*.b64"
 
 permissions:
   contents: write
@@ -82,6 +83,14 @@ jobs:
           python3 -m py_compile scripts/apply_life_v7.py
           python3 scripts/apply_life_v7.py
 
+      - name: Apply Verity 5.2.0 unified Studio, voice weather and skin animation
+        run: |
+          cat scripts/verity52_payload.b64 scripts/verity52_payload.part1.b64 scripts/verity52_payload.part2.b64 scripts/verity52_payload.part3.b64 > /tmp/verity52_payload.b64
+          printf '%s  %s\n' '510bd9cb1145b586462fc9ea7fbbf805687cf71ff16a0937d168e8f84d2bc3ef' '/tmp/verity52_payload.gz' | sha256sum -c -
+          base64 -d /tmp/verity52_payload.b64 > /tmp/verity52_payload.gz
+          tar -xz -f /tmp/verity52_payload.gz -C /tmp
+          python3 -m py_compile /tmp/apply_verity_52.py
+          python3 /tmp/apply_verity_52.py Verity-main
       - name: Build developer debug APK
         working-directory: Verity-main
         run: |
@@ -94,14 +103,14 @@ jobs:
       - name: Upload patched source snapshot
         uses: actions/upload-artifact@v4
         with:
-          name: Verity-prepared-source-Developer
+          name: Verity-5.2.0-prepared-source-Developer
           path: /tmp/Verity-prepared-source.zip
           if-no-files-found: error
           retention-days: 3
       - name: Upload Verity Developer APK
         uses: actions/upload-artifact@v4
         with:
-          name: Verity-5.0.1-Developer-APK
+          name: Verity-5.2.0-Developer-APK
           path: Verity-main/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
