@@ -103,7 +103,7 @@ jobs:
         run: |
           python3 -m py_compile scripts/apply_verity_54.py
           python3 scripts/apply_verity_54.py Verity-main
-      - name: Build developer debug APK
+      - name: Apply Verity Phone OS 18.0\n        run: |\n          python3 -m py_compile scripts/apply_verity_55.py\n          python3 scripts/apply_verity_55.py Verity-main\n\n      - name: Build developer debug APK
         working-directory: Verity-main
         run: |
           chmod +x ./gradlew
@@ -115,14 +115,14 @@ jobs:
       - name: Upload patched source snapshot
         uses: actions/upload-artifact@v4
         with:
-          name: Verity-5.4.0-prepared-source-Developer
+          name: Verity-5.5.0-prepared-source-Developer
           path: /tmp/Verity-prepared-source.zip
           if-no-files-found: error
           retention-days: 3
       - name: Upload Verity Developer APK
         uses: actions/upload-artifact@v4
         with:
-          name: Verity-5.4.0-Developer-APK
+          name: Verity-5.5.0-Developer-APK
           path: Verity-main/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
