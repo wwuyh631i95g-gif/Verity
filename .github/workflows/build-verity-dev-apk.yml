@@ -16,6 +16,8 @@ on:
       - "scripts/verity52_payload*.b64"
       - "scripts/apply_verity_53.py"
       - "scripts/apply_verity_54.py"
+      - "scripts/apply_verity_55.py"
+      - "scripts/verity55/**"
       - "scripts/verity53/VerityOsUniverse.part*"
       - "scripts/verity53/**"
 
@@ -103,7 +105,12 @@ jobs:
         run: |
           python3 -m py_compile scripts/apply_verity_54.py
           python3 scripts/apply_verity_54.py Verity-main
-      - name: Apply Verity Phone OS 18.0\n        run: |\n          python3 -m py_compile scripts/apply_verity_55.py\n          python3 scripts/apply_verity_55.py Verity-main\n\n      - name: Build developer debug APK
+      - name: Apply Verity Phone OS 18.0
+        run: |
+          python3 -m py_compile scripts/apply_verity_55.py
+          python3 scripts/apply_verity_55.py Verity-main
+
+      - name: Build developer debug APK
         working-directory: Verity-main
         run: |
           chmod +x ./gradlew
