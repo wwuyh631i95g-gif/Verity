@@ -5,7 +5,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - ".github/workflows/build-phoneos18.yml"
+      - ".github/workflows/build-phoneos18-standalone.yml"
       - "scripts/make_phoneos_standalone.py"
       - "scripts/verity55/**"
 
