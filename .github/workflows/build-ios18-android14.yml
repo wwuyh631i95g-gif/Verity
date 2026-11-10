@@ -8,6 +8,7 @@ on:
       - ".github/workflows/build-ios18-android14.yml"
       - "scripts/make_ios18_android14.py"
       - "scripts/verity55/VerityPhoneExperience.kt"
+      - "scripts/ios18/**"
 
 permissions:
   contents: read
