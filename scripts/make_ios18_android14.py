@@ -153,6 +153,7 @@ class IOS18Activity : ComponentActivity() {
         android:allowBackup="false"
         android:hardwareAccelerated="true"
         android:label="iOS 18 Simulator"
+        android:icon="@drawable/ios18_icon"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
