@@ -48,6 +48,14 @@ jobs:
         working-directory: IOS18-Simulator
         run: ./gradlew --no-daemon --stacktrace assembleDebug
 
+      - name: Upload Android 14 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-18-Simulator-Android-14-APK
+          path: IOS18-Simulator/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Smoke test on Android 14 emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -76,10 +84,3 @@ jobs:
             fi
             echo "Android 14 launch smoke test passed"
 
-      - name: Upload Android 14 APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: iOS-18-Simulator-Android-14-APK
-          path: IOS18-Simulator/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
