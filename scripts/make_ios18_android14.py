@@ -113,6 +113,20 @@ dependencies {
 }
 """, encoding="utf-8")
 
+(RES / "ios18_icon.xml").write_text("""<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path android:fillColor="#253A73" android:pathData="M0,0h48v48h-48z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M16,4h16c2.2,0 4,1.8 4,4v32c0,2.2 -1.8,4 -4,4h-16c-2.2,0 -4,-1.8 -4,-4v-32c0,-2.2 1.8,-4 4,-4z" />
+    <path android:fillColor="#8DAEFF" android:pathData="M16,9h16v27h-16z" />
+    <path android:fillColor="#253A73" android:pathData="M20,6h8v1.5h-8z" />
+    <path android:fillColor="#253A73" android:pathData="M22,39h4v1.4h-4z" />
+</vector>
+""", encoding="utf-8")
+
 (JAVA / "IOS18Activity.kt").write_text("""package dev.ios18.simulator
 
 import android.os.Bundle
