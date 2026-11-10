@@ -5,7 +5,7 @@ ROOT = Path("IOS18-Simulator")
 APP = ROOT / "app"
 JAVA = APP / "src/main/java/dev/ios18/simulator"
 RES = APP / "src/main/res/drawable"
-SOURCE = Path("scripts/verity55/VerityPhoneExperience.kt")
+SOURCE = Path("scripts/ios18/IOS18Experience.kt")
 
 if not SOURCE.is_file():
     raise SystemExit("The iOS 18 interface source is missing")
@@ -14,21 +14,8 @@ JAVA.mkdir(parents=True, exist_ok=True)
 RES.mkdir(parents=True, exist_ok=True)
 
 ui = SOURCE.read_text(encoding="utf-8")
-ui = ui.replace("package dev.veriti.app", "package dev.ios18.simulator", 1)
-ui = ui.replace("fun VerityPhoneExperience()", "fun IOS18Experience()", 1)
-replacements = {
-    "локальная виртуальная система Verity": "локальная виртуальная система iOS 18",
-    "Phone OS": "iOS 18",
-    "https://verity.local": "https://ios18.local",
-    "Стартовая страница Verity": "Стартовая страница iOS 18",
-    "Verity Radio": "iOS Music",
-    "Verity Phone 18": "iOS 18",
-    "Виртуальное дополнение Verity": "Виртуальное дополнение iOS 18",
-    "Добро пожаловать в Verity": "Добро пожаловать в iOS 18",
-    "Verity Support": "iOS 18 Support",
-}
-for old, new in replacements.items():
-    ui = ui.replace(old, new)
+if "package dev.ios18.simulator" not in ui or "fun IOS18Experience()" not in ui:
+    raise SystemExit("iOS 18 source package or composable entry point is incorrect")
 (JAVA / "IOS18Experience.kt").write_text(ui, encoding="utf-8")
 
 (ROOT / "settings.gradle.kts").write_text("""pluginManagement {
