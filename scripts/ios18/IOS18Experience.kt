@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -216,6 +217,7 @@ fun IOS18Experience() {
 
     fun openApp(id: String) {
         if (id == "siri") { page = "siri"; return }
+        if (id == "appstore") { page = "appstore"; return }
         if (id == "appgallery") { page = "appgallery"; return }
         if (appsLocked && id in listOf("passwords", "wallet", "photos")) {
             pendingLockedApp = id
@@ -1220,7 +1222,7 @@ private fun safeMath(expression: String): String {
     return try {
         val parser = IOSMathParser(expression.replace("×", "*").replace("÷", "/"))
         val result = parser.parse()
-        if (!result.isFinite()) "Ошибка" else String.format(java.util.Locale.US, "%.8f", result).trimEnd('0').trimEnd('.')
+        if (!result.isFinite()) "Ошибка" else { val formatted = String.format(java.util.Locale.US, "%.8f", result); if (formatted.contains(".")) formatted.trimEnd('0').trimEnd('.') else formatted }
     } catch (_: Exception) { "Ошибка в выражении" }
 }
 
