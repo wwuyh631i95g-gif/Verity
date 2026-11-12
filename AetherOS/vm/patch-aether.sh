@@ -23,6 +23,8 @@ chmod 0755 \
 cp "$AETHER_DIR/HomeScreen.kt" "$PODROID_DIR/app/src/main/java/com/excp/podroid/ui/screens/home/HomeScreen.kt"
 cp "$AETHER_DIR/SetupScreen.kt" "$PODROID_DIR/app/src/main/java/com/excp/podroid/ui/screens/setup/SetupScreen.kt"
 cp "$AETHER_DIR/LanguageManager.kt" "$PODROID_DIR/app/src/main/java/com/excp/podroid/data/repository/LanguageManager.kt"
+mkdir -p "$PODROID_DIR/app/src/main/res/values-ru"
+cp "$AETHER_DIR/strings-ru.xml" "$PODROID_DIR/app/src/main/res/values-ru/strings.xml"
 
 python3 - "$PODROID_DIR" <<'PY'
 from pathlib import Path
