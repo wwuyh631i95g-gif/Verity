@@ -2,6 +2,7 @@ package com.aetheros.shell
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.ActivityManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
@@ -14,6 +15,7 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.os.StatFs
 import android.provider.MediaStore
 import android.provider.Settings
 import android.security.keystore.KeyGenParameterSpec
@@ -180,7 +182,7 @@ class MainActivity : Activity() {
     private fun label(text: String, size: Int, color: Int, bold: Boolean): TextView =
         TextView(this).apply {
             this.text = text
-            textSize = size.toFloat()
+            textSize = size.toFloat() * prefs.getFloat("font_scale", 1.0f)
             setTextColor(color)
             if (bold) typeface = Typeface.create("sans-serif", Typeface.BOLD)
             setPadding(dp(2), dp(3), dp(2), dp(3))
@@ -259,10 +261,14 @@ class MainActivity : Activity() {
     }
 
     private fun showHome() {
-        val body = beginPage("Aether OS", "A unified mobile experience • version 2.0.0", false)
+        val body = beginPage("Aether OS", "Fusion 3.0 • Android + iPhone-inspired mobile environment", false)
         val profile = prefs.getString("profile", "Guest") ?: "Guest"
         val date = SimpleDateFormat("EEE, d MMM  •  HH:mm", Locale.getDefault()).format(Date())
         addText(body, "Welcome back, " + profile + "  •  " + date + "  •  " + batteryText(), 12, true)
+        addGridRow(body, Triple("▦", "All apps", "Full app drawer"), Triple("⌘", "System hub", "Aether OS modules"),
+            { showAppDrawer() }, { showSystemHub() })
+        addGridRow(body, Triple("◉", "Quick panel", "System shortcuts"), Triple("▣", "Device center", "Battery, memory, storage"),
+            { showQuickPanel() }, { showDeviceCenter() })
         addButton(body, "✧   Aether Now — assistant, search and actions", { showAssistant() })
         addGridRow(body, Triple("🌐", "Browser", "Internet & Google"), Triple("▦", "Store", "Apps & web shortcuts"),
             { openApp("Browser") }, { openApp("Store") })
@@ -282,6 +288,12 @@ class MainActivity : Activity() {
             { showClock() }, { showRoutines() })
         addGridRow(body, Triple("◌", "Activity", "Aether notifications"), Triple("⌑", "Lock Screen", "Aether welcome screen"),
             { showNotifications() }, { showLock() })
+        addGridRow(body, Triple("⌕", "Calculator", "Built-in calculator"), Triple("▦", "Calendar & calls", "Host phone apps"),
+            { showCalculator() }, { showContactsAndComms() })
+        addGridRow(body, Triple("◈", "Focus & wellbeing", "Focus sessions"), Triple("◉", "Personalization", "Icons, type, themes"),
+            { showFocusCenter() }, { showPersonalization() })
+        addGridRow(body, Triple("⚙", "System settings", "Full settings hub"), Triple("▣", "Security", "Privacy & app access"),
+            { showSystemSettings() }, { showSecurityCenter() })
         addText(body, "Pinned web apps", 12, true)
         val apps = webApps()
         if (apps.length() == 0) addText(body, "Create your first mini-app in Studio.")
@@ -303,6 +315,16 @@ class MainActivity : Activity() {
             "Control" -> showControl()
             "Settings" -> showSettings()
             "Clock" -> showClock()
+            "App Drawer" -> showAppDrawer()
+            "System Hub" -> showSystemHub()
+            "Quick Panel" -> showQuickPanel()
+            "Device Center" -> showDeviceCenter()
+            "Calculator" -> showCalculator()
+            "Calendar" -> showCalendarHub()
+            "Contacts" -> showContactsAndComms()
+            "Focus" -> showFocusCenter()
+            "Personalization" -> showPersonalization()
+            "Security" -> showSecurityCenter()
             "Activity" -> showNotifications()
             else -> showHome()
         }
@@ -326,6 +348,16 @@ class MainActivity : Activity() {
             s.contains("store") || s.contains("app") -> showStore()
             s.contains("photo") || s.contains("gallery") -> showGallery()
             s.contains("assistant") || s.contains("siri") -> showAssistant()
+            s.contains("calculator") || s.contains("calculate") -> showCalculator()
+            s.contains("app drawer") || s == "apps" -> showAppDrawer()
+            s.contains("quick panel") || s.contains("control center") -> showQuickPanel()
+            s.contains("device") || s.contains("battery") || s.contains("storage") -> showDeviceCenter()
+            s.contains("calendar") || s.contains("event") -> showCalendarHub()
+            s.contains("contact") || s.contains("phone") || s.contains("call") -> showContactsAndComms()
+            s.contains("focus") || s.contains("wellbeing") -> showFocusCenter()
+            s.contains("theme") || s.contains("wallpaper") || s.contains("font") -> showPersonalization()
+            s.contains("security") || s.contains("privacy") -> showSecurityCenter()
+            s.contains("system settings") -> showSystemSettings()
             s.contains("vault") || s.contains("password") -> showVault()
             s.contains("calendar") || s.contains("task") || s.contains("planner") -> showPlanner()
             else -> openBrowser("https://www.google.com/search?q=" + Uri.encode(q))
@@ -1032,4 +1064,453 @@ class MainActivity : Activity() {
         editor.putStringSet("custom_routines", set)
         editor.apply()
     }
+
+    // ---------------------------------------------------------------------
+    // Fusion 3.0 system layer: launcher, device center, system hand-offs,
+    // built-in tools, personalization and communication shortcuts.
+    // These modules run inside Android and never pretend to control protected
+    // host settings that Android keeps under system authority.
+    // ---------------------------------------------------------------------
+
+    private fun showSystemHub() {
+        val body = beginPage("Aether System Hub", "The central control room of the Aether environment")
+        addText(body, "Aether brings its own home, app drawer, apps, workspace and personal data together. Android remains the host underneath.")
+        addGridRow(body, Triple("▦", "App drawer", "All installed apps"), Triple("◉", "Quick panel", "Settings shortcuts"),
+            { showAppDrawer() }, { showQuickPanel() })
+        addGridRow(body, Triple("▣", "Device center", "Hardware status"), Triple("◈", "Personalization", "Appearance and layout"),
+            { showDeviceCenter() }, { showPersonalization() })
+        addGridRow(body, Triple("⌕", "Search", "Apps, modules, web"), Triple("⚙", "Settings", "Android + Aether"),
+            { showSearchHub() }, { showSystemSettings() })
+        addGridRow(body, Triple("▤", "App manager", "Open, inspect, remove"), Triple("⌑", "Privacy", "Permission controls"),
+            { showAppManagement() }, { showSecurityCenter() })
+        addGridRow(body, Triple("◷", "Focus", "Focus sessions"), Triple("▦", "Digital wellbeing", "Aether activity"),
+            { showFocusCenter() }, { showDigitalWellbeing() })
+        addGridRow(body, Triple("✎", "Studio", "Create mini-apps"), Triple("▣", "Backup", "Export and restore"),
+            { showStudio() }, { showBackupCenter() })
+        addText(body, "Included design families: Android home/app drawer, widgets, quick settings, share sheet, default-app links, privacy controls, app details and multi-window hand-offs; iPhone-style glass, focus, spotlight-like search, app library, lock-screen styling and compact control panels.")
+    }
+
+    private fun showAppDrawer(filterText: String = "") {
+        val body = beginPage("All apps", "Aether App Library • searchable host apps + built-in modules")
+        val search = EditText(this).apply {
+            hint = "Search installed apps"; setSingleLine(true); setText(filterText)
+        }
+        body.addView(search, LinearLayout.LayoutParams(-1, -2))
+        addButton(body, "Search apps", { showAppDrawer(search.text.toString().trim()) })
+        addText(body, "Aether built-in apps", 13, true)
+        val builtins = listOf(
+            "Browser" to "🌐", "Store" to "▦", "Studio" to "✎", "Notes" to "▤",
+            "Files" to "🗂", "Vault" to "🔒", "Planner" to "▦", "Clock" to "◷",
+            "Calculator" to "⌕", "Calendar" to "▣", "Contacts" to "◉", "Focus" to "◈",
+            "Settings" to "⚙", "Photos" to "▧", "Camera" to "◉", "Activity" to "◌"
+        )
+        val q = filterText.lowercase(Locale.ROOT)
+        builtins.filter { it.first.lowercase(Locale.ROOT).contains(q) }.forEach { item ->
+            addButton(body, item.second + "   " + item.first, {
+                when (item.first) {
+                    "Browser", "Store", "Studio", "Notes", "Files", "Vault", "Planner", "Clock", "Settings", "Photos", "Camera", "Activity" -> openApp(item.first)
+                    "Calculator" -> showCalculator()
+                    "Calendar" -> showCalendarHub()
+                    "Contacts" -> showContactsAndComms()
+                    "Focus" -> showFocusCenter()
+                }
+            })
+        }
+        addText(body, "Installed Android apps", 13, true)
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        @Suppress("DEPRECATION")
+        val apps = packageManager.queryIntentActivities(intent, 0)
+            .filter { it.activityInfo.packageName != packageName }
+            .distinctBy { it.activityInfo.packageName }
+            .sortedBy { it.loadLabel(packageManager).toString().lowercase(Locale.ROOT) }
+        val favorites = (prefs.getStringSet("favorite_packages", emptySet()) ?: emptySet()).toMutableSet()
+        val shown = apps.filter {
+            it.loadLabel(packageManager).toString().lowercase(Locale.ROOT).contains(q) ||
+                it.activityInfo.packageName.lowercase(Locale.ROOT).contains(q)
+        }
+        if (shown.isEmpty()) addText(body, "No installed app matches this search.")
+        shown.forEach { info ->
+            val pkg = info.activityInfo.packageName
+            val title = info.loadLabel(packageManager).toString()
+            addButton(body, (if (favorites.contains(pkg)) "★  " else "☆  ") + title + "   ·   Open", {
+                launchHostApp(pkg)
+            })
+            addButton(body, "    " + (if (favorites.contains(pkg)) "Remove from favorites" else "Add to favorites") + "  ·  " + title, {
+                val next = (prefs.getStringSet("favorite_packages", emptySet()) ?: emptySet()).toMutableSet()
+                if (!next.add(pkg)) next.remove(pkg)
+                prefs.edit().putStringSet("favorite_packages", next).apply()
+                showAppDrawer(filterText)
+            })
+        }
+        addText(body, "Favorites are stored locally in Aether. Host apps open in Android, not inside a fake guest operating system.")
+        addButton(body, "Manage Android home-app defaults", { launchSystem("android.settings.HOME_SETTINGS") })
+    }
+
+    private fun showQuickPanel() {
+        val body = beginPage("Quick panel", "Aether Control Center • direct shortcuts to host controls")
+        addText(body, batteryText() + "   ·   " + SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()), 16, true)
+        addGridRow(body, Triple("◉", "Wi-Fi", "Open network controls"), Triple("ᛒ", "Bluetooth", "Connected devices"),
+            { launchSystem(Settings.ACTION_WIFI_SETTINGS) }, { launchSystem(Settings.ACTION_BLUETOOTH_SETTINGS) })
+        addGridRow(body, Triple("☼", "Brightness", "Display controls"), Triple("♫", "Sound", "Volume and audio"),
+            { launchSystem(Settings.ACTION_DISPLAY_SETTINGS) }, { launchSystem("android.settings.SOUND_SETTINGS") })
+        addGridRow(body, Triple("◈", "Battery", "Power saving"), Triple("⌑", "Privacy", "Permission dashboard"),
+            { launchSystem(Settings.ACTION_BATTERY_SAVER_SETTINGS) }, { launchSystem(Settings.ACTION_PRIVACY_SETTINGS) })
+        addGridRow(body, Triple("⌁", "Mobile network", "SIM and data"), Triple("◌", "Airplane mode", "Wireless settings"),
+            { launchSystem("android.settings.NETWORK_OPERATOR_SETTINGS") }, { launchSystem(Settings.ACTION_WIRELESS_SETTINGS) })
+        addGridRow(body, Triple("▣", "NFC", "Contactless settings"), Triple("◷", "Do not disturb", "Notification policy"),
+            { launchSystem("android.settings.NFC_SETTINGS") }, { launchSystem("android.settings.NOTIFICATION_POLICY_ACCESS_SETTINGS") })
+        addButton(body, "Open full Android Settings", { launchSystem(Settings.ACTION_SETTINGS) })
+        addButton(body, "Switch Aether theme", {
+            prefs.edit().putString("appearance", if (dark()) "light" else "dark").apply()
+            showQuickPanel()
+        })
+        addText(body, "Protected radios and system modes are changed only in Android's own settings. This avoids pretending that an ordinary launcher has privileged system access.")
+    }
+
+    private fun showDeviceCenter() {
+        val body = beginPage("Device center", "Live information from the Honor phone")
+        val memory = ActivityManager.MemoryInfo()
+        (getSystemService(ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(memory)
+        val stat = StatFs(filesDir.absolutePath)
+        val totalStorage = stat.totalBytes / (1024L * 1024L * 1024L)
+        val freeStorage = stat.availableBytes / (1024L * 1024L * 1024L)
+        val metrics = resources.displayMetrics
+        addText(body, Build.MANUFACTURER + " " + Build.MODEL, 22, true)
+        addText(body, "Android " + Build.VERSION.RELEASE + "  ·  API " + Build.VERSION.SDK_INT)
+        addText(body, "Build: " + Build.DISPLAY)
+        addText(body, batteryText(), 18, true)
+        addText(body, "RAM: " + (memory.totalMem / (1024L * 1024L)) + " MB total · " +
+            (memory.availMem / (1024L * 1024L)) + " MB available")
+        addText(body, "Aether private storage volume: " + totalStorage + " GB total · " + freeStorage + " GB free")
+        addText(body, "Display: " + metrics.widthPixels + " × " + metrics.heightPixels +
+            " px · density " + String.format(Locale.ROOT, "%.2f", metrics.density))
+        addButton(body, "Battery usage and health", { launchSystem(Settings.ACTION_BATTERY_SAVER_SETTINGS) })
+        addButton(body, "Storage manager", { launchSystem("android.settings.INTERNAL_STORAGE_SETTINGS") })
+        addButton(body, "Installed apps", { showAppManagement() })
+        addButton(body, "System information", { launchSystem(Settings.ACTION_DEVICE_INFO_SETTINGS) })
+        addButton(body, "Open Android Settings", { launchSystem(Settings.ACTION_SETTINGS) })
+    }
+
+    private fun showPersonalization() {
+        val body = beginPage("Personalization", "Your Aether home, typography and visual style")
+        addText(body, "Interface scale: " + (prefs.getFloat("font_scale", 1f) * 100).toInt() + "%", 14, true)
+        addButton(body, "Smaller text · 90%", { prefs.edit().putFloat("font_scale", 0.9f).apply(); showPersonalization() })
+        addButton(body, "Default text · 100%", { prefs.edit().putFloat("font_scale", 1f).apply(); showPersonalization() })
+        addButton(body, "Larger text · 110%", { prefs.edit().putFloat("font_scale", 1.1f).apply(); showPersonalization() })
+        addButton(body, "Extra large text · 120%", { prefs.edit().putFloat("font_scale", 1.2f).apply(); showPersonalization() })
+        addText(body, "Themes and wallpapers", 13, true)
+        addButton(body, "Open Theme Studio", { showThemeStudio() })
+        addButton(body, "Aurora wallpaper", { prefs.edit().putString("wallpaper", "aurora").apply(); showPersonalization() })
+        addButton(body, "Ocean wallpaper", { prefs.edit().putString("wallpaper", "ocean").apply(); showPersonalization() })
+        addButton(body, "Sunrise wallpaper", { prefs.edit().putString("wallpaper", "sunrise").apply(); showPersonalization() })
+        addButton(body, "Graphite wallpaper", { prefs.edit().putString("wallpaper", "graphite").apply(); showPersonalization() })
+        addButton(body, "Toggle reduced motion", {
+            prefs.edit().putBoolean("reduce_motion", !prefs.getBoolean("reduce_motion", false)).apply()
+            showPersonalization()
+        })
+        addButton(body, "Choose profile name", { editProfile() })
+        addButton(body, "Customize home and choose default launcher", { launchSystem("android.settings.HOME_SETTINGS") })
+        addButton(body, "Change Android wallpaper", { launchSystem("android.intent.action.SET_WALLPAPER") })
+        addButton(body, "Display size and system font", { launchSystem(Settings.ACTION_DISPLAY_SETTINGS) })
+    }
+
+    private fun showSystemSettings() {
+        val body = beginPage("System settings", "Aether settings + Android's complete settings app")
+        addText(body, "Aether manages its own data and appearance. Phone-wide permissions, radios, default apps and accessibility remain under Android.")
+        addGridRow(body, Triple("◉", "Network", "Wi-Fi, SIM, VPN"), Triple("ᛒ", "Bluetooth", "Pair devices"),
+            { launchSystem(Settings.ACTION_WIFI_SETTINGS) }, { launchSystem(Settings.ACTION_BLUETOOTH_SETTINGS) })
+        addGridRow(body, Triple("☼", "Display", "Brightness and size"), Triple("♫", "Sound", "Volume and vibration"),
+            { launchSystem(Settings.ACTION_DISPLAY_SETTINGS) }, { launchSystem("android.settings.SOUND_SETTINGS") })
+        addGridRow(body, Triple("⌑", "Privacy", "Permissions"), Triple("▣", "Security", "Lock and credentials"),
+            { launchSystem(Settings.ACTION_PRIVACY_SETTINGS) }, { launchSystem(Settings.ACTION_SECURITY_SETTINGS) })
+        addGridRow(body, Triple("▦", "Apps", "Installed and defaults"), Triple("◷", "Notifications", "App alert controls"),
+            { showAppManagement() }, { launchSystem("android.settings.APP_NOTIFICATION_SETTINGS") })
+        addGridRow(body, Triple("♿", "Accessibility", "System services"), Triple("⌨", "Language & input", "Keyboard and locale"),
+            { launchSystem(Settings.ACTION_ACCESSIBILITY_SETTINGS) }, { launchSystem(Settings.ACTION_INPUT_METHOD_SETTINGS) })
+        addGridRow(body, Triple("◷", "Date & time", "Clock and timezone"), Triple("▤", "Storage", "Space and cleanup"),
+            { launchSystem(Settings.ACTION_DATE_SETTINGS) }, { launchSystem("android.settings.INTERNAL_STORAGE_SETTINGS") })
+        addButton(body, "Battery optimization", { launchSystem("android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS") })
+        addButton(body, "Default apps", { launchSystem("android.settings.MANAGE_DEFAULT_APPS_SETTINGS") })
+        addButton(body, "Developer options", { launchSystem(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS) })
+        addButton(body, "Print services", { launchSystem("android.settings.ACTION_PRINT_SETTINGS") })
+        addButton(body, "All Android Settings", { launchSystem(Settings.ACTION_SETTINGS) })
+        addButton(body, "Aether-only settings", { showSettings() })
+    }
+
+    private fun showCalculator() {
+        val body = beginPage("Calculator", "Aether Calculator • offline arithmetic")
+        val expression = EditText(this).apply {
+            hint = "Example: (12 + 8) × 3"; textSize = 22f; setSingleLine(true)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        }
+        val result = label("Result appears here", 20, primaryText(), true)
+        body.addView(expression, LinearLayout.LayoutParams(-1, dp(58)))
+        body.addView(result)
+        addButton(body, "Calculate", {
+            try {
+                val value = ExpressionParser(expression.text.toString()).parse()
+                if (!value.isFinite()) throw IllegalArgumentException("Invalid result")
+                result.text = "= " + String.format(Locale.getDefault(), "%.10f", value).trimEnd('0').trimEnd('.')
+                logEvent("Used calculator")
+            } catch (_: Exception) { result.text = "Check the expression and try again." }
+        })
+        addButton(body, "Copy result", {
+            val clip = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+            clip.setPrimaryClip(ClipData.newPlainText("Aether calculation", result.text.toString().removePrefix("= ")))
+            toast("Copied")
+        })
+        addText(body, "Supports +, −, ×, ÷, parentheses, decimals and powers (^). Calculations stay on the phone.")
+    }
+
+    private inner class ExpressionParser(private val source: String) {
+        private var pos = 0
+        fun parse(): Double {
+            val value = expression()
+            skip()
+            if (pos != source.length) throw IllegalArgumentException("Unexpected character")
+            return value
+        }
+        private fun skip() { while (pos < source.length && source[pos].isWhitespace()) pos++ }
+        private fun take(ch: Char): Boolean {
+            skip()
+            if (pos < source.length && source[pos] == ch) { pos++; return true }
+            return false
+        }
+        private fun expression(): Double {
+            var value = term()
+            while (true) {
+                if (take('+')) value += term()
+                else if (take('-')) value -= term()
+                else return value
+            }
+        }
+        private fun term(): Double {
+            var value = power()
+            while (true) {
+                if (take('*') || take('×')) value *= power()
+                else if (take('/') || take('÷')) {
+                    val divisor = power()
+                    if (divisor == 0.0) throw ArithmeticException("Division by zero")
+                    value /= divisor
+                } else return value
+            }
+        }
+        private fun power(): Double {
+            var value = atom()
+            if (take('^')) value = Math.pow(value, power())
+            return value
+        }
+        private fun atom(): Double {
+            if (take('+')) return atom()
+            if (take('-')) return -atom()
+            if (take('(')) {
+                val value = expression()
+                if (!take(')')) throw IllegalArgumentException("Missing )")
+                return value
+            }
+            skip()
+            val start = pos
+            var dots = 0
+            while (pos < source.length && (source[pos].isDigit() || source[pos] == '.')) {
+                if (source[pos] == '.') dots++
+                if (dots > 1) throw IllegalArgumentException("Invalid number")
+                pos++
+            }
+            if (start == pos) throw IllegalArgumentException("Number expected")
+            return source.substring(start, pos).toDouble()
+        }
+    }
+
+    private fun showCalendarHub() {
+        val body = beginPage("Calendar & alarms", "Aether planner plus Android calendar hand-offs")
+        addText(body, SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()).format(Date()), 22, true)
+        addButton(body, "Open Aether Planner", { showPlanner() })
+        addButton(body, "Create event in phone calendar", {
+            try {
+                val intent = Intent(Intent.ACTION_INSERT).setDataAndType(Uri.parse("content://com.android.calendar/events"), "vnd.android.cursor.item/event")
+                startActivity(intent)
+            } catch (_: Exception) { toast("No calendar app is available") }
+        })
+        addButton(body, "Open calendar app", {
+            try { startActivity(Intent(Intent.ACTION_MAIN).addCategory("android.intent.category.APP_CALENDAR")) }
+            catch (_: Exception) { toast("No calendar app found") }
+        })
+        addButton(body, "Set an alarm", {
+            try { startActivity(Intent("android.intent.action.SET_ALARM")) }
+            catch (_: Exception) { toast("No clock app found") }
+        })
+        addButton(body, "Open clock and stopwatch", { showClock() })
+        addText(body, "Phone calendar events and alarms are created by the system apps you confirm. Aether does not read your calendar or set hidden background alarms.")
+    }
+
+    private fun showContactsAndComms() {
+        val body = beginPage("Phone & communication", "Use the installed apps you already trust")
+        addButton(body, "Open phone dialer", {
+            try { startActivity(Intent(Intent.ACTION_DIAL)) } catch (_: Exception) { toast("Dialer unavailable") }
+        })
+        addButton(body, "Open contacts", {
+            try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("content://com.android.contacts/contacts"))) }
+            catch (_: Exception) { toast("Contacts unavailable") }
+        })
+        addButton(body, "Create a contact", {
+            try { startActivity(Intent(Intent.ACTION_INSERT, Uri.parse("content://com.android.contacts/contacts"))) }
+            catch (_: Exception) { toast("Contacts app unavailable") }
+        })
+        addButton(body, "Write an SMS", {
+            try { startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:"))) }
+            catch (_: Exception) { toast("Messaging app unavailable") }
+        })
+        addButton(body, "Write an email", {
+            try { startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:"))) }
+            catch (_: Exception) { toast("Email app unavailable") }
+        })
+        addButton(body, "Share text or a link", {
+            val input = EditText(this).apply { hint = "Text or link to share"; minLines = 2 }
+            AlertDialog.Builder(this).setTitle("Share").setView(input)
+                .setPositiveButton("Continue") { _, _ ->
+                    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, input.text.toString())
+                    startActivity(Intent.createChooser(send, "Share with"))
+                }.setNegativeButton("Cancel", null).show()
+        })
+        addText(body, "Calls, contacts, SMS and email remain in the phone's own apps. Aether does not request access to your private communications.")
+    }
+
+    private fun showFocusCenter() {
+        val body = beginPage("Focus mode", "Focus sessions and quiet-mode shortcuts")
+        addText(body, "Create a local focus timer. It stays active while Aether remains alive; Android may pause the app in the background.")
+        val minutes = EditText(this).apply {
+            hint = "Duration in minutes"; setSingleLine(true); inputType = InputType.TYPE_CLASS_NUMBER
+        }
+        val status = label("No focus session running", 16, primaryText(), true)
+        body.addView(minutes)
+        body.addView(status)
+        addButton(body, "Start focus session", {
+            val value = minutes.text.toString().toLongOrNull()
+            if (value == null || value !in 1..240) toast("Enter 1 to 240 minutes")
+            else {
+                runningTimer?.cancel()
+                runningTimer = object : CountDownTimer(value * 60000L, 1000L) {
+                    override fun onTick(left: Long) {
+                        status.text = "Focus time left: " + (left / 60000) + "m " + ((left / 1000) % 60) + "s"
+                    }
+                    override fun onFinish() {
+                        status.text = "Focus session complete"
+                        logEvent("Focus session completed")
+                        toast("Focus session complete")
+                    }
+                }.start()
+                prefs.edit().putBoolean("reduce_motion", true).apply()
+                logEvent("Focus session started")
+            }
+        })
+        addButton(body, "Cancel focus session", { runningTimer?.cancel(); status.text = "Focus session cancelled" })
+        addButton(body, "Open Android Do Not Disturb settings", {
+            launchSystem("android.settings.NOTIFICATION_POLICY_ACCESS_SETTINGS")
+        })
+        addButton(body, "Open Android notification controls", { launchSystem("android.settings.APP_NOTIFICATION_SETTINGS") })
+        addText(body, "Aether cannot silently enable system Do Not Disturb. Use Android's own screen to configure it.")
+    }
+
+    private fun showDigitalWellbeing() {
+        val body = beginPage("Digital wellbeing", "Aether activity and focus, not a system-wide usage tracker")
+        val events = try { JSONArray(prefs.getString("activity_log", "[]")) } catch (_: Exception) { JSONArray() }
+        val focusCount = (0 until events.length()).count { events.optJSONObject(it)?.optString("text", "")?.contains("Focus", true) == true }
+        addText(body, "Recorded Aether actions: " + events.length(), 22, true)
+        addText(body, "Focus-related events: " + focusCount)
+        addButton(body, "Start a focus session", { showFocusCenter() })
+        addButton(body, "Review Aether activity", { showNotifications() })
+        addButton(body, "Open Android Digital Wellbeing", { launchSystem("android.settings.DIGITAL_WELLBEING_SETTINGS") })
+        addButton(body, "Open battery usage", { launchSystem(Settings.ACTION_BATTERY_SAVER_SETTINGS) })
+        addText(body, "Android controls system app-usage data. Aether intentionally does not request Usage Access.")
+    }
+
+    private fun showAppManagement() {
+        val body = beginPage("App manager", "Inspect or open apps installed in Android")
+        addText(body, "Choose an app to open it, view its Android details, or ask Android to uninstall it.")
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        @Suppress("DEPRECATION")
+        val apps = packageManager.queryIntentActivities(intent, 0)
+            .filter { it.activityInfo.packageName != packageName }
+            .distinctBy { it.activityInfo.packageName }
+            .sortedBy { it.loadLabel(packageManager).toString().lowercase(Locale.ROOT) }
+        apps.forEach { info ->
+            val pkg = info.activityInfo.packageName
+            val title = info.loadLabel(packageManager).toString()
+            addButton(body, "▣   " + title + "  ·  Open", { launchHostApp(pkg) })
+            addButton(body, "    App details", {
+                try { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + pkg))) }
+                catch (_: Exception) { toast("App details unavailable") }
+            })
+            addButton(body, "    Uninstall request", {
+                try { startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:" + pkg))) }
+                catch (_: Exception) { toast("Uninstall screen unavailable") }
+            })
+        }
+        addButton(body, "Android default apps", { launchSystem("android.settings.MANAGE_DEFAULT_APPS_SETTINGS") })
+    }
+
+    private fun showSecurityCenter() {
+        val body = beginPage("Security & privacy", "Aether's privacy center with Android system controls")
+        addText(body, "Aether requests internet access for its browser. Other protected phone data is opened through Android's system pickers or external apps.")
+        addButton(body, "Encrypted Aether Vault", { showVault() })
+        addButton(body, "Review Aether permissions", {
+            try { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + packageName))) }
+            catch (_: Exception) { toast("App settings unavailable") }
+        })
+        addButton(body, "Android privacy dashboard", { launchSystem(Settings.ACTION_PRIVACY_SETTINGS) })
+        addButton(body, "Android permission manager", { launchSystem("android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION") })
+        addButton(body, "Lock screen and device security", { launchSystem(Settings.ACTION_SECURITY_SETTINGS) })
+        addButton(body, "Backup and restore Aether data", { showBackupCenter() })
+        addText(body, "Aether does not intercept notifications, read messages, watch other apps, collect location, or draw over the phone.")
+    }
+
+    private fun showBackupCenter() {
+        val body = beginPage("Backup center", "Portable Aether settings and personal data")
+        addText(body, "Export a JSON backup to a location you choose. The encrypted Vault is excluded because its key is held by this device's Android Keystore.")
+        addButton(body, "Export backup", { exportBackup() })
+        addButton(body, "Import backup", { importBackup() })
+        addButton(body, "Open private files", { showFiles() })
+        addButton(body, "Open notes", { showNotes() })
+        addButton(body, "Open mini-app manager", { showMiniAppManager() })
+    }
+
+    private fun showMiniAppManager() {
+        val body = beginPage("Mini-app manager", "Your personal Aether Store library")
+        val apps = webApps()
+        addButton(body, "Create a mini-app", { showStudio() })
+        if (apps.length() == 0) addText(body, "No saved mini-apps yet.")
+        for (i in 0 until apps.length()) {
+            val item = apps.optJSONObject(i) ?: continue
+            val name = item.optString("name", "Mini-app")
+            addButton(body, item.optString("icon", "◈") + "   " + name + "  ·  Open", { launchWebApp(item) })
+            addButton(body, "    Delete " + name, {
+                val next = JSONArray()
+                for (j in 0 until apps.length()) if (j != i) next.put(apps.optJSONObject(j))
+                prefs.edit().putString("web_apps", next.toString()).apply()
+                logEvent("Deleted mini-app: " + name)
+                showMiniAppManager()
+            })
+        }
+        addText(body, "Saved HTML mini-apps can work offline. Website shortcuts need internet access.")
+    }
+
+    private fun showSearchHub() {
+        val body = beginPage("Aether Search", "Spotlight-style search across Aether and the web")
+        val query = EditText(this).apply { hint = "Search apps, settings, notes or the web"; setSingleLine(true) }
+        body.addView(query)
+        addButton(body, "Search Aether", { runSearch(query.text.toString()) })
+        addButton(body, "Find installed apps", { showAppDrawer(query.text.toString()) })
+        addButton(body, "Search the web", { openBrowser("https://www.google.com/search?q=" + Uri.encode(query.text.toString())) })
+        addText(body, "Search understands common commands such as calculator, apps, notes, files, photos, settings, calendar, contacts, focus, battery and web search.")
+    }
+
+    private fun showLocaleInputSettings() {
+        val body = beginPage("Language & input", "System keyboard, language and voice-input options")
+        addButton(body, "System language and region", { launchSystem(Settings.ACTION_LOCALE_SETTINGS) })
+        addButton(body, "On-screen keyboard settings", { launchSystem(Settings.ACTION_INPUT_METHOD_SETTINGS) })
+        addButton(body, "Text-to-speech output", { launchSystem("android.settings.TTS_SETTINGS") })
+        addButton(body, "Accessibility settings", { launchSystem(Settings.ACTION_ACCESSIBILITY_SETTINGS) })
+        addText(body, "Language and keyboard changes affect Android and all host apps, not just Aether.")
+    }
+
 }
