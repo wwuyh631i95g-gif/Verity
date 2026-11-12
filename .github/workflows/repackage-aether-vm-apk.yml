@@ -1,4 +1,4 @@
-name: Repackage Aether OS VM APK
+name: Publish Aether OS VM 4.0.0 APK
 
 on:
   push:
@@ -9,24 +9,24 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
 
 jobs:
-  repackage:
-    name: Extract the already-built ARM64 APK
+  publish:
+    name: Extract APK and publish GitHub Release
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
-      - name: Download the successful VM build artifact
+      - name: Download successful Aether OS VM 4.0.0 build
         uses: actions/download-artifact@v4
         with:
           name: Aether-OS-VM-Edition-4.0.0
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
-          run-id: 43245615565
+          run-id: 43278901247
           path: /tmp/aether-vm-artifact
 
-      - name: Extract and verify only the APK
+      - name: Extract and verify APK
         shell: bash
         run: |
           set -euo pipefail
@@ -40,13 +40,17 @@ jobs:
           file release/Aether-OS-VM-4.0.0-ARM64.apk
           ls -lh release/
 
-      - name: Upload APK-only artifact
-        uses: actions/upload-artifact@v4
+      - name: Publish APK as a downloadable Release asset
+        uses: softprops/action-gh-release@v2
         with:
-          name: Aether-OS-VM-4.0.0-ARM64-APK-only
-          path: |
+          tag_name: aether-os-vm-4.0.0
+          name: Aether OS VM 4.0.0
+          body: |
+            Aether OS VM 4.0.0 for Android ARM64.
+
+            Download the APK asset below. SHA256 checksum is included.
+          files: |
             release/Aether-OS-VM-4.0.0-ARM64.apk
             release/SHA256SUMS.txt
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 14
+          fail_on_unmatched_files: true
+          make_latest: true
