@@ -10,6 +10,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -502,13 +503,142 @@ class MainActivity : Activity() {
                 }
             } catch (_: Exception) { }
         }
-        return TextView(this).apply {
-            text = tile.icon
-            textSize = if (size >= 40) 21f else 18f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
+        return TileGlyphView(this, tile).apply {
             background = iconBackground(tile, tile.side)
             contentDescription = tile.title
+        }
+    }
+
+    private inner class TileGlyphView(context: Context, private val tile: AppTile) : View(context) {
+        private val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            val w = width.toFloat()
+            val h = height.toFloat()
+            val size = minOf(w, h) * 0.54f
+            val cx = w / 2f
+            val cy = h / 2f
+            p.color = Color.WHITE
+            p.strokeWidth = size * 0.095f
+            p.strokeCap = Paint.Cap.ROUND
+            p.strokeJoin = Paint.Join.ROUND
+            p.style = Paint.Style.STROKE
+            when (tile.id) {
+                "phone" -> {
+                    val path = Path().apply {
+                        moveTo(cx - size * .30f, cy - size * .34f)
+                        cubicTo(cx - size * .42f, cy - size * .12f, cx + size * .12f, cy + size * .42f, cx + size * .34f, cy + size * .25f)
+                        lineTo(cx + size * .18f, cy + size * .04f)
+                        lineTo(cx + size * .02f, cy + size * .13f)
+                        cubicTo(cx - size * .09f, cy + size * .08f, cx - size * .18f, cy - size * .02f, cx - size * .20f, cy - size * .15f)
+                        lineTo(cx - size * .10f, cy - size * .28f)
+                        close()
+                    }
+                    p.style = Paint.Style.FILL
+                    canvas.drawPath(path, p)
+                }
+                "messages" -> {
+                    val box = RectF(cx - size * .38f, cy - size * .28f, cx + size * .38f, cy + size * .25f)
+                    canvas.drawRoundRect(box, size * .16f, size * .16f, p)
+                    val tail = Path().apply {
+                        moveTo(cx - size * .18f, cy + size * .22f)
+                        lineTo(cx - size * .30f, cy + size * .42f)
+                        lineTo(cx + size * .02f, cy + size * .24f)
+                    }
+                    canvas.drawPath(tail, p)
+                }
+                "photos" -> {
+                    val colors = intArrayOf(
+                        Color.rgb(255, 83, 98), Color.rgb(255, 174, 55),
+                        Color.rgb(255, 220, 72), Color.rgb(73, 204, 126),
+                        Color.rgb(60, 160, 255), Color.rgb(164, 100, 255)
+                    )
+                    p.style = Paint.Style.FILL
+                    for (i in 0..5) {
+                        val a = Math.PI * 2.0 * i / 6.0
+                        p.color = colors[i]
+                        canvas.drawCircle(cx + kotlin.math.cos(a).toFloat() * size * .20f,
+                            cy + kotlin.math.sin(a).toFloat() * size * .20f, size * .15f, p)
+                    }
+                    p.color = Color.WHITE
+                    canvas.drawCircle(cx, cy, size * .09f, p)
+                }
+                "safari" -> {
+                    canvas.drawCircle(cx, cy, size * .40f, p)
+                    val needle = Path().apply {
+                        moveTo(cx, cy - size * .31f)
+                        lineTo(cx + size * .11f, cy + size * .10f)
+                        lineTo(cx - size * .06f, cy + size * .02f)
+                        close()
+                    }
+                    p.style = Paint.Style.FILL
+                    p.color = Color.rgb(255, 92, 100)
+                    canvas.drawPath(needle, p)
+                    p.color = Color.WHITE
+                    canvas.drawLine(cx, cy, cx + size * .10f, cy + size * .32f, p)
+                }
+                "appstore" -> {
+                    val a = Path().apply {
+                        moveTo(cx - size * .27f, cy + size * .28f)
+                        lineTo(cx + size * .12f, cy - size * .34f)
+                        moveTo(cx - size * .04f, cy - size * .34f)
+                        lineTo(cx + size * .34f, cy + size * .28f)
+                        moveTo(cx - size * .20f, cy + size * .10f)
+                        lineTo(cx + size * .22f, cy + size * .10f)
+                    }
+                    canvas.drawPath(a, p)
+                }
+                "iosmaps", "maps" -> {
+                    val pin = Path().apply {
+                        moveTo(cx, cy + size * .40f)
+                        cubicTo(cx - size * .12f, cy + size * .16f, cx - size * .36f, cy - size * .02f, cx - size * .30f, cy - size * .22f)
+                        cubicTo(cx - size * .24f, cy - size * .48f, cx + size * .24f, cy - size * .48f, cx + size * .30f, cy - size * .22f)
+                        cubicTo(cx + size * .36f, cy - size * .02f, cx + size * .12f, cy + size * .16f, cx, cy + size * .40f)
+                    }
+                    canvas.drawPath(pin, p)
+                    p.style = Paint.Style.FILL
+                    canvas.drawCircle(cx, cy - size * .20f, size * .09f, p)
+                }
+                "music" -> {
+                    p.strokeWidth = size * .11f
+                    canvas.drawLine(cx + size * .18f, cy - size * .30f, cx + size * .18f, cy + size * .18f, p)
+                    canvas.drawLine(cx + size * .18f, cy - size * .30f, cx + size * .39f, cy - size * .23f, p)
+                    p.style = Paint.Style.FILL
+                    canvas.drawCircle(cx - size * .02f, cy + size * .22f, size * .15f, p)
+                    canvas.drawCircle(cx + size * .30f, cy + size * .15f, size * .15f, p)
+                }
+                "notes" -> {
+                    val paper = RectF(cx - size * .30f, cy - size * .40f, cx + size * .30f, cy + size * .40f)
+                    canvas.drawRoundRect(paper, size * .06f, size * .06f, p)
+                    for (i in -1..1) canvas.drawLine(cx - size * .18f, cy + i * size * .15f,
+                        cx + size * .18f, cy + i * size * .15f, p)
+                }
+                "camera" -> {
+                    val body = RectF(cx - size * .38f, cy - size * .25f, cx + size * .38f, cy + size * .28f)
+                    canvas.drawRoundRect(body, size * .10f, size * .10f, p)
+                    canvas.drawCircle(cx, cy, size * .16f, p)
+                    canvas.drawCircle(cx + size * .25f, cy - size * .15f, size * .035f, p)
+                }
+                "files" -> {
+                    val folder = Path().apply {
+                        moveTo(cx - size * .38f, cy - size * .24f)
+                        lineTo(cx - size * .08f, cy - size * .24f)
+                        lineTo(cx + size * .02f, cy - size * .12f)
+                        lineTo(cx + size * .38f, cy - size * .12f)
+                        lineTo(cx + size * .31f, cy + size * .30f)
+                        lineTo(cx - size * .33f, cy + size * .30f)
+                        close()
+                    }
+                    canvas.drawPath(folder, p)
+                }
+                else -> {
+                    p.style = Paint.Style.FILL
+                    p.textAlign = Paint.Align.CENTER
+                    p.typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    p.textSize = size * .78f
+                    canvas.drawText(tile.icon.take(2), cx, cy + size * .28f, p)
+                }
+            }
         }
     }
 
