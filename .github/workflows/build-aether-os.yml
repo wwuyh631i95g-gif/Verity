@@ -14,7 +14,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,10 +43,38 @@ jobs:
         working-directory: AetherOS
         run: ./gradlew --no-daemon --stacktrace assembleDebug
 
+      - name: Android 14 emulator launch smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: Pixel 6
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim
+          script: |
+            APK="AetherOS/app/build/outputs/apk/debug/app-debug.apk"
+            test -s "$APK"
+            adb install -r "$APK"
+            adb logcat -c
+            adb shell am start -W -n com.aetheros.shell/.MainActivity
+            sleep 8
+            if ! adb shell pidof com.aetheros.shell >/dev/null; then
+              adb logcat -d -t 3000
+              echo "Aether OS process exited after launch"
+              exit 1
+            fi
+            adb logcat -d -t 3000 > /tmp/aether-logcat.txt
+            if grep -E "FATAL EXCEPTION|Process: com.aetheros.shell" /tmp/aether-logcat.txt; then
+              cat /tmp/aether-logcat.txt
+              exit 1
+            fi
+            echo "Aether OS Android 14 smoke test passed"
+
       - name: Upload Aether OS APK
         uses: actions/upload-artifact@v4
         with:
-          name: Aether-OS-1.0.0-Android-14-APK
+          name: Aether-OS-2.0.0-Android-14-APK
           path: AetherOS/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14

@@ -2,14 +2,22 @@ package com.aetheros.shell
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
+import android.os.BatteryManager
+import android.os.Build
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.provider.MediaStore
 import android.provider.Settings
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -17,33 +25,56 @@ import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Chronometer
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import android.util.Base64
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
 
 class MainActivity : Activity() {
     private val prefs by lazy { getSharedPreferences("aether_preferences", MODE_PRIVATE) }
     private var activeWebView: WebView? = null
+    private var runningTimer: CountDownTimer? = null
+    private var stopwatch: Chronometer? = null
     private val recentApps = ArrayList<String>()
     private lateinit var shell: LinearLayout
     private lateinit var pageBody: LinearLayout
     private val exportRequest = 731
+    private val importRequest = 732
+    private val galleryRequest = 733
+    private val vaultAlias = "aether_os_vault_v1"
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+    private fun dark(): Boolean = prefs.getString("appearance", "dark") != "light"
+    private fun primaryText(): Int = if (dark()) Color.WHITE else Color.rgb(24, 35, 58)
+    private fun secondaryText(): Int = if (dark()) Color.rgb(190, 207, 232) else Color.rgb(75, 91, 119)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = Color.rgb(14, 22, 44)
-        window.navigationBarColor = Color.rgb(14, 22, 44)
+        window.statusBarColor = Color.rgb(13, 20, 42)
+        window.navigationBarColor = Color.rgb(13, 20, 42)
         showHome()
     }
 
+    override fun onDestroy() {
+        runningTimer?.cancel()
+        activeWebView?.destroy()
+        super.onDestroy()
+    }
+
+    @Suppress("DEPRECATION")
     override fun onBackPressed() {
         val web = activeWebView
         if (web != null && web.canGoBack()) web.goBack()
@@ -53,60 +84,92 @@ class MainActivity : Activity() {
         }
     }
 
+    @Suppress("DEPRECATION")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == exportRequest && resultCode == RESULT_OK && data?.data != null) {
-            try {
-                val profile = (prefs.getString("profile", "Guest") ?: "Guest").replace("\\", "\\\\").replace("\"", "\\\"")
-                val notes = (prefs.getString("notes", "") ?: "").replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
-                val json = "{\"system\":\"Aether OS\",\"version\":\"1.0.0\",\"profile\":\"" + profile +
-                    "\",\"darkMode\":" + prefs.getBoolean("dark", true) + ",\"notes\":\"" + notes + "\"}"
-                contentResolver.openOutputStream(data.data!!)?.use { it.write(json.toByteArray(Charsets.UTF_8)) }
-                toast("Backup exported")
-            } catch (_: Exception) {
-                toast("Could not export backup")
+        if (resultCode != RESULT_OK || data?.data == null) return
+        val uri = data.data!!
+        try {
+            when (requestCode) {
+                exportRequest -> {
+                    contentResolver.openOutputStream(uri)?.use { it.write(makeBackup().toString(2).toByteArray(Charsets.UTF_8)) }
+                    toast("Aether backup exported")
+                    logEvent("Backup exported")
+                }
+                importRequest -> {
+                    val json = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                        ?: throw IllegalStateException("Empty file")
+                    restoreBackup(JSONObject(json))
+                    toast("Backup restored")
+                    logEvent("Backup restored")
+                    showHome()
+                }
+                galleryRequest -> {
+                    val preview = beginPage("Photo viewer", "Opened through the Android system picker")
+                    addText(preview, "Selected image URI:")
+                    addText(preview, uri.toString(), 11)
+                    addButton(preview, "Share selected photo", {
+                        val send = Intent(Intent.ACTION_SEND).setType("image/*").putExtra(Intent.EXTRA_STREAM, uri)
+                        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        startActivity(Intent.createChooser(send, "Share image"))
+                    })
+                    addButton(preview, "Back to home", { showHome() })
+                }
             }
+        } catch (_: Exception) {
+            toast("This file could not be read or written")
         }
     }
 
-    private fun background(): GradientDrawable {
-        val dark = prefs.getBoolean("dark", true)
-        return GradientDrawable(
-            GradientDrawable.Orientation.TL_BR,
-            if (dark) intArrayOf(Color.rgb(11, 18, 38), Color.rgb(28, 38, 72), Color.rgb(27, 49, 72))
-            else intArrayOf(Color.rgb(231, 241, 255), Color.rgb(211, 228, 255), Color.rgb(232, 241, 255))
-        )
+    private fun pageBackground(): GradientDrawable {
+        val wallpaper = prefs.getString("wallpaper", "aurora") ?: "aurora"
+        val colors = when (wallpaper) {
+            "ocean" -> if (dark()) intArrayOf(Color.rgb(5, 28, 53), Color.rgb(0, 89, 120), Color.rgb(18, 43, 86)) else intArrayOf(Color.rgb(194, 233, 255), Color.rgb(150, 210, 238), Color.rgb(225, 244, 255))
+            "sunrise" -> if (dark()) intArrayOf(Color.rgb(50, 23, 55), Color.rgb(130, 55, 75), Color.rgb(39, 40, 83)) else intArrayOf(Color.rgb(255, 218, 196), Color.rgb(255, 194, 177), Color.rgb(255, 235, 211))
+            "graphite" -> if (dark()) intArrayOf(Color.rgb(12, 16, 25), Color.rgb(39, 46, 61), Color.rgb(25, 32, 45)) else intArrayOf(Color.rgb(220, 225, 235), Color.rgb(201, 211, 226), Color.rgb(241, 244, 250))
+            else -> if (dark()) intArrayOf(Color.rgb(10, 18, 43), Color.rgb(43, 49, 100), Color.rgb(8, 78, 97)) else intArrayOf(Color.rgb(224, 239, 255), Color.rgb(219, 223, 255), Color.rgb(208, 245, 246))
+        }
+        return GradientDrawable(GradientDrawable.Orientation.TL_BR, colors).apply { cornerRadius = dp(0).toFloat() }
     }
 
-    private fun primaryText(): Int = if (prefs.getBoolean("dark", true)) Color.WHITE else Color.rgb(20, 30, 54)
-    private fun secondaryText(): Int = if (prefs.getBoolean("dark", true)) Color.rgb(190, 205, 231) else Color.rgb(73, 89, 119)
+    private fun rounded(color: Int, radius: Int): GradientDrawable =
+        GradientDrawable().apply { setColor(color); cornerRadius = dp(radius).toFloat() }
+
+    private fun glassCard(): GradientDrawable {
+        val color = if (dark()) Color.argb(178, 44, 58, 91) else Color.argb(210, 255, 255, 255)
+        return GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = dp(20).toFloat()
+            setStroke(dp(1), if (dark()) Color.argb(90, 210, 230, 255) else Color.argb(150, 255, 255, 255))
+        }
+    }
 
     private fun beginPage(title: String, subtitle: String, homeButton: Boolean = true): LinearLayout {
         activeWebView = null
         shell = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(14), dp(16), dp(12))
-            background = background()
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            background = pageBackground()
         }
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
         if (homeButton) {
-            val back = label("‹", 30, primaryText(), true)
+            val back = label("⌂", 23, primaryText(), true)
             back.gravity = Gravity.CENTER
             back.setOnClickListener { showHome() }
             header.addView(back, LinearLayout.LayoutParams(dp(42), dp(46)))
         }
         val titles = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        titles.addView(label(title, 25, primaryText(), true))
-        titles.addView(label(subtitle, 12, secondaryText(), false))
+        titles.addView(label(title, 24, primaryText(), true))
+        titles.addView(label(subtitle, 11, secondaryText(), false))
         header.addView(titles, LinearLayout.LayoutParams(0, -2, 1f))
         shell.addView(header)
-        val scroll = ScrollView(this).apply { isFillViewport = true }
+        val scroll = ScrollView(this).apply { isFillViewport = true; overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS }
         pageBody = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(12), 0, dp(22))
+            setPadding(0, dp(10), 0, dp(22))
         }
         scroll.addView(pageBody)
         shell.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -114,23 +177,19 @@ class MainActivity : Activity() {
         return pageBody
     }
 
-    private fun label(text: String, size: Int, color: Int, bold: Boolean): TextView {
-        return TextView(this).apply {
+    private fun label(text: String, size: Int, color: Int, bold: Boolean): TextView =
+        TextView(this).apply {
             this.text = text
             textSize = size.toFloat()
             setTextColor(color)
             if (bold) typeface = Typeface.create("sans-serif", Typeface.BOLD)
             setPadding(dp(2), dp(3), dp(2), dp(3))
         }
-    }
 
     private fun addText(parent: LinearLayout, text: String, size: Int = 14, bold: Boolean = false) {
         parent.addView(label(text, size, if (bold) primaryText() else secondaryText(), bold),
-            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(7) })
+            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
     }
-
-    private fun rounded(color: Int, radius: Int): GradientDrawable =
-        GradientDrawable().apply { setColor(color); cornerRadius = dp(radius).toFloat() }
 
     private fun addButton(parent: LinearLayout, text: String, action: () -> Unit) {
         val view = TextView(this).apply {
@@ -139,26 +198,27 @@ class MainActivity : Activity() {
             setTextColor(Color.WHITE)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(15), dp(13), dp(15), dp(13))
-            background = rounded(if (prefs.getBoolean("dark", true)) Color.rgb(47, 67, 107) else Color.rgb(56, 92, 157), 17)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            background = glassCard()
             setOnClickListener { action() }
         }
         parent.addView(view, LinearLayout.LayoutParams(-1, -2).apply {
-            topMargin = dp(5); bottomMargin = dp(5)
+            topMargin = dp(4); bottomMargin = dp(4)
         })
     }
 
     private fun addCard(parent: LinearLayout, icon: String, title: String, detail: String, action: () -> Unit) {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            background = rounded(if (prefs.getBoolean("dark", true)) Color.argb(185, 37, 53, 88) else Color.argb(220, 255, 255, 255), 19)
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(11), dp(10), dp(9), dp(10))
+            background = glassCard()
             setOnClickListener { action() }
         }
-        card.addView(label(icon, 25, primaryText(), false))
-        card.addView(label(title, 15, primaryText(), true))
-        card.addView(label(detail, 11, secondaryText(), false))
-        parent.addView(card, LinearLayout.LayoutParams(0, dp(112), 1f).apply {
+        card.addView(label(icon, 24, primaryText(), false))
+        card.addView(label(title, 14, primaryText(), true))
+        card.addView(label(detail, 10, secondaryText(), false))
+        parent.addView(card, LinearLayout.LayoutParams(0, dp(106), 1f).apply {
             setMargins(dp(4), dp(4), dp(4), dp(4))
         })
     }
@@ -173,42 +233,63 @@ class MainActivity : Activity() {
 
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 
+    private fun logEvent(message: String) {
+        val old = try { JSONArray(prefs.getString("activity_log", "[]")) } catch (_: Exception) { JSONArray() }
+        val next = JSONArray()
+        next.put(JSONObject().put("time", System.currentTimeMillis()).put("text", message))
+        for (i in 0 until minOf(old.length(), 29)) next.put(old.getJSONObject(i))
+        prefs.edit().putString("activity_log", next.toString()).apply()
+    }
+
     private fun rememberApp(name: String) {
         recentApps.remove(name)
         recentApps.add(0, name)
-        while (recentApps.size > 8) recentApps.removeAt(recentApps.lastIndex)
+        while (recentApps.size > 12) recentApps.removeAt(recentApps.lastIndex)
+        val set = (prefs.getStringSet("recent", emptySet()) ?: emptySet()).toMutableSet()
+        set.remove(name)
+        set.add(name)
+        prefs.edit().putStringSet("recent", set).apply()
+        logEvent("Opened " + name)
+    }
+
+    private fun batteryText(): String {
+        val bm = getSystemService(BATTERY_SERVICE) as BatteryManager
+        val value = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        return if (value in 0..100) "Battery " + value + "%" else "Battery status unavailable"
     }
 
     private fun showHome() {
-        activeWebView = null
-        val body = beginPage("Aether OS", "A personal mobile environment • build 1.0.0", false)
+        val body = beginPage("Aether OS", "A unified mobile experience • version 2.0.0", false)
         val profile = prefs.getString("profile", "Guest") ?: "Guest"
         val date = SimpleDateFormat("EEE, d MMM  •  HH:mm", Locale.getDefault()).format(Date())
-        addText(body, "Good day, " + profile + "  •  " + date, 13, true)
-        addButton(body, "⌕   Search everything", { searchDialog() })
-        addGridRow(body, Triple("🌐", "Browser", "Internet & Google"), Triple("▦", "Store", "Web apps & shortcuts"),
+        addText(body, "Welcome back, " + profile + "  •  " + date + "  •  " + batteryText(), 12, true)
+        addButton(body, "✧   Aether Now — assistant, search and actions", { showAssistant() })
+        addGridRow(body, Triple("🌐", "Browser", "Internet & Google"), Triple("▦", "Store", "Apps & web shortcuts"),
             { openApp("Browser") }, { openApp("Store") })
-        addGridRow(body, Triple("🗂", "Files", "Private system files"), Triple("✎", "Notes", "Local notes"),
-            { openApp("Files") }, { openApp("Notes") })
-        addGridRow(body, Triple("⚙", "Settings", "Personalize Aether"), Triple("◈", "Control", "Quick control panel"),
-            { openApp("Settings") }, { openApp("Control") })
-        addGridRow(body, Triple("▣", "Gallery", "Choose photos"), Triple("▤", "Camera", "Open camera app"),
-            { openApp("Gallery") }, { openApp("Camera") })
-        addGridRow(body, Triple("＋", "Studio", "Create a mini-app"), Triple("⌗", "Calculator", "Quick calculations"),
-            { openApp("Studio") }, { openApp("Calculator") })
-        addGridRow(body, Triple("◷", "Clock", "Date & time"), Triple("▤", "Notifications", "Aether activity"),
-            { openApp("Clock") }, { openApp("Notifications") })
-        addGridRow(body, Triple("▣", "Multitasking", "Recent Aether apps"), Triple("⌑", "Lock screen", "Aether welcome screen"),
-            { openApp("Multitasking") }, { openApp("Lock") })
-        val shortcuts = prefs.getStringSet("shortcuts", emptySet()) ?: emptySet()
-        if (shortcuts.isNotEmpty()) {
-            addText(body, "YOUR WEB APPS", 12, true)
-            shortcuts.sorted().forEach { entry ->
-                val parts = entry.split("|||", limit = 2)
-                if (parts.size == 2) addButton(body, "↗   " + parts[0], { openBrowser(parts[1]) })
-            }
+        addGridRow(body, Triple("▤", "App Library", "Installed phone apps"), Triple("✎", "Studio", "Build mini web apps"),
+            { showInstalledApps() }, { openApp("Studio") })
+        addGridRow(body, Triple("▣", "Workspace", "Bubbles & split view"), Triple("◫", "Widgets", "Personal dashboard"),
+            { showWorkspace() }, { showWidgets() })
+        addGridRow(body, Triple("🗂", "Files", "Private storage"), Triple("✧", "Vault", "Encrypted private notes"),
+            { openApp("Files") }, { showVault() })
+        addGridRow(body, Triple("✎", "Notes", "Local notebook"), Triple("▦", "Planner", "Tasks & events"),
+            { openApp("Notes") }, { showPlanner() })
+        addGridRow(body, Triple("◈", "Control", "Quick settings"), Triple("⚙", "Settings", "Personalize Aether"),
+            { showControl() }, { showSettings() })
+        addGridRow(body, Triple("▧", "Photos", "System photo picker"), Triple("◉", "Camera", "Open camera app"),
+            { showGallery() }, { showCamera() })
+        addGridRow(body, Triple("◷", "Clock", "Timer & stopwatch"), Triple("↗", "Routines", "One-tap automations"),
+            { showClock() }, { showRoutines() })
+        addGridRow(body, Triple("◌", "Activity", "Aether notifications"), Triple("⌑", "Lock Screen", "Aether welcome screen"),
+            { showNotifications() }, { showLock() })
+        addText(body, "Pinned web apps", 12, true)
+        val apps = webApps()
+        if (apps.length() == 0) addText(body, "Create your first mini-app in Studio.")
+        for (i in 0 until apps.length()) {
+            val item = apps.optJSONObject(i) ?: continue
+            addButton(body, (item.optString("icon", "◈") + "   " + item.optString("name", "App")), { launchWebApp(item) })
         }
-        addText(body, "Aether runs as an app over Android. Your phone's original system stays unchanged.", 11, false)
+        addText(body, "Aether is an app-based system shell. Android remains the host operating system.", 10, false)
     }
 
     private fun openApp(name: String) {
@@ -218,81 +299,77 @@ class MainActivity : Activity() {
             "Store" -> showStore()
             "Files" -> showFiles()
             "Notes" -> showNotes()
-            "Settings" -> showSettings()
-            "Control" -> showControl()
-            "Gallery" -> showGallery()
-            "Camera" -> showCamera()
             "Studio" -> showStudio()
-            "Calculator" -> showCalculator()
+            "Control" -> showControl()
+            "Settings" -> showSettings()
             "Clock" -> showClock()
-            "Notifications" -> showNotifications()
-            "Multitasking" -> showMultitasking()
-            "Lock" -> showLock()
+            "Activity" -> showNotifications()
             else -> showHome()
         }
     }
 
     private fun searchDialog() {
-        val input = EditText(this).apply { hint = "App, setting, or web search" }
+        val input = EditText(this).apply { hint = "App, setting, note, or web search" }
         AlertDialog.Builder(this).setTitle("Aether Search").setView(input)
-            .setPositiveButton("Search") { _, _ ->
-                val q = input.text.toString().trim()
-                if (q.isNotEmpty()) {
-                    val key = q.lowercase(Locale.ROOT)
-                    when {
-                        key.contains("note") -> openApp("Notes")
-                        key.contains("file") -> openApp("Files")
-                        key.contains("setting") -> openApp("Settings")
-                        key.contains("store") -> openApp("Store")
-                        key.contains("browser") -> openApp("Browser")
-                        else -> openBrowser("https://www.google.com/search?q=" + Uri.encode(q))
-                    }
-                }
-            }.setNegativeButton("Cancel", null).show()
+            .setPositiveButton("Search") { _, _ -> runSearch(input.text.toString()) }
+            .setNegativeButton("Cancel", null).show()
+    }
+
+    private fun runSearch(raw: String) {
+        val q = raw.trim()
+        if (q.isEmpty()) return
+        val s = q.lowercase(Locale.ROOT)
+        when {
+            s.contains("note") -> showNotes()
+            s.contains("file") -> showFiles()
+            s.contains("setting") -> showSettings()
+            s.contains("store") || s.contains("app") -> showStore()
+            s.contains("photo") || s.contains("gallery") -> showGallery()
+            s.contains("assistant") || s.contains("siri") -> showAssistant()
+            s.contains("vault") || s.contains("password") -> showVault()
+            s.contains("calendar") || s.contains("task") || s.contains("planner") -> showPlanner()
+            else -> openBrowser("https://www.google.com/search?q=" + Uri.encode(q))
+        }
     }
 
     private fun openBrowser(start: String = "https://www.google.com") {
         rememberApp("Browser")
-        activeWebView = null
         shell = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(8), dp(8), dp(8), dp(4))
-            setBackgroundColor(Color.rgb(13, 20, 39))
+            background = pageBackground()
         }
-        val bar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
+        val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val back = TextView(this).apply {
-            text = "‹"; textSize = 29f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
+            text = "⌂"; textSize = 24f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
             setOnClickListener { showHome() }
         }
-        bar.addView(back, LinearLayout.LayoutParams(dp(38), dp(48)))
+        bar.addView(back, LinearLayout.LayoutParams(dp(40), dp(48)))
         val address = EditText(this).apply {
             setSingleLine(true); textSize = 13f; setTextColor(Color.WHITE); setHintTextColor(Color.LTGRAY)
-            hint = "Search or enter website"
-            setPadding(dp(12), dp(6), dp(12), dp(6))
-            background = rounded(Color.rgb(40, 51, 76), 18)
+            hint = "Search or enter website"; setPadding(dp(12), dp(6), dp(12), dp(6))
+            background = rounded(Color.rgb(45, 57, 82), 19)
             setText(start)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
         }
-        bar.addView(address, LinearLayout.LayoutParams(0, dp(46), 1f))
-        val web = WebView(this)
+        bar.addView(address, LinearLayout.LayoutParams(0, dp(45), 1f))
         val go = TextView(this).apply {
             text = "GO"; textSize = 13f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
-            setPadding(dp(12), 0, dp(8), 0)
-            setOnClickListener { web.loadUrl(normalizeAddress(address.text.toString())) }
+            setPadding(dp(10), 0, dp(8), 0)
         }
-        bar.addView(go, LinearLayout.LayoutParams(dp(48), dp(46)))
+        val web = WebView(this)
+        go.setOnClickListener { web.loadUrl(normalizeAddress(address.text.toString())) }
+        bar.addView(go, LinearLayout.LayoutParams(dp(46), dp(45)))
         shell.addView(bar)
         activeWebView = web
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
         web.settings.cacheMode = WebSettings.LOAD_DEFAULT
+        web.settings.allowFileAccess = false
+        web.settings.allowContentAccess = false
+        if (Build.VERSION.SDK_INT >= 26) web.settings.safeBrowsingEnabled = true
         web.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                if (url != null) address.setText(url)
-            }
+            override fun onPageFinished(view: WebView?, url: String?) { if (url != null) address.setText(url) }
         }
         web.webChromeClient = WebChromeClient()
         shell.addView(web, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -309,77 +386,278 @@ class MainActivity : Activity() {
         return if (text.startsWith("http://") || text.startsWith("https://")) text else "https://" + text
     }
 
+    private fun webApps(): JSONArray = try { JSONArray(prefs.getString("web_apps", "[]")) } catch (_: Exception) { JSONArray() }
+
     private fun showStore() {
-        val body = beginPage("Aether Store", "A lightweight catalogue of web apps")
-        addText(body, "These entries open websites in Aether Browser. They are not native APK installations.", 12)
-        addButton(body, "＋   Create your own web app shortcut", { openApp("Studio") })
-        val items = listOf(
-            Triple("Google", "Search, web services", "https://www.google.com"),
+        val body = beginPage("Aether Store", "A curated launcher for websites and your mini-apps")
+        addText(body, "The store launches web apps inside Aether. It does not install native APKs or emulate Google Play.", 12)
+        val catalog = listOf(
+            Triple("Google", "Search & services", "https://www.google.com"),
             Triple("YouTube", "Video platform", "https://m.youtube.com"),
-            Triple("Gmail", "Email in the browser", "https://mail.google.com"),
-            Triple("Google Drive", "Cloud files", "https://drive.google.com"),
-            Triple("Google Maps", "Maps in the browser", "https://maps.google.com"),
-            Triple("Wikipedia", "Knowledge library", "https://www.wikipedia.org"),
-            Triple("DuckDuckGo", "Private search website", "https://duckduckgo.com"),
-            Triple("OpenStreetMap", "Community maps", "https://www.openstreetmap.org")
+            Triple("Gmail", "Email", "https://mail.google.com"),
+            Triple("Google Drive", "Cloud documents", "https://drive.google.com"),
+            Triple("Google Maps", "Maps", "https://maps.google.com"),
+            Triple("Google Translate", "Translation", "https://translate.google.com"),
+            Triple("Wikipedia", "Knowledge", "https://www.wikipedia.org"),
+            Triple("OpenStreetMap", "Community maps", "https://www.openstreetmap.org"),
+            Triple("Khan Academy", "Learning", "https://www.khanacademy.org"),
+            Triple("Scratch", "Creative projects", "https://scratch.mit.edu")
         )
-        items.forEach { item -> addButton(body, "↗   " + item.first + "  •  " + item.second, { openBrowser(item.third) }) }
+        catalog.forEach { item -> addButton(body, "↗   " + item.first + "  •  " + item.second, { openBrowser(item.third) }) }
+        addText(body, "Your creations", 13, true)
+        val apps = webApps()
+        if (apps.length() == 0) addText(body, "No mini-apps yet. Create one in Aether Studio.")
+        for (i in 0 until apps.length()) {
+            val item = apps.optJSONObject(i) ?: continue
+            addButton(body, item.optString("icon", "◈") + "   " + item.optString("name", "App"), { launchWebApp(item) })
+        }
+        addButton(body, "＋   Create a mini-app", { showStudio() })
     }
 
     private fun showStudio() {
-        val body = beginPage("Aether Studio", "Create a launchable web-app shortcut")
-        addText(body, "This first version creates lightweight shortcuts. It does not compile or install native Android APKs.")
-        val title = EditText(this).apply { hint = "App name"; setSingleLine(true) }
-        val url = EditText(this).apply { hint = "Website, e.g. https://example.com"; setSingleLine(true) }
-        body.addView(title); body.addView(url)
-        addButton(body, "Save shortcut to home screen", {
-            val name = title.text.toString().trim()
-            val link = normalizeAddress(url.text.toString())
-            if (name.isEmpty()) toast("Enter an app name")
-            else {
-                val set = (prefs.getStringSet("shortcuts", emptySet()) ?: emptySet()).toMutableSet()
-                set.add(name + "|||" + link)
-                prefs.edit().putStringSet("shortcuts", set).apply()
-                toast("Shortcut saved")
+        val body = beginPage("Aether Studio", "Create small offline HTML apps or website shortcuts")
+        addText(body, "Apps made here are stored inside this APK's private app data. HTML mini-apps work offline after saving.")
+        val name = EditText(this).apply { hint = "App name"; setSingleLine(true) }
+        val icon = EditText(this).apply { hint = "Icon emoji (optional)"; setSingleLine(true) }
+        val url = EditText(this).apply { hint = "Website URL (leave empty for HTML app)"; setSingleLine(true) }
+        val html = EditText(this).apply {
+            hint = "Optional HTML code for an offline mini-app"; minLines = 7; gravity = Gravity.TOP
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        }
+        body.addView(name); body.addView(icon); body.addView(url)
+        body.addView(html, LinearLayout.LayoutParams(-1, dp(160)))
+        addButton(body, "Save mini-app", {
+            val title = name.text.toString().trim()
+            val link = url.text.toString().trim()
+            val code = html.text.toString().trim()
+            if (title.isEmpty() || (link.isEmpty() && code.isEmpty())) {
+                toast("Enter a name and either a website or HTML code")
+            } else {
+                val item = JSONObject()
+                    .put("id", System.currentTimeMillis().toString())
+                    .put("name", title)
+                    .put("icon", icon.text.toString().ifBlank { "◈" })
+                    .put("url", if (link.isNotEmpty()) normalizeAddress(link) else "")
+                    .put("html", code)
+                val apps = webApps()
+                apps.put(item)
+                prefs.edit().putString("web_apps", apps.toString()).apply()
+                logEvent("Created mini-app: " + title)
+                toast("Saved inside Aether")
                 showHome()
             }
         })
-        addButton(body, "Open browser preview", { openBrowser(normalizeAddress(url.text.toString())) })
+        addText(body, "Security note: mini-app HTML runs in a WebView without a native-code bridge. Do not enter passwords into pages you do not trust.")
+    }
+
+    private fun launchWebApp(item: JSONObject) {
+        val name = item.optString("name", "Mini-app")
+        rememberApp(name)
+        val html = item.optString("html", "")
+        if (html.isNotBlank()) {
+            val web = WebView(this)
+            activeWebView = web
+            web.settings.javaScriptEnabled = true
+            web.settings.domStorageEnabled = true
+            web.settings.allowFileAccess = false
+            web.settings.allowContentAccess = false
+            val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.WHITE) }
+            addButton(page, "⌂   Back to Aether", { showHome() })
+            page.addView(web, LinearLayout.LayoutParams(-1, 0, 1f))
+            setContentView(page)
+            web.loadDataWithBaseURL("https://aether.local/", html, "text/html", "UTF-8", null)
+        } else {
+            openBrowser(item.optString("url", "https://www.google.com"))
+        }
+    }
+
+    private fun showInstalledApps() {
+        val body = beginPage("App Library", "Open apps already installed on your Honor phone")
+        addText(body, "Aether does not copy other apps into a second Android. It can launch apps installed in the host Android.")
+        val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        @Suppress("DEPRECATION")
+        val resolved = packageManager.queryIntentActivities(launcher, 0)
+            .filter { it.activityInfo.packageName != packageName }
+            .distinctBy { it.activityInfo.packageName }
+            .sortedBy { it.loadLabel(packageManager).toString().lowercase(Locale.ROOT) }
+        if (resolved.isEmpty()) addText(body, "No launchable apps were returned by Android.")
+        resolved.forEach { info ->
+            val title = info.loadLabel(packageManager).toString()
+            addButton(body, "▣   " + title, { launchHostApp(info.activityInfo.packageName) })
+        }
+    }
+
+    private fun launchHostApp(packageName: String) {
+        try {
+            val intent = packageManager.getLaunchIntentForPackage(packageName)
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT)
+                startActivity(intent)
+            } else toast("This app has no launch screen")
+        } catch (_: Exception) { toast("Could not open this app") }
+    }
+
+    private fun showWorkspace() {
+        val body = beginPage("Workspace", "Android 17-inspired in-app bubbles and split workspace")
+        addText(body, "Bubbles stay inside Aether so no overlay permission is needed. External apps can be asked to open side-by-side, but Android decides whether split-screen is available.")
+        val names = listOf("Browser", "Notes", "Files", "Store", "Assistant", "Planner", "Settings", "Vault")
+        names.forEach { name ->
+            addButton(body, "◉   " + name + "   •   Open bubble", {
+                val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(10), dp(12), dp(10)); background = glassCard() }
+                addText(panel, name + " bubble", 16, true)
+                addText(panel, "This is an in-app floating task card. It does not draw over other apps.")
+                addButton(panel, "Open " + name, { openWorkspaceModule(name) })
+                addButton(panel, "Return to workspace", { showWorkspace() })
+                setContentView(panel)
+            })
+        }
+        addButton(body, "▥   Open split browser workspace", { showSplitView() })
+        addButton(body, "▤   Open Android app library", { showInstalledApps() })
+    }
+
+    private fun openWorkspaceModule(name: String) {
+        when (name) {
+            "Browser" -> openBrowser()
+            "Notes" -> showNotes()
+            "Files" -> showFiles()
+            "Store" -> showStore()
+            "Assistant" -> showAssistant()
+            "Planner" -> showPlanner()
+            "Settings" -> showSettings()
+            "Vault" -> showVault()
+            else -> showHome()
+        }
+    }
+
+    private fun showSplitView() {
+        activeWebView = null
+        shell = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(8), dp(8), dp(8), dp(8)); background = pageBackground() }
+        addButton(shell, "⌂   Return to Aether home", { showHome() })
+        val firstUrl = EditText(this).apply { hint = "Top pane URL"; setSingleLine(true); setText("https://www.google.com") }
+        val secondUrl = EditText(this).apply { hint = "Bottom pane URL"; setSingleLine(true); setText("https://www.wikipedia.org") }
+        shell.addView(firstUrl); shell.addView(secondUrl)
+        val panes = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        shell.addView(panes, LinearLayout.LayoutParams(-1, 0, 1f))
+        addButton(shell, "Load both pages", {
+            panes.removeAllViews()
+            listOf(firstUrl.text.toString(), secondUrl.text.toString()).forEach { address ->
+                val web = WebView(this)
+                web.settings.javaScriptEnabled = true
+                web.settings.domStorageEnabled = true
+                web.settings.allowFileAccess = false
+                web.settings.allowContentAccess = false
+                web.webViewClient = WebViewClient()
+                web.webChromeClient = WebChromeClient()
+                web.loadUrl(normalizeAddress(address))
+                panes.addView(web, LinearLayout.LayoutParams(-1, 0, 1f))
+            }
+        })
+        setContentView(shell)
+    }
+
+    private fun showWidgets() {
+        val body = beginPage("Aether Widgets", "A customizable dashboard inside your system shell")
+        addText(body, "Live information cards are calculated locally. They do not require widgets or overlay permissions.")
+        val date = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()).format(Date())
+        addButton(body, "◷   " + SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date()) + "   •   " + date, { showClock() })
+        addButton(body, "▣   " + batteryText(), { showControl() })
+        addButton(body, "✎   Notes preview: " + (prefs.getString("notes", "") ?: "").take(85).ifBlank { "No saved note" }, { showNotes() })
+        addButton(body, "▦   " + webApps().length() + " mini-apps saved", { showStore() })
+        addButton(body, "◌   Profile: " + (prefs.getString("profile", "Guest") ?: "Guest"), { showSettings() })
+        addButton(body, "＋   Pin web app to dashboard", { showStudio() })
+    }
+
+    private fun showAssistant() {
+        val body = beginPage("Aether Now", "Offline command assistant • private on this device")
+        addText(body, "Try: open browser, open notes, search cats, switch to light mode, show battery, open planner, or help.")
+        val conversation = label(prefs.getString("assistant_log", "Aether: Hello! I can open modules and run simple local actions.") ?: "", 13, primaryText(), false)
+        conversation.setPadding(dp(12), dp(12), dp(12), dp(12))
+        conversation.background = glassCard()
+        body.addView(conversation, LinearLayout.LayoutParams(-1, -2))
+        val input = EditText(this).apply { hint = "Tell Aether what to do"; setSingleLine(true) }
+        body.addView(input)
+        addButton(body, "Send command", {
+            val command = input.text.toString().trim()
+            if (command.isNotEmpty()) {
+                val answer = runAssistantCommand(command)
+                val updated = (prefs.getString("assistant_log", "") ?: "") + "\n\nYou: " + command + "\nAether: " + answer
+                prefs.edit().putString("assistant_log", updated.takeLast(3500)).apply()
+                conversation.text = updated.takeLast(3500)
+                input.setText("")
+            }
+        })
+        addButton(body, "Clear assistant history", { prefs.edit().remove("assistant_log").apply(); showAssistant() })
+        addText(body, "This is a local command assistant, not a cloud AI model. It does not read your other apps, messages, photos, or personal accounts.")
+    }
+
+    private fun runAssistantCommand(command: String): String {
+        val q = command.lowercase(Locale.ROOT)
+        return when {
+            q.contains("battery") -> batteryText()
+            q.contains("light") -> { prefs.edit().putString("appearance", "light").apply(); "Switched Aether to light appearance." }
+            q.contains("dark") -> { prefs.edit().putString("appearance", "dark").apply(); "Switched Aether to dark appearance." }
+            q.contains("browser") -> { openBrowser(); "Opening the browser." }
+            q.contains("note") -> { showNotes(); "Opening your private notes." }
+            q.contains("file") -> { showFiles(); "Opening Aether Files." }
+            q.contains("planner") || q.contains("task") || q.contains("calendar") -> { showPlanner(); "Opening your planner." }
+            q.contains("store") -> { showStore(); "Opening Aether Store." }
+            q.contains("vault") || q.contains("password") -> { showVault(); "Opening your encrypted vault." }
+            q.contains("settings") -> { showSettings(); "Opening settings." }
+            q.contains("help") -> "I can open Browser, Notes, Files, Store, Settings, Planner and Vault; search the web; show battery status; or switch Aether's appearance."
+            q.startsWith("search ") -> { openBrowser("https://www.google.com/search?q=" + Uri.encode(command.substringAfter("search "))); "Searching the web." }
+            q.startsWith("open ") -> {
+                val target = q.substringAfter("open ").trim()
+                when {
+                    target.contains("photo") || target.contains("gallery") -> { showGallery(); "Opening the photo picker." }
+                    target.contains("camera") -> { showCamera(); "Opening the camera app." }
+                    target.contains("clock") || target.contains("timer") -> { showClock(); "Opening Clock." }
+                    target.contains("assistant") -> { showAssistant(); "Here I am." }
+                    target.contains("app") -> { showInstalledApps(); "Opening the app library." }
+                    else -> { runSearch(target); "Opening the closest matching Aether module." }
+                }
+            }
+            else -> "I understood this as a note for later, but this offline assistant only performs local commands. Try 'help' for examples."
+        }
     }
 
     private fun showNotes() {
-        val body = beginPage("Notes", "Saved privately inside Aether OS")
+        val body = beginPage("Notes", "Local notebook • stored privately on this phone")
         val editor = EditText(this).apply {
-            minLines = 9; gravity = Gravity.TOP; textSize = 15f
+            minLines = 10; gravity = Gravity.TOP; textSize = 15f
             setTextColor(primaryText()); setHintTextColor(secondaryText())
             hint = "Write something..."
             setText(prefs.getString("notes", ""))
             setPadding(dp(12), dp(12), dp(12), dp(12))
-            background = rounded(if (prefs.getBoolean("dark", true)) Color.rgb(30, 43, 70) else Color.WHITE, 16)
+            background = glassCard()
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         }
-        body.addView(editor, LinearLayout.LayoutParams(-1, dp(230)))
-        addButton(body, "Save note", { prefs.edit().putString("notes", editor.text.toString()).apply(); toast("Note saved") })
+        body.addView(editor, LinearLayout.LayoutParams(-1, dp(250)))
+        addButton(body, "Save note", { prefs.edit().putString("notes", editor.text.toString()).apply(); logEvent("Note saved"); toast("Note saved") })
+        addButton(body, "Copy note", {
+            val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("Aether note", editor.text.toString()))
+            toast("Copied")
+        })
         addButton(body, "Share note", {
-            val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, editor.text.toString())
-            startActivity(Intent.createChooser(intent, "Share note"))
+            val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, editor.text.toString())
+            startActivity(Intent.createChooser(send, "Share note"))
         })
     }
 
     private fun filesFolder(): File {
-        val dir = File(getExternalFilesDir(null) ?: filesDir, "AetherFiles")
+        val dir = File(filesDir, "AetherFiles")
         if (!dir.exists()) dir.mkdirs()
         return dir
     }
 
     private fun showFiles() {
         val body = beginPage("Aether Files", "Private app storage • no broad storage permission")
-        addText(body, "Files saved here are in this app's private folder. Share them out when needed.")
+        addText(body, "These files are in Aether's sandbox. Export or share a file when you choose.")
         addButton(body, "＋   Create text file", { createTextFile() })
         val files = filesFolder().listFiles()?.sortedBy { it.name } ?: emptyList()
-        if (files.isEmpty()) addText(body, "No files yet. Create your first text file.")
+        if (files.isEmpty()) addText(body, "No files yet.")
         files.forEach { file ->
-            addButton(body, "▤   " + file.name + "  (" + file.length() + " bytes)", {
+            addButton(body, "▤   " + file.name + "  •  " + file.length() + " bytes", {
                 AlertDialog.Builder(this).setTitle(file.name).setMessage(file.readText().take(4000))
                     .setPositiveButton("Share") { _, _ ->
                         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, file.readText())
@@ -400,51 +678,226 @@ class MainActivity : Activity() {
                     var safeName = name.text.toString().trim().ifEmpty { "note" }.replace(Regex("[^a-zA-Z0-9._-]"), "_")
                     if (!safeName.endsWith(".txt")) safeName += ".txt"
                     File(filesFolder(), safeName).writeText(contents.text.toString())
+                    logEvent("Created file " + safeName)
                     showFiles()
                 } catch (_: Exception) { toast("File could not be saved") }
             }.setNegativeButton("Cancel", null).show()
     }
 
+    private fun showPlanner() {
+        val body = beginPage("Planner", "Private tasks and reminders inside Aether")
+        val events = try { JSONArray(prefs.getString("planner_items", "[]")) } catch (_: Exception) { JSONArray() }
+        addButton(body, "＋   Add a task or event", { addPlannerItem() })
+        if (events.length() == 0) addText(body, "Your planner is empty.")
+        for (i in events.length() - 1 downTo 0) {
+            val item = events.optJSONObject(i) ?: continue
+            val done = item.optBoolean("done", false)
+            addButton(body, (if (done) "✓  " else "○  ") + item.optString("title", "Event") + "  •  " + item.optString("date", "No date"), {
+                item.put("done", !done)
+                events.put(i, item)
+                prefs.edit().putString("planner_items", events.toString()).apply()
+                showPlanner()
+            })
+        }
+        addText(body, "Planner entries are local to Aether and do not sync with Google Calendar or send background alerts.")
+    }
+
+    private fun addPlannerItem() {
+        val form = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), dp(6), dp(10), 0) }
+        val title = EditText(this).apply { hint = "Task or event"; setSingleLine(true) }
+        val date = EditText(this).apply { hint = "Date / time (optional)"; setSingleLine(true) }
+        form.addView(title); form.addView(date)
+        AlertDialog.Builder(this).setTitle("New planner item").setView(form)
+            .setPositiveButton("Save") { _, _ ->
+                if (title.text.isNotBlank()) {
+                    val events = try { JSONArray(prefs.getString("planner_items", "[]")) } catch (_: Exception) { JSONArray() }
+                    events.put(JSONObject().put("title", title.text.toString()).put("date", date.text.toString()).put("done", false))
+                    prefs.edit().putString("planner_items", events.toString()).apply()
+                    logEvent("Added planner item")
+                    showPlanner()
+                }
+            }.setNegativeButton("Cancel", null).show()
+    }
+
+    private fun showRoutines() {
+        val body = beginPage("Routines", "One-tap local automations")
+        addText(body, "Routines change Aether's own appearance or open a module. They do not silently change protected Android settings.")
+        val routines = listOf(
+            Triple("Focus", "Reduce visual distractions", "focus"),
+            Triple("Night", "Dark appearance and notes", "night"),
+            Triple("Creative", "Open Studio", "studio"),
+            Triple("Research", "Open browser and planner", "research")
+        )
+        routines.forEach { r -> addButton(body, "↗   " + r.first + "  •  " + r.second, { runRoutine(r.third) }) }
+        addButton(body, "＋   Create a custom routine", { createRoutine() })
+        val custom = prefs.getStringSet("custom_routines", emptySet()) ?: emptySet()
+        custom.forEach { entry ->
+            val parts = entry.split("|||", limit = 2)
+            if (parts.size == 2) addButton(body, "◇   " + parts[0] + "   •   Run", { runRoutine(parts[1]) })
+        }
+    }
+
+    private fun createRoutine() {
+        val title = EditText(this).apply { hint = "Routine name"; setSingleLine(true) }
+        val actions = arrayOf("Open Browser", "Open Notes", "Open Planner", "Dark appearance", "Light appearance")
+        AlertDialog.Builder(this).setTitle("Choose routine action").setItems(actions) { _, which ->
+            val action = when (which) { 0 -> "browser"; 1 -> "notes"; 2 -> "planner"; 3 -> "dark"; else -> "light" }
+            AlertDialog.Builder(this).setTitle("Name this routine").setView(title)
+                .setPositiveButton("Save") { _, _ ->
+                    val set = (prefs.getStringSet("custom_routines", emptySet()) ?: emptySet()).toMutableSet()
+                    set.add(title.text.toString().ifBlank { "My routine" } + "|||" + action)
+                    prefs.edit().putStringSet("custom_routines", set).apply()
+                    showRoutines()
+                }.setNegativeButton("Cancel", null).show()
+        }.setNegativeButton("Cancel", null).show()
+    }
+
+    private fun runRoutine(action: String) {
+        when (action) {
+            "focus" -> { prefs.edit().putString("appearance", "graphite").putBoolean("reduce_motion", true).apply(); showHome() }
+            "night", "dark" -> { prefs.edit().putString("appearance", "dark").apply(); showNotes() }
+            "studio" -> showStudio()
+            "research", "browser" -> openBrowser()
+            "notes" -> showNotes()
+            "planner" -> showPlanner()
+            "light" -> { prefs.edit().putString("appearance", "light").apply(); showHome() }
+            else -> showHome()
+        }
+        logEvent("Routine executed: " + action)
+    }
+
+    private fun showVault() {
+        val body = beginPage("Aether Vault", "Encrypted private entries • Android Keystore")
+        addText(body, "Vault contents are encrypted on this device using a key stored in Android Keystore. Clearing Aether data can make the vault unrecoverable. Vault data is excluded from portable backups.")
+        addButton(body, "＋   Save a private entry", { createVaultEntry() })
+        try {
+            val raw = prefs.getString("vault_blob", "") ?: ""
+            if (raw.isBlank()) addText(body, "Your vault is empty.")
+            else {
+                val entries = JSONArray(decryptVault(raw))
+                for (i in 0 until entries.length()) {
+                    val item = entries.optJSONObject(i) ?: continue
+                    addButton(body, "🔒   " + item.optString("title", "Private entry"), {
+                        AlertDialog.Builder(this).setTitle(item.optString("title", "Private entry"))
+                            .setMessage(item.optString("secret", ""))
+                            .setPositiveButton("Copy") { _, _ ->
+                                val clip = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                                clip.setPrimaryClip(ClipData.newPlainText("Aether Vault", item.optString("secret", "")))
+                                toast("Copied to clipboard")
+                            }.setNegativeButton("Close", null).show()
+                    })
+                }
+            }
+        } catch (_: Exception) {
+            addText(body, "Vault data could not be decrypted. It may have been cleared or restored to another phone.")
+        }
+    }
+
+    private fun createVaultEntry() {
+        val form = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(8), dp(12), 0) }
+        val title = EditText(this).apply { hint = "Entry title"; setSingleLine(true) }
+        val secret = EditText(this).apply { hint = "Private text"; minLines = 3; inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE }
+        form.addView(title); form.addView(secret)
+        AlertDialog.Builder(this).setTitle("New encrypted entry").setView(form)
+            .setPositiveButton("Encrypt and save") { _, _ ->
+                try {
+                    val entries = if ((prefs.getString("vault_blob", "") ?: "").isNotBlank()) JSONArray(decryptVault(prefs.getString("vault_blob", "")!!)) else JSONArray()
+                    entries.put(JSONObject().put("title", title.text.toString().ifBlank { "Private entry" }).put("secret", secret.text.toString()))
+                    prefs.edit().putString("vault_blob", encryptVault(entries.toString())).apply()
+                    logEvent("Saved encrypted vault entry")
+                    showVault()
+                } catch (_: Exception) { toast("Could not encrypt this entry") }
+            }.setNegativeButton("Cancel", null).show()
+    }
+
+    private fun vaultKey(): SecretKey {
+        val keyStore = KeyStore.getInstance("AndroidKeyStore")
+        keyStore.load(null)
+        if (!keyStore.containsAlias(vaultAlias)) {
+            val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+            val spec = KeyGenParameterSpec.Builder(
+                vaultAlias,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setRandomizedEncryptionRequired(true).build()
+            generator.init(spec)
+            generator.generateKey()
+        }
+        return keyStore.getKey(vaultAlias, null) as SecretKey
+    }
+
+    private fun encryptVault(text: String): String {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, vaultKey())
+        val iv = cipher.iv
+        val encrypted = cipher.doFinal(text.toByteArray(Charsets.UTF_8))
+        return Base64.encodeToString(iv + encrypted, Base64.NO_WRAP)
+    }
+
+    private fun decryptVault(blob: String): String {
+        val data = Base64.decode(blob, Base64.NO_WRAP)
+        val iv = data.copyOfRange(0, 12)
+        val encrypted = data.copyOfRange(12, data.size)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, vaultKey(), javax.crypto.spec.GCMParameterSpec(128, iv))
+        return String(cipher.doFinal(encrypted), Charsets.UTF_8)
+    }
+
     private fun showSettings() {
-        val body = beginPage("Settings", "Personalize your Aether environment")
-        val dark = prefs.getBoolean("dark", true)
-        addButton(body, "Appearance: " + (if (dark) "Dark" else "Light") + "  •  tap to switch", {
-            prefs.edit().putBoolean("dark", !dark).apply(); showSettings()
-        })
-        val motion = prefs.getBoolean("motion", true)
-        addButton(body, "Animations: " + (if (motion) "On" else "Reduced") + "  •  tap to switch", {
-            prefs.edit().putBoolean("motion", !motion).apply(); showSettings()
-        })
+        val body = beginPage("Settings", "Unified Android flexibility and iPhone-inspired personalization")
+        addButton(body, "Appearance & Liquid Glass styles", { showThemeStudio() })
         addButton(body, "Profile name", { editProfile() })
-        addButton(body, "Export Aether backup (JSON)", { exportBackup() })
-        addButton(body, "Open Android app settings", {
+        addButton(body, "Export full Aether backup (JSON)", { exportBackup() })
+        addButton(body, "Import Aether backup (JSON)", { importBackup() })
+        addButton(body, "App permissions and battery settings", {
             try { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + packageName))) }
             catch (_: Exception) { toast("Settings unavailable") }
         })
         addButton(body, "Open Android display settings", { launchSystem(Settings.ACTION_DISPLAY_SETTINGS) })
-        addText(body, "Privacy: Aether stores notes and shortcuts locally. It asks only for internet access in this build. Other apps such as the camera and photo picker are opened through Android.", 12)
-        addText(body, "Aether cannot replace Android's system settings, security model, or Google Play Services.", 12)
+        addButton(body, "Open Android privacy settings", { launchSystem(Settings.ACTION_PRIVACY_SETTINGS) })
+        addButton(body, "Reset Aether appearance", {
+            prefs.edit().putString("appearance", "dark").putString("wallpaper", "aurora").apply()
+            showSettings()
+        })
+        addText(body, "Aether needs INTERNET for browsing. Photos, camera, contacts, microphone, location and notifications are not requested by this build. The host Android controls protected settings.", 12)
     }
 
     private fun editProfile() {
         val input = EditText(this).apply { setSingleLine(true); hint = "Your display name"; setText(prefs.getString("profile", "Guest")) }
         AlertDialog.Builder(this).setTitle("Aether profile").setView(input)
-            .setPositiveButton("Save") { _, _ -> prefs.edit().putString("profile", input.text.toString().ifBlank { "Guest" }).apply(); showHome() }
+            .setPositiveButton("Save") { _, _ -> prefs.edit().putString("profile", input.text.toString().ifBlank { "Guest" }).apply(); logEvent("Profile updated"); showHome() }
             .setNegativeButton("Cancel", null).show()
     }
 
+    private fun showThemeStudio() {
+        val body = beginPage("Theme Studio", "Clear glass, tinted glass, dark and light")
+        addText(body, "Choose the overall tone and wallpaper for the Aether interface.")
+        addButton(body, "◐   Dark glass", { prefs.edit().putString("appearance", "dark").apply(); showThemeStudio() })
+        addButton(body, "◯   Light glass", { prefs.edit().putString("appearance", "light").apply(); showThemeStudio() })
+        addButton(body, "◈   Graphite focus", { prefs.edit().putString("appearance", "graphite").apply(); showThemeStudio() })
+        addText(body, "Wallpapers", 13, true)
+        addButton(body, "✦   Aurora", { prefs.edit().putString("wallpaper", "aurora").apply(); showThemeStudio() })
+        addButton(body, "🌊   Ocean", { prefs.edit().putString("wallpaper", "ocean").apply(); showThemeStudio() })
+        addButton(body, "🌅   Sunrise", { prefs.edit().putString("wallpaper", "sunrise").apply(); showThemeStudio() })
+        addButton(body, "▧   Graphite", { prefs.edit().putString("wallpaper", "graphite").apply(); showThemeStudio() })
+        addButton(body, "Reduce motion", { prefs.edit().putBoolean("reduce_motion", !prefs.getBoolean("reduce_motion", false)).apply(); toast("Motion preference saved") })
+    }
+
     private fun showControl() {
-        val body = beginPage("Control Center", "Quick links and Aether-only switches")
-        addText(body, "These tiles open Android's own settings where applicable; they do not secretly toggle protected phone settings.")
+        val body = beginPage("Control Center", "Quick actions and safe links to Android settings")
+        addText(body, "Aether controls its own theme and shortcuts. Wi-Fi, Bluetooth, cellular, brightness and system DND are controlled by Android.")
         addButton(body, "Wi-Fi & network settings", { launchSystem(Settings.ACTION_WIFI_SETTINGS) })
         addButton(body, "Bluetooth settings", { launchSystem(Settings.ACTION_BLUETOOTH_SETTINGS) })
-        addButton(body, "Display settings", { launchSystem(Settings.ACTION_DISPLAY_SETTINGS) })
+        addButton(body, "Display & brightness settings", { launchSystem(Settings.ACTION_DISPLAY_SETTINGS) })
         addButton(body, "Battery settings", { launchSystem(Settings.ACTION_BATTERY_SAVER_SETTINGS) })
-        addButton(body, "Aether dark appearance", {
-            prefs.edit().putBoolean("dark", !prefs.getBoolean("dark", true)).apply(); showControl()
+        addButton(body, "Privacy dashboard", { launchSystem(Settings.ACTION_PRIVACY_SETTINGS) })
+        addButton(body, "Switch Aether appearance", {
+            prefs.edit().putString("appearance", if (dark()) "light" else "dark").apply()
+            showControl()
         })
-        addButton(body, "Aether reduce motion", {
-            prefs.edit().putBoolean("motion", !prefs.getBoolean("motion", true)).apply(); showControl()
+        addButton(body, "Open Android app information", {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + packageName)))
         })
     }
 
@@ -453,77 +906,130 @@ class MainActivity : Activity() {
     }
 
     private fun showGallery() {
-        val body = beginPage("Gallery", "Android photo picker")
-        addText(body, "The photo picker opens only after you choose it. Aether does not request broad photo access.")
+        val body = beginPage("Photos", "System photo picker • no broad media permission")
+        addText(body, "Select a photo using Android's system picker. Aether only receives access to the file you select.")
         addButton(body, "Choose a photo", {
             try {
                 val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply { type = "image/*"; addCategory(Intent.CATEGORY_OPENABLE) }
-                startActivityForResult(intent, 741)
+                startActivityForResult(intent, galleryRequest)
             } catch (_: Exception) { toast("Photo picker unavailable") }
         })
     }
 
     private fun showCamera() {
-        val body = beginPage("Camera", "Open your phone's camera app")
-        addText(body, "Aether hands the action to your phone's camera app. Camera permission is handled by Android's camera app.")
+        val body = beginPage("Camera", "Handed off to your phone's camera application")
+        addText(body, "Aether does not request camera access. Android's camera app handles its own permission.")
         addButton(body, "Launch camera", {
             try { startActivity(Intent(MediaStore.ACTION_IMAGE_CAPTURE)) }
             catch (_: Exception) { toast("No compatible camera app found") }
         })
     }
 
-    private fun showCalculator() {
-        val body = beginPage("Calculator", "Simple local calculator")
-        val first = EditText(this).apply { hint = "First number"; inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED }
-        val second = EditText(this).apply { hint = "Second number"; inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED }
-        val result = label("Result appears here", 18, primaryText(), true)
-        body.addView(first); body.addView(second); body.addView(result)
-        fun calculate(op: String) {
-            val a = first.text.toString().toDoubleOrNull()
-            val b = second.text.toString().toDoubleOrNull()
-            if (a == null || b == null) { result.text = "Enter two numbers"; return }
-            val value = when (op) { "+" -> a + b; "−" -> a - b; "×" -> a * b; else -> if (b == 0.0) Double.NaN else a / b }
-            result.text = if (value.isNaN()) "Cannot divide by zero" else "Result: " + value
-        }
-        listOf("+", "−", "×", "÷").forEach { op -> addButton(body, op, { calculate(op) }) }
-    }
-
     private fun showClock() {
-        val body = beginPage("Clock", "Aether local time")
-        addText(body, SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date()), 42, true)
-        addText(body, SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()).format(Date()), 17, true)
-        addButton(body, "Refresh time", { showClock() })
+        val body = beginPage("Clock", "Time, stopwatch and countdown timer")
+        addText(body, SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date()), 40, true)
+        addText(body, SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()).format(Date()), 16, true)
+        addButton(body, "↻   Refresh clock", { showClock() })
+        addText(body, "Stopwatch", 14, true)
+        val chrono = Chronometer(this).apply { textSize = 24f; setTextColor(primaryText()); base = android.os.SystemClock.elapsedRealtime() }
+        stopwatch = chrono
+        body.addView(chrono)
+        addButton(body, "Start stopwatch", { chrono.base = android.os.SystemClock.elapsedRealtime(); chrono.start() })
+        addButton(body, "Stop stopwatch", { chrono.stop() })
+        addButton(body, "Reset stopwatch", { chrono.stop(); chrono.base = android.os.SystemClock.elapsedRealtime() })
+        addText(body, "Countdown", 14, true)
+        val seconds = EditText(this).apply { hint = "Seconds (for example 60)"; inputType = InputType.TYPE_CLASS_NUMBER; setSingleLine(true) }
+        val status = label("Timer is ready", 16, primaryText(), true)
+        body.addView(seconds); body.addView(status)
+        addButton(body, "Start countdown", {
+            val amount = seconds.text.toString().toLongOrNull()
+            if (amount == null || amount !in 1..86400) toast("Enter 1 to 86400 seconds")
+            else {
+                runningTimer?.cancel()
+                runningTimer = object : CountDownTimer(amount * 1000, 1000) {
+                    override fun onTick(millisUntilFinished: Long) { status.text = "Time left: " + (millisUntilFinished / 1000) + " sec" }
+                    override fun onFinish() { status.text = "Timer finished"; logEvent("Countdown finished"); toast("Aether timer finished") }
+                }.start()
+            }
+        })
+        addButton(body, "Cancel countdown", { runningTimer?.cancel(); status.text = "Timer cancelled" })
     }
 
     private fun showNotifications() {
-        val body = beginPage("Notifications", "Aether activity centre")
-        addText(body, "This is Aether's own activity area, not a mirror of Android notifications.")
-        addButton(body, "System status: Aether is running", { toast("Everything is okay") })
-        addButton(body, "Storage: private Aether folder is available", { showFiles() })
-        addButton(body, "Browser: Google Search is available", { openBrowser() })
-        addButton(body, "Clear Aether activity", { toast("Aether activity cleared") })
-    }
-
-    private fun showMultitasking() {
-        val body = beginPage("Multitasking", "Recently opened Aether modules")
-        if (recentApps.isEmpty()) addText(body, "No recent modules yet.")
-        recentApps.toList().forEach { name -> addButton(body, "▣   " + name + "   •   Reopen", { openApp(name) }) }
-        addButton(body, "Return to home", { showHome() })
+        val body = beginPage("Activity Center", "Aether's own activity timeline")
+        addText(body, "For privacy, this is not a mirror of Android notifications. It records actions performed inside Aether.")
+        addButton(body, "Clear Aether activity", { prefs.edit().putString("activity_log", "[]").apply(); showNotifications() })
+        val events = try { JSONArray(prefs.getString("activity_log", "[]")) } catch (_: Exception) { JSONArray() }
+        if (events.length() == 0) addText(body, "No recent activity.")
+        for (i in 0 until events.length()) {
+            val item = events.optJSONObject(i) ?: continue
+            val time = SimpleDateFormat("HH:mm  •  d MMM", Locale.getDefault()).format(Date(item.optLong("time")))
+            addText(body, time + "   " + item.optString("text"), 12)
+        }
     }
 
     private fun showLock() {
-        val body = beginPage("Aether Lock Screen", "A separate welcome screen inside this app", false)
-        addText(body, SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()), 52, true)
+        val body = beginPage("Aether Lock Screen", "A welcome screen inside the Aether app", false)
+        addText(body, SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()), 56, true)
         addText(body, SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date()), 17, true)
+        addText(body, "Adaptive time layout inspired by modern mobile lock screens.")
         addButton(body, "Swipe / tap to unlock Aether", { showHome() })
+    }
+
+    private fun showPrivacy() {
+        val body = beginPage("Privacy & Security", "Review what Aether can access")
+        addText(body, "Permissions declared by this build:", 13, true)
+        addText(body, "• INTERNET — required for browser pages and online web apps.")
+        addText(body, "Not requested: camera, microphone, location, contacts, SMS, notifications, call logs, broad photo access, overlay, accessibility, or package-wide app visibility.")
+        addButton(body, "Open Android permission manager for Aether", {
+            try { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + packageName))) }
+            catch (_: Exception) { toast("Settings unavailable") }
+        })
+        addButton(body, "Open Android privacy dashboard", { launchSystem(Settings.ACTION_PRIVACY_SETTINGS) })
+        addButton(body, "Encrypted private vault", { showVault() })
+        addText(body, "Vault entries use AES-GCM encryption with an Android Keystore key. The key is device-local and is not exported.")
     }
 
     private fun exportBackup() {
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "application/json"
-            putExtra(Intent.EXTRA_TITLE, "aether-os-backup.json")
+            addCategory(Intent.CATEGORY_OPENABLE); type = "application/json"
+            putExtra(Intent.EXTRA_TITLE, "aether-os-2-backup.json")
         }
         try { startActivityForResult(intent, exportRequest) } catch (_: Exception) { toast("Document picker unavailable") }
+    }
+
+    private fun importBackup() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE); type = "application/json"
+        }
+        try { startActivityForResult(intent, importRequest) } catch (_: Exception) { toast("Document picker unavailable") }
+    }
+
+    private fun makeBackup(): JSONObject {
+        return JSONObject()
+            .put("system", "Aether OS")
+            .put("version", "2.0.0")
+            .put("profile", prefs.getString("profile", "Guest"))
+            .put("appearance", prefs.getString("appearance", "dark"))
+            .put("wallpaper", prefs.getString("wallpaper", "aurora"))
+            .put("notes", prefs.getString("notes", ""))
+            .put("web_apps", prefs.getString("web_apps", "[]"))
+            .put("planner_items", prefs.getString("planner_items", "[]"))
+            .put("custom_routines", JSONArray((prefs.getStringSet("custom_routines", emptySet()) ?: emptySet()).toList()))
+    }
+
+    private fun restoreBackup(json: JSONObject) {
+        val editor = prefs.edit()
+        editor.putString("profile", json.optString("profile", "Guest"))
+        editor.putString("appearance", json.optString("appearance", "dark"))
+        editor.putString("wallpaper", json.optString("wallpaper", "aurora"))
+        editor.putString("notes", json.optString("notes", ""))
+        editor.putString("web_apps", json.optString("web_apps", "[]"))
+        editor.putString("planner_items", json.optString("planner_items", "[]"))
+        val routines = json.optJSONArray("custom_routines") ?: JSONArray()
+        val set = mutableSetOf<String>()
+        for (i in 0 until routines.length()) set.add(routines.optString(i))
+        editor.putStringSet("custom_routines", set)
+        editor.apply()
     }
 }
