@@ -27,7 +27,12 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.EditText
+import android.widget.SeekBar
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
@@ -37,9 +42,13 @@ import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
+import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 
 class MainActivity : Activity() {
     private data class AppTile(
@@ -71,6 +80,7 @@ class MainActivity : Activity() {
     private val reqPickIpa = 7102
     private val reqInstallSettings = 7103
     private val reqPickCyborgPackage = 7104
+    private val reqPickLabFile = 7105
 
     private val catalogue = listOf(
         StoreItem("mykit", "MyKit Search", "⌕", "Search apps, settings and the web"),
@@ -80,7 +90,7 @@ class MainActivity : Activity() {
         StoreItem("files", "Files", "▣", "Open the system document picker"),
         StoreItem("camera", "Camera", "◉", "Open the camera app"),
         StoreItem("pcdesk", "PC Desktop", "▤", "Desktop workspace and control strip"),
-        StoreItem("web", "Mini Browser", "🌐", "Open pages in the host browser")
+        StoreItem("web", "Mini Browser", "🌐", "Open a safe in-app browser")
     )
 
     private fun dp(n: Int) = (n * resources.displayMetrics.density).toInt()
@@ -180,6 +190,7 @@ class MainActivity : Activity() {
                 toast("IPA archived; native iOS games cannot run on Android")
             }
             reqPickCyborgPackage -> installCyborgPackage(uri)
+            reqPickLabFile -> quarantineFile(uri)
         }
     }
 
@@ -348,6 +359,7 @@ class MainActivity : Activity() {
         AppTile("mykit", "MyKit Search", "⌕", "ios"),
         AppTile("iossettings", "Settings", "⚙", "ios"),
         AppTile("ipaarchive", "IPA Archive", "▣", "ios"),
+        AppTile("gamehub", "Game Center", "🎮", "ios"),
         AppTile("playstore", "Play Store", "▶", "android"),
         AppTile("chrome", "Chrome", "🌐", "android"),
         AppTile("camera", "Camera", "📷", "android"),
@@ -358,7 +370,9 @@ class MainActivity : Activity() {
         AppTile("clock", "Clock", "◷", "android"),
         AppTile("androidsearch", "MyKit Search", "⌕", "android"),
         AppTile("androidsettings", "Settings", "⚙", "android"),
-        AppTile("apkmanager", "APK Installer", "↓", "android")
+        AppTile("apkmanager", "APK Installer", "↓", "android"),
+        AppTile("securitylab", "Virus Lab", "🛡", "android"),
+        AppTile("androidgames", "Game Library", "🎮", "android")
     )
 
     private fun loadTiles() {
@@ -442,7 +456,8 @@ class MainActivity : Activity() {
 
     private fun buildPanel(side: String): View {
         val ios = side == "ios"
-        val accent = if (ios) Color.rgb(151, 181, 255) else Color.rgb(174, 164, 255)
+        val accent = if (ios) Color.rgb(151, 181, 255)
+            else prefs.getInt("android_accent", Color.rgb(174, 164, 255))
         val colors = if (ios) intArrayOf(Color.rgb(70, 103, 190), Color.rgb(118, 112, 194), Color.rgb(207, 143, 173))
                     else intArrayOf(Color.rgb(23, 53, 69), Color.rgb(39, 87, 100), Color.rgb(69, 105, 133))
         val panel = LinearLayout(this).apply {
@@ -600,6 +615,15 @@ class MainActivity : Activity() {
             i += 3
         }
         body.addView(text(if (ios) "APP LIBRARY" else "ALL APPS", 8f, accent, true))
+        if (ios) {
+            addButton(body, "◉  Control Center • Focus • Live Island") { setPage(side, "control") }
+            addButton(body, "🎮  Game Center • iOS compatibility") { setPage(side, "games") }
+            addButton(body, "▣  IPA Library") { setPage(side, "ipa") }
+        } else {
+            addButton(body, "⚡  Quick Settings • Material You") { setPage(side, "quick") }
+            addButton(body, "🛡  Virus Lab • Safe Quarantine") { setPage(side, "securitylab") }
+            addButton(body, "🎮  Game Library") { setPage(side, "games") }
+        }
         addButton(body, "＋  Add app") { makerDialog(side) }
         addButton(body, "▦  All installed apps") { setPage(side, "apps") }
         addButton(body, "⌕  Search") { setPage(side, "search") }
@@ -835,6 +859,10 @@ class MainActivity : Activity() {
             "store" -> renderStore(body, side, accent)
             "ipa" -> renderIpaArchives(body)
             "apps" -> renderInstalledApps(body, side)
+            "control" -> renderIosControlCenter(body)
+            "quick" -> renderAndroidQuickSettings(body)
+            "games" -> renderGameHub(body, side)
+            "securitylab" -> renderSecurityLab(body)
             "search" -> renderSearch(body, accent)
             "notes" -> renderNotes(body, accent)
             else -> renderSettings(body, accent)
@@ -1094,11 +1122,13 @@ class MainActivity : Activity() {
         if (tile.url.isNotBlank()) {
             var address = tile.url
             if (!address.startsWith("http://") && !address.startsWith("https://")) address = "https://" + address
-            runIntent(Intent(Intent.ACTION_VIEW, Uri.parse(address)), "No app can open this address")
+            showCyborgWebApp(tile.title, address)
             return
         }
         when (tile.id) {
             "appstore", "playstore" -> setPage(tile.side, "store")
+            "gamehub", "androidgames" -> setPage(tile.side, "games")
+            "securitylab" -> setPage("android", "securitylab")
             "mykit", "androidsearch" -> setPage(tile.side, "search")
             "notes", "shared_notes" -> setPage(tile.side, "notes")
             "iossettings", "androidsettings" -> runIntent(Intent(Settings.ACTION_SETTINGS), "Settings unavailable")
@@ -1123,6 +1153,8 @@ class MainActivity : Activity() {
             "pcdesk" -> showPcDesktop()
             "apkmanager" -> setPage("android", "store")
             "ipaarchive" -> setPage("ios", "ipa")
+            "iossettings" -> setPage("ios", "control")
+            "androidsettings" -> setPage("android", "quick")
             else -> AlertDialog.Builder(this).setTitle(tile.title)
                 .setMessage("This Cyborg module is ready for an app or web shortcut.")
                 .setPositiveButton("OK", null).show()
