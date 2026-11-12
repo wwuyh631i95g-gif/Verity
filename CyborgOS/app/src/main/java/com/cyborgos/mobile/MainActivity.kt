@@ -1321,6 +1321,172 @@ class MainActivity : Activity() {
         web.loadUrl(safeAddress)
     }
 
+
+    private fun renderIosFeatures(body: LinearLayout) {
+        body.addView(text("ОСОБЫЕ ФУНКЦИИ IPHONE", 18f, Color.WHITE, true))
+        body.addView(text("Отдельные функции левой виртуальной системы", 9f, Color.rgb(208, 220, 255)))
+        addButton(body, (if (prefs.getBoolean("ios_focus", false)) "🌙 Фокус включён" else "🌙 Режим Фокус") ) {
+            toggleVirtualSetting("ios_focus", "Фокус", "ios", "iosfeatures")
+        }
+        addButton(body, (if (prefs.getBoolean("ios_live", false)) "♫ Dynamic Island: активен" else "♫ Включить Dynamic Island") ) {
+            toggleVirtualSetting("ios_live", "Dynamic Island", "ios", "iosfeatures")
+        }
+        addButton(body, (if (prefs.getBoolean("ios_standby", false)) "🕒 Режим ожидания StandBy: включён" else "🕒 Режим ожидания StandBy") ) {
+            toggleVirtualSetting("ios_standby", "StandBy", "ios", "iosfeatures")
+        }
+        addButton(body, (if (prefs.getBoolean("ios_livephoto", false)) "📸 Live Photos: включены" else "📸 Демонстрация Live Photos") ) {
+            toggleVirtualSetting("ios_livephoto", "Live Photos", "ios", "iosfeatures")
+        }
+        addButton(body, "▣  Переключатель приложений") { showIosAppSwitcher() }
+        addButton(body, "⌕  Spotlight — быстрый поиск") { setPage("ios", "search") }
+        addButton(body, "📡  AirDrop — демонстрация передачи") {
+            AlertDialog.Builder(this).setTitle("AirDrop CYBORG")
+                .setMessage("Демонстрация передачи между двумя рабочими пространствами. Можно переместить ярлык приложения на правый экран долгим нажатием и перетаскиванием.")
+                .setPositiveButton("ПОНЯТНО", null).show()
+        }
+        addButton(body, "🔐  Face ID — демонстрация") {
+            AlertDialog.Builder(this).setTitle("Face ID")
+                .setMessage("Это визуальная демонстрация экрана Face ID. Она не включает камеру и не распознаёт лицо.")
+                .setPositiveButton("ЗАКРЫТЬ", null).show()
+        }
+        addButton(body, "☁  iCloud — виртуальная синхронизация") {
+            val count = tiles.size
+            AlertDialog.Builder(this).setTitle("Облако CYBORG")
+                .setMessage("Виртуальный снимок состояния создан.
+Ярлыков: " + count +
+                    "
+Заметки и настройки CYBORG хранятся локально на телефоне. Это не подключение к настоящему iCloud.")
+                .setPositiveButton("ГОТОВО", null).show()
+        }
+        addButton(body, "↔  Handoff — перенести выбранное приложение на Android") {
+            val idx = tiles.indexOfFirst { it.id == selectedTileId }
+            val moving = if (idx >= 0) idx else tiles.indexOfFirst { it.side == "ios" && it.url.isNotBlank() }
+            if (moving >= 0) {
+                val item = tiles[moving]
+                tiles[moving] = item.copy(side = "android")
+                saveTiles()
+                selectedTileId = item.id
+                setPage("android", null)
+                toast("Приложение перемещено на правый экран")
+            } else toast("Сначала выбери приложение на левом экране")
+        }
+        body.addView(text(
+            "Некоторые функции здесь являются имитацией интерфейса. Они не подменяют Face ID, iCloud, AirDrop или настоящий экран блокировки телефона.",
+            8f, Color.LTGRAY
+        ))
+    }
+
+    private fun showIosAppSwitcher() {
+        val dialog = Dialog(this)
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(28, 39, 75), Color.rgb(8, 14, 32))).apply {
+                cornerRadius = dp(24).toFloat()
+            }
+        }
+        column.addView(text("ПЕРЕКЛЮЧАТЕЛЬ ПРИЛОЖЕНИЙ", 16f, Color.WHITE, true))
+        column.addView(text("Открой приложение одним касанием", 9f, Color.rgb(204, 216, 248)))
+        val scroll = ScrollView(this)
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        tiles.filter { it.side == "ios" }.forEach { tile ->
+            addActionRow(list, tile.icon, tile.title, "Открыть в iPhone-пространстве", "ОТКРЫТЬ") {
+                dialog.dismiss()
+                activeSide = "ios"
+                selectedTileId = tile.id
+                openTile(tile)
+            }
+        }
+        scroll.addView(list)
+        column.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        addButton(column, "ЗАКРЫТЬ") { dialog.dismiss() }
+        dialog.setContentView(column)
+        dialog.show()
+        dialog.window?.setLayout(-1, dp(520))
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+    }
+
+    private fun showCalculator() {
+        val dialog = Dialog(this)
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(15), dp(14), dp(15), dp(14))
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(29, 40, 63), Color.rgb(7, 13, 28))).apply {
+                cornerRadius = dp(24).toFloat()
+            }
+        }
+        panel.addView(text("КАЛЬКУЛЯТОР CYBORG", 15f, Color.WHITE, true))
+        val display = TextView(this).apply {
+            text = "0"
+            textSize = 31f
+            gravity = Gravity.RIGHT or Gravity.CENTER_VERTICAL
+            setTextColor(Color.WHITE)
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+            background = rounded(Color.argb(100, 255, 255, 255), 14)
+        }
+        panel.addView(display, LinearLayout.LayoutParams(-1, dp(78)).apply {
+            topMargin = dp(9); bottomMargin = dp(9)
+        })
+        var expression = ""
+        fun redraw() { display.text = expression.ifBlank { "0" } }
+        val rows = listOf(
+            listOf("C", "⌫", "(", ")"),
+            listOf("7", "8", "9", "÷"),
+            listOf("4", "5", "6", "×"),
+            listOf("1", "2", "3", "−"),
+            listOf("0", ".", "%", "+"),
+            listOf("±", "00", "=", "ГОТОВО")
+        )
+        rows.forEach { labels ->
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            labels.forEach { label ->
+                val button = TextView(this).apply {
+                    text = label
+                    textSize = if (label == "ГОТОВО") 10f else 19f
+                    gravity = Gravity.CENTER
+                    setTextColor(Color.WHITE)
+                    background = rounded(
+                        when (label) {
+                            "=", "ГОТОВО" -> Color.rgb(75, 129, 239)
+                            "C", "⌫" -> Color.rgb(124, 77, 98)
+                            "÷", "×", "−", "+", "%" -> Color.rgb(71, 91, 137)
+                            else -> Color.rgb(37, 52, 79)
+                        }, 12
+                    )
+                    setOnClickListener {
+                        when (label) {
+                            "C" -> { expression = ""; redraw() }
+                            "⌫" -> { expression = expression.dropLast(1); redraw() }
+                            "±" -> { expression = if (expression.startsWith("-")) expression.drop(1) else "-$expression"; redraw() }
+                            "ГОТОВО" -> dialog.dismiss()
+                            "=" -> {
+                                try {
+                                    val value = CalculatorParser(expression.replace("÷", "/").replace("×", "*").replace("−", "-")).parse()
+                                    expression = if (value % 1.0 == 0.0) value.toLong().toString() else value.toString()
+                                    redraw()
+                                } catch (_: Exception) {
+                                    display.text = "Ошибка"
+                                    expression = ""
+                                }
+                            }
+                            else -> { expression += label; redraw() }
+                        }
+                    }
+                }
+                row.addView(button, LinearLayout.LayoutParams(0, dp(52), 1f).apply {
+                    setMargins(dp(3), dp(3), dp(3), dp(3))
+                })
+            }
+            panel.addView(row, LinearLayout.LayoutParams(-1, dp(58)))
+        }
+        dialog.setContentView(panel)
+        dialog.show()
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.92f).toInt(), -2)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+    }
+
     private fun renderIpaArchives(body: LinearLayout) {
         body.addView(text("Imported IPA packages", 17f, Color.WHITE, true))
         body.addView(text("Stored as files only. CYBORG can catalogue them, but cannot execute iOS binaries on Android.",
