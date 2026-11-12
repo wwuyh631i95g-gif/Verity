@@ -417,7 +417,7 @@ class AetherShell:
                 network = "Сетевой интерфейс не обнаружен"
         except Exception:
             network = "Состояние сети недоступно"
-        body.pack_start(self.label("Сеть гостевой VM: " + network), "list-card"), False, False, 0)
+        body.pack_start(self.label("Сеть гостевой VM: " + network, "list-card"), False, False, 0)
         body.pack_start(self.button("Тёмное оформление", lambda: self.set_theme("dark")), False, False, 0)
         body.pack_start(self.button("Светлое оформление", lambda: self.set_theme("light")), False, False, 0)
         body.pack_start(self.button("Файлы", self.show_files), False, False, 0)
