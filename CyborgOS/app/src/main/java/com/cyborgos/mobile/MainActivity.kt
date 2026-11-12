@@ -1259,46 +1259,46 @@ class MainActivity : Activity() {
     }
 
     private fun renderSecurityLab(body: LinearLayout) {
-        body.addView(text("CYBORG SECURITY LAB", 18f, Color.WHITE, true))
-        body.addView(text("PRIVATE QUARANTINE • NO EXECUTION", 8.5f, Color.rgb(131, 231, 190), true))
+        body.addView(text("ЛАБОРАТОРИЯ БЕЗОПАСНОСТИ CYBORG", 18f, Color.WHITE, true))
+        body.addView(text("ЛИЧНЫЙ КАРАНТИН • ФАЙЛЫ НЕ ЗАПУСКАЮТСЯ", 8.5f, Color.rgb(131, 231, 190), true))
         body.addView(text(
-            "Files chosen here are copied into CYBORG's private app storage. The lab calculates a SHA-256 fingerprint and records the file type and size. It never installs or runs the file.",
+            "Выбранный файл копируется в закрытое хранилище CYBORG. Система рассчитывает SHA-256 и записывает тип и размер. Файл не устанавливается и не запускается.",
             9f, Color.LTGRAY
         ))
-        addButton(body, "＋  Put a file in quarantine") { openLabPicker() }
-        addButton(body, "▶  Run harmless threat simulation") { runHarmlessLabDemo() }
-        addButton(body, "🧹  Delete every quarantined copy") { clearQuarantine() }
+        addButton(body, "＋  Поместить файл в карантин") { openLabPicker() }
+        addButton(body, "▶  Запустить безопасную демонстрацию угроз") { runHarmlessLabDemo() }
+        addButton(body, "🧹  Удалить все копии из карантина") { clearQuarantine() }
         body.addView(text(
-            "IMPORTANT: this is a safe storage and fingerprint tool, not an antivirus engine or a separate Android virtual machine. It cannot identify every virus. Do not install suspicious APKs on the real phone. The APK installer elsewhere in CYBORG installs on the host Android system, not in this lab.",
+            "ВАЖНО: это безопасное хранилище, а не антивирус и не полноценная виртуальная машина Android. Оно не определяет все вирусы. Не устанавливай подозрительные APK на настоящий телефон. Установщик APK в другом разделе устанавливает приложения в основной Android, а не в лабораторию.",
             8.5f, Color.rgb(255, 205, 165), true
         ))
-        body.addView(text("QUARANTINED FILES", 10f, Color.WHITE, true))
+        body.addView(text("ФАЙЛЫ В КАРАНТИНЕ", 10f, Color.WHITE, true))
         val items = JSONArray(prefs.getString("quarantine_items", "[]"))
         if (items.length() == 0) {
-            body.addView(text("Quarantine is empty.", 9f, Color.LTGRAY))
+            body.addView(text("Карантин пуст.", 9f, Color.LTGRAY))
         }
         for (i in items.length() - 1 downTo 0) {
             val item = items.optJSONObject(i) ?: continue
             val id = item.optString("id")
             val name = item.optString("name", "Unnamed file")
-            val detail = item.optString("extension", "FILE") + " • " +
-                item.optLong("bytes").toString() + " bytes • fingerprint saved"
-            addActionRow(body, "🔒", name, detail, "DETAILS") {
+            val detail = item.optString("extension", "ФАЙЛ") + " • " +
+                item.optLong("bytes").toString() + " байт • отпечаток сохранён"
+            addActionRow(body, "🔒", name, detail, "ПОДРОБНЕЕ") {
                 AlertDialog.Builder(this).setTitle(name)
                     .setMessage(
-                        "Stored in CYBORG's private quarantine.\n\n" +
-                        "Type: " + item.optString("extension") + "\n" +
-                        "Size: " + item.optLong("bytes") + " bytes\n" +
+                        "Файл хранится в личном карантине CYBORG.\n\n" +
+                        "Тип: " + item.optString("extension") + "\n" +
+                        "Размер: " + item.optLong("bytes") + " байт\n" +
                         "SHA-256:\n" + item.optString("sha256") + "\n\n" +
-                        "No code was executed. A fingerprint is not a malware verdict."
+                        "Код не запускался. Хэш не доказывает, что файл безопасен."
                     )
-                    .setPositiveButton("DELETE COPY") { _, _ -> deleteQuarantineItem(id) }
-                    .setNegativeButton("CLOSE", null)
+                    .setPositiveButton("УДАЛИТЬ КОПИЮ") { _, _ -> deleteQuarantineItem(id) }
+                    .setNegativeButton("ЗАКРЫТЬ", null)
                     .show()
             }
         }
         body.addView(text(
-            "Deleting a quarantined copy removes only the CYBORG copy. It does not modify the original file you selected.",
+            "Удаление копии из карантина затрагивает только копию CYBORG. Исходный файл на телефоне не изменяется.",
             8f, Color.LTGRAY
         ))
     }
@@ -1311,8 +1311,8 @@ class MainActivity : Activity() {
     }
 
     private fun renderIosControlCenter(body: LinearLayout) {
-        body.addView(text("CONTROL CENTER", 18f, Color.WHITE, true))
-        body.addView(text("iPHONE WORKSPACE • FOCUS • LIVE ACTIVITIES", 8f, Color.rgb(201, 216, 255), true))
+        body.addView(text("ЦЕНТР УПРАВЛЕНИЯ", 18f, Color.WHITE, true))
+        body.addView(text("IPHONE • ФОКУС • ДИНАМИЧЕСКИЕ АКТИВНОСТИ", 8f, Color.rgb(201, 216, 255), true))
         addButton(body, (if (prefs.getBoolean("ios_focus", false)) "🌙  Focus: ON" else "🌙  Focus: OFF") +
             "  •  toggle") {
             toggleVirtualSetting("ios_focus", "Focus", "ios", "control")
@@ -1321,18 +1321,18 @@ class MainActivity : Activity() {
             "  •  toggle") {
             toggleVirtualSetting("ios_silent", "Silent mode", "ios", "control")
         }
-        addButton(body, (if (prefs.getBoolean("ios_live", false)) "♫  Live Island: playing" else "♫  Start Live Island demo")) {
+        addButton(body, (if (prefs.getBoolean("ios_live", false)) "♫  Динамический остров: включён" else "♫  Включить Динамический остров")) {
             toggleVirtualSetting("ios_live", "Live Island demo", "ios", "control")
         }
-        addButton(body, "▣  Lock Screen preview") {
-            AlertDialog.Builder(this).setTitle("CYBORG Lock Screen")
+        addButton(body, "▣  Предпросмотр экрана блокировки") {
+            AlertDialog.Builder(this).setTitle("Экран блокировки CYBORG")
                 .setMessage(
                     SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()) +
                     "\n" + SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date()) +
-                    "\n\nWeather widget  •  Calendar widget  •  Focus status\n\nPreview only: it does not replace the real Android lock screen."
+                    "\n\nПогода • Календарь • Режим Фокус\n\nЭто только предпросмотр. Настоящий экран блокировки Android не меняется."
                 ).setPositiveButton("DONE", null).show()
         }
-        body.addView(text("DISPLAY BRIGHTNESS • SIMULATED", 9f, Color.WHITE, true))
+        body.addView(text("ЯРКОСТЬ ВИРТУАЛЬНОГО ЭКРАНА", 9f, Color.WHITE, true))
         val brightness = SeekBar(this).apply {
             max = 100
             progress = prefs.getInt("ios_virtual_brightness", 72)
@@ -1348,20 +1348,20 @@ class MainActivity : Activity() {
         }
         body.addView(brightness, LinearLayout.LayoutParams(-1, dp(36)))
         body.addView(text(
-            "The iPhone side has its own Focus, silent state, Live Island demo and lock-screen preview. These are virtual CYBORG settings and do not change the host phone's radios or lock screen.",
+            "У левого экрана есть собственные режим Фокус, беззвучный режим, Динамический остров и предпросмотр блокировки. Это настройки CYBORG — они не меняют системные функции телефона.",
             8f, Color.LTGRAY
         ))
     }
 
     private fun renderAndroidQuickSettings(body: LinearLayout) {
-        body.addView(text("QUICK SETTINGS", 18f, Color.WHITE, true))
-        body.addView(text("ANDROID WORKSPACE • MATERIAL YOU", 8f, Color.rgb(192, 220, 255), true))
+        body.addView(text("БЫСТРЫЕ НАСТРОЙКИ", 18f, Color.WHITE, true))
+        body.addView(text("ANDROID • MATERIAL YOU", 8f, Color.rgb(192, 220, 255), true))
         val toggles = listOf(
-            Triple("q_wifi", "Wi-Fi", "Virtual quick tile"),
-            Triple("q_bluetooth", "Bluetooth", "Virtual quick tile"),
-            Triple("q_airplane", "Airplane mode", "Visual demo only"),
-            Triple("q_battery", "Battery saver", "Virtual power profile"),
-            Triple("q_dnd", "Do Not Disturb", "Virtual notification mode")
+            Triple("q_wifi", "Wi-Fi", "Виртуальный переключатель"),
+            Triple("q_bluetooth", "Bluetooth", "Виртуальный переключатель"),
+            Triple("q_airplane", "Режим полёта", "Только визуальная демонстрация"),
+            Triple("q_battery", "Экономия заряда", "Виртуальный режим питания"),
+            Triple("q_dnd", "Не беспокоить", "Виртуальный режим уведомлений")
         )
         toggles.forEach { item ->
             val enabled = prefs.getBoolean(item.first, false)
@@ -1370,28 +1370,28 @@ class MainActivity : Activity() {
                 toggleVirtualSetting(item.first, item.second, "android", "quick")
             }
         }
-        body.addView(text("MATERIAL YOU COLOUR", 9f, Color.WHITE, true))
+        body.addView(text("ЦВЕТА MATERIAL YOU", 9f, Color.WHITE, true))
         val palettes = listOf(
-            "BLUE" to Color.rgb(100, 160, 255),
-            "VIOLET" to Color.rgb(182, 135, 255),
-            "MINT" to Color.rgb(94, 210, 176),
-            "CORAL" to Color.rgb(255, 139, 126)
+            "СИНИЙ" to Color.rgb(100, 160, 255),
+            "ФИОЛЕТОВЫЙ" to Color.rgb(182, 135, 255),
+            "МЯТНЫЙ" to Color.rgb(94, 210, 176),
+            "КОРАЛЛОВЫЙ" to Color.rgb(255, 139, 126)
         )
         palettes.forEach { palette ->
             addButton(body, "●  " + palette.first + if (prefs.getInt("android_accent", Color.rgb(174, 164, 255)) == palette.second) "  ✓" else "") {
                 prefs.edit().putInt("android_accent", palette.second).apply()
                 render()
-                toast(palette.first + " theme applied to Android workspace")
+                toast("Цветовая тема " + palette.first + " применена к Android")
             }
         }
-        addButton(body, "▤  Notification shade preview") {
-            AlertDialog.Builder(this).setTitle("CYBORG Notifications")
-                .setMessage("No new notifications\n\nSystem update  •  CYBORG virtual environment\nGame Hub  •  Your library is ready\n\nThis is a local preview, not the Android notification shade.")
-                .setPositiveButton("CLEAR PREVIEW", null).show()
+        addButton(body, "▤  Предпросмотр панели уведомлений") {
+            AlertDialog.Builder(this).setTitle("Уведомления CYBORG")
+                .setMessage("Новых уведомлений нет\n\nОбновление системы • Виртуальная среда CYBORG\nИгровой центр • Библиотека готова\n\nЭто локальный предпросмотр, а не системная панель Android.")
+                .setPositiveButton("ОЧИСТИТЬ", null).show()
         }
-        addButton(body, "🔐  Privacy & app permissions") {
+        addButton(body, "🔐  Конфиденциальность и разрешения") {
             runIntent(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")),
-                "Android app info is unavailable")
+                "Информация о приложении Android недоступна")
         }
     }
 
@@ -1399,31 +1399,31 @@ class MainActivity : Activity() {
         val ios = side == "ios"
         body.addView(text(if (ios) "ИГРОВОЙ ЦЕНТР" else "БИБЛИОТЕКА ИГР", 18f, Color.WHITE, true))
         body.addView(text(
-            if (ios) "iPHONE-STYLE GAME SHELF" else "CYBORG APP GAMES",
+            if (ios) "ИГРОВАЯ ПОЛКА IPHONE" else "ИГРЫ CYBORG",
             8f, if (ios) Color.rgb(205, 216, 255) else Color.rgb(170, 226, 214), true
         ))
         body.addView(text(
-            "CYBORG can run web games and mini-apps packaged as .capp. Tap a game below to open it in CYBORG's own full-screen browser view.",
+            "CYBORG запускает веб-игры и мини-приложения из пакетов .capp. Игра открывается во встроенном полноэкранном окне CYBORG.",
             9f, Color.LTGRAY
         ))
-        addButton(body, "⬇  Install a CYBORG game package (.capp)") { openCyborgPackagePicker() }
+        addButton(body, "⬇  Установить игру CYBORG (.capp)") { openCyborgPackagePicker() }
         if (ios) {
-            addButton(body, "▣  Import an iOS .IPA file to archive") { openIpaPicker() }
-            addButton(body, "▣  Open IPA archive") { setPage("ios", "ipa") }
+            addButton(body, "▣  Импортировать IPA в архив") { openIpaPicker() }
+            addButton(body, "▣  Открыть архив IPA") { setPage("ios", "ipa") }
             body.addView(text(
-                "Native .ipa games are not generally compatible with Android. Experimental compatibility projects exist for narrow groups of apps, but CYBORG does not include a general iOS runtime and cannot promise that a game will launch.",
+                "Файлы .ipa обычно несовместимы с Android. Экспериментальные способы запуска подходят лишь отдельным приложениям. В CYBORG пока нет универсальной среды iOS.",
                 8.5f, Color.rgb(255, 211, 173)
             ))
         } else {
-            addButton(body, "↓  Install Android APK on this phone") { openApkPicker() }
+            addButton(body, "↓  Установить APK на телефон") { openApkPicker() }
             body.addView(text(
-                "APK installation uses the real Android package installer on the host phone. It is not isolated inside CYBORG. Use the Security Lab to store a suspicious file without running it.",
+                "APK устанавливается настоящим установщиком Android на телефоне. Это не изолировано внутри CYBORG. Для хранения подозрительного файла используй лабораторию безопасности.",
                 8.5f, Color.rgb(255, 211, 173)
             ))
         }
         body.addView(text("УСТАНОВЛЕННЫЕ ИГРЫ CYBORG", 9.5f, Color.WHITE, true))
         val games = tiles.filter { it.side == side && it.url.isNotBlank() }
-        if (games.isEmpty()) body.addView(text("No .capp games installed yet.", 9f, Color.LTGRAY))
+        if (games.isEmpty()) body.addView(text("Пока нет установленных игр .capp.", 9f, Color.LTGRAY))
         games.forEach { game ->
             addActionRow(body, game.icon, game.title, game.url, "PLAY") {
                 showCyborgWebApp(game.title, game.url)
@@ -1672,23 +1672,23 @@ class MainActivity : Activity() {
     }
 
     private fun renderIpaArchives(body: LinearLayout) {
-        body.addView(text("Imported IPA packages", 17f, Color.WHITE, true))
-        body.addView(text("Stored as files only. CYBORG can catalogue them, but cannot execute iOS binaries on Android.",
+        body.addView(text("Архив приложений IPA", 17f, Color.WHITE, true))
+        body.addView(text("Файлы хранятся в архиве. CYBORG не запускает приложения iOS на Android.",
             8.5f, Color.LTGRAY))
         val arr = JSONArray(prefs.getString("ipa_archives", "[]"))
         if (arr.length() == 0) {
-            body.addView(text("No IPA files imported yet.", 10f, Color.LTGRAY))
+            body.addView(text("Пока нет импортированных IPA-файлов.", 10f, Color.LTGRAY))
         }
         for (i in 0 until arr.length()) {
             val item = arr.optJSONObject(i) ?: continue
             val title = item.optString("name", "iOS package")
-            addActionRow(body, "▣", title, "IPA archive • not installable on Android", "INFO") {
+            addActionRow(body, "▣", title, "Архив iOS • нельзя установить на Android", "ИНФО") {
                 AlertDialog.Builder(this).setTitle(title)
-                    .setMessage("This is an iOS app package archive. Android phones cannot install or run iOS .ipa apps. The file remains listed here as an archive.")
-                    .setPositiveButton("OK", null).show()
+                    .setMessage("Это архив приложения для iOS. Android не может устанавливать и запускать файлы .ipa. Файл остаётся здесь только для хранения.")
+                    .setPositiveButton("ПОНЯТНО", null).show()
             }
         }
-        addButton(body, "＋  Import another IPA") { openIpaPicker() }
+        addButton(body, "＋  Импортировать ещё один IPA") { openIpaPicker() }
     }
 
     @Suppress("DEPRECATION")
