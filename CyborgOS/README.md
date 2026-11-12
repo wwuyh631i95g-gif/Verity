@@ -1,8 +1,11 @@
-# CYBORG VM 1.4
+# CYBORG VM 1.5
 
 CYBORG VM is a full-screen dual-workspace Android app. It gives you an iPhone-inspired workspace on the left and an Android-inspired workspace on the right. Android on the phone remains the real host operating system.
 
-## 1.4 visual and custom features
+## 1.5 visual and custom features
+- iPhone-side app badges are now circular; Android-side app badges are square with tighter corners, so the two workspaces are easier to tell apart.
+- The PC dock, keyboard button, modifier keys, trackpad and function-key row are retained unchanged.
+- Import a `.capp` CYBORG package from either app centre. A `.capp` file is UTF-8 JSON with `name`, `icon`, `side` (`ios` or `android`) and an `https://` or `http://` `url`. Installing it adds a CYBORG shortcut that opens the web app/game in the host browser; it does not install a native iOS game.
 - New original vector wallpapers for both halves: fluid layered blue/pink curves on the iPhone side and teal/blue Material-style colour fields on the Android side.
 - Rounded icon tiles, separate docks, date/time widgets, home-screen app grids and drag-and-drop shortcut transfer between halves.
 - The visual references are inspired by public iOS 18 and Android/Material wallpaper styles; the included wallpapers are drawn by CYBORG and are not extracted Apple or Google system files.
