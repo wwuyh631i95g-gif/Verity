@@ -153,6 +153,8 @@ class MainActivity : Activity() {
     private var altLatched = false
     private var shiftLatched = false
     private var fullScreen = false
+    private var gestureDownX = 0f
+    private var gestureDownY = 0f
     private val reqPickApk = 7101
     private val reqPickIpa = 7102
     private val reqInstallSettings = 7103
@@ -273,7 +275,7 @@ class MainActivity : Activity() {
             "Write something..." to "Напиши заметку…",
             "SAVE NOTE" to "СОХРАНИТЬ ЗАМЕТКУ",
             "Cyborg settings" to "Настройки CYBORG",
-            "Independent interfaces, one shared app shelf." to "Два интерфейса и общая библиотека приложений.",
+            "Два полноэкранных интерфейса с общей библиотекой приложений." to "Два интерфейса и общая библиотека приложений.",
             "←  Back to iPhone" to "← На главный экран iPhone",
             "←  Back to Android" to "← На главный экран Android",
             "Search results" to "Результаты поиска",
@@ -521,6 +523,10 @@ class MainActivity : Activity() {
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            gestureDownX = event.x
+            gestureDownY = event.y
+        }
         if (::root.isInitialized && pointerEnabled &&
             (event.actionMasked == MotionEvent.ACTION_DOWN ||
              event.actionMasked == MotionEvent.ACTION_MOVE ||
@@ -533,7 +539,16 @@ class MainActivity : Activity() {
             pointerVisible = true
             if (::pointerLayer.isInitialized) pointerLayer.invalidate()
         }
-        return super.dispatchTouchEvent(event)
+        val result = super.dispatchTouchEvent(event)
+        if (event.actionMasked == MotionEvent.ACTION_UP) {
+            val dx = event.x - gestureDownX
+            val dy = event.y - gestureDownY
+            if (kotlin.math.abs(dx) > dp(110) && kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.35f) {
+                activeSide = if (dx < 0f) "android" else "ios"
+                render()
+            }
+        }
+        return result
     }
 
     @Suppress("DEPRECATION")
@@ -619,23 +634,68 @@ class MainActivity : Activity() {
     }
 
     private fun setPage(side: String, page: String?) {
+        activeSide = side
         if (side == "ios") iosPage = page else androidPage = page
         render()
     }
 
     private fun render() {
         mainColumn.removeAllViews()
-        val halves = LinearLayout(this).apply {
+        val switcher = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(4), dp(2), dp(4), dp(3))
+            gravity = Gravity.CENTER
+            setPadding(dp(10), dp(7), dp(10), dp(7))
+            background = rounded(Color.rgb(10, 16, 29), 0)
         }
-        halves.addView(buildPanel("ios"), LinearLayout.LayoutParams(0, -1, 1f).apply {
-            setMargins(dp(2), dp(2), dp(3), dp(2))
+        fun workspaceTab(side: String, title: String, symbol: String, tint: Int): TextView {
+            val selected = activeSide == side
+            return TextView(this).apply {
+                text = symbol + "  " + title + if (selected) "  ●" else ""
+                textSize = 12f
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                gravity = Gravity.CENTER
+                setTextColor(if (selected) Color.WHITE else Color.rgb(192, 204, 224))
+                background = rounded(
+                    if (selected) tint else Color.rgb(30, 40, 59),
+                    18,
+                    if (selected) Color.argb(110, 255, 255, 255) else Color.TRANSPARENT
+                )
+                setOnClickListener {
+                    activeSide = side
+                    render()
+                }
+                setOnDragListener { _, e ->
+                    when (e.action) {
+                        DragEvent.ACTION_DRAG_STARTED -> e.localState is AppTile
+                        DragEvent.ACTION_DROP -> {
+                            val moving = e.localState as? AppTile
+                            if (moving != null) {
+                                val ix = tiles.indexOfFirst { it.id == moving.id }
+                                if (ix >= 0) {
+                                    tiles[ix] = tiles[ix].copy(side = side)
+                                    saveTiles()
+                                    activeSide = side
+                                    if (side == "ios") iosPage = null else androidPage = null
+                                    toast(moving.title + ": стиль " + if (side == "ios") "iPhone" else "Android" + " применён")
+                                    render()
+                                }
+                            }
+                            true
+                        }
+                        else -> true
+                    }
+                }
+            }
+        }
+        switcher.addView(workspaceTab("ios", "iPhone", "", Color.rgb(91, 105, 175)),
+            LinearLayout.LayoutParams(0, dp(42), 1f).apply { setMargins(dp(3), 0, dp(4), 0) })
+        switcher.addView(workspaceTab("android", "Android", "◈", Color.rgb(49, 116, 105)),
+            LinearLayout.LayoutParams(0, dp(42), 1f).apply { setMargins(dp(4), 0, dp(3), 0) })
+        mainColumn.addView(switcher, LinearLayout.LayoutParams(-1, -2))
+        mainColumn.addView(buildPanel(activeSide), LinearLayout.LayoutParams(-1, 0, 1f).apply {
+            setMargins(dp(5), dp(2), dp(5), dp(3))
         })
-        halves.addView(buildPanel("android"), LinearLayout.LayoutParams(0, -1, 1f).apply {
-            setMargins(dp(3), dp(2), dp(2), dp(2))
-        })
-        mainColumn.addView(halves, LinearLayout.LayoutParams(-1, 0, 1f))
+        // The PC keyboard/mouse dock intentionally stays unchanged.
         mainColumn.addView(buildPcDock(), LinearLayout.LayoutParams(-1, -2))
     }
 
@@ -646,7 +706,7 @@ class MainActivity : Activity() {
             setPadding(dp(13), dp(6), dp(13), dp(5))
         }
         val titleBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        titleBox.addView(text("CYBORG VM", 19f, Color.WHITE, true))
+        titleBox.addView(text("CYBORG OS", 19f, Color.WHITE, true))
         titleBox.addView(text("VIRTUAL DEVICE  •  TOUCH + PC CONTROLS", 8.5f, Color.rgb(154, 176, 208), true))
         bar.addView(titleBox, LinearLayout.LayoutParams(0, -2, 1f))
         val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
@@ -661,18 +721,16 @@ class MainActivity : Activity() {
 
     private fun buildPanel(side: String): View {
         val ios = side == "ios"
-        val accent = if (ios) Color.rgb(151, 181, 255)
+        val accent = if (ios) Color.rgb(173, 194, 255)
             else prefs.getInt("android_accent", Color.rgb(174, 164, 255))
-        val colors = if (ios) intArrayOf(Color.rgb(70, 103, 190), Color.rgb(118, 112, 194), Color.rgb(207, 143, 173))
-                    else intArrayOf(Color.rgb(23, 53, 69), Color.rgb(39, 87, 100), Color.rgb(69, 105, 133))
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(6), dp(5), dp(6), dp(6))
+            setPadding(dp(14), dp(9), dp(14), dp(8))
             background = DualWallpaperDrawable(ios)
             setOnDragListener { _, e ->
                 when (e.action) {
                     DragEvent.ACTION_DRAG_STARTED -> e.localState is AppTile
-                    DragEvent.ACTION_DRAG_ENTERED -> { alpha = 0.84f; true }
+                    DragEvent.ACTION_DRAG_ENTERED -> { alpha = 0.92f; true }
                     DragEvent.ACTION_DRAG_EXITED -> { alpha = 1f; true }
                     DragEvent.ACTION_DROP -> {
                         alpha = 1f
@@ -682,7 +740,8 @@ class MainActivity : Activity() {
                             if (ix >= 0) {
                                 tiles[ix] = tiles[ix].copy(side = side)
                                 saveTiles()
-                                toast(moving.title + " moved to " + if (ios) "left workspace" else "right workspace")
+                                activeSide = side
+                                toast(moving.title + " перенесено в " + if (ios) "iPhone" else "Android")
                                 render()
                             }
                         }
@@ -693,58 +752,63 @@ class MainActivity : Activity() {
                 }
             }
         }
-        panel.addView(buildStatusStrip(ios), LinearLayout.LayoutParams(-1, dp(22)))
+        panel.addView(buildStatusStrip(ios), LinearLayout.LayoutParams(-1, dp(27)))
         if (ios) {
-            val island = FrameLayout(this)
+            val islandRow = FrameLayout(this)
             val islandActive = prefs.getBoolean("ios_live", false)
-            val pill = TextView(this).apply {
-                text = if (islandActive) "♫  CYBORG" else ""
-                textSize = 7f
+            val island = TextView(this).apply {
+                text = if (islandActive) "♫   CYBORG   •   АКТИВНО" else ""
+                textSize = 8f
                 gravity = Gravity.CENTER
                 setTextColor(Color.WHITE)
-                background = rounded(Color.BLACK, 20)
+                background = rounded(Color.BLACK, 24)
                 setOnClickListener {
                     prefs.edit().putBoolean("ios_live", !islandActive).apply()
                     render()
                 }
             }
-            island.addView(pill, FrameLayout.LayoutParams(dp(if (islandActive) 76 else 58), dp(17), Gravity.CENTER))
-            panel.addView(island, LinearLayout.LayoutParams(-1, dp(20)))
-            panel.addView(text(
-                SimpleDateFormat("EEEE, d MMMM", Locale("ru")).format(Date()),
-                8.5f, Color.rgb(220, 231, 255), true
-            ))
-            panel.addView(text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
-                26f, Color.WHITE, true))
-            panel.addView(text("Виджеты • Фокус • Активности", 7.5f, Color.rgb(238, 239, 255)))
+            islandRow.addView(island, FrameLayout.LayoutParams(dp(if (islandActive) 126 else 92), dp(25), Gravity.CENTER))
+            panel.addView(islandRow, LinearLayout.LayoutParams(-1, dp(29)))
         } else {
             val search = TextView(this).apply {
-                text = "G     Поиск     ☷"
-                textSize = 10f
-                setTextColor(Color.rgb(40, 40, 58))
+                text = "⌕     Поиск в телефоне и интернете"
+                textSize = 13f
+                setTextColor(Color.rgb(50, 54, 66))
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(10), 0, dp(8), 0)
-                background = rounded(Color.rgb(227, 225, 246), 24)
+                setPadding(dp(16), 0, dp(12), 0)
+                background = rounded(Color.rgb(235, 231, 247), 28)
                 setOnClickListener { setPage("android", "search") }
             }
-            panel.addView(search, LinearLayout.LayoutParams(-1, dp(32)).apply {
-                topMargin = dp(7); bottomMargin = dp(5)
+            panel.addView(search, LinearLayout.LayoutParams(-1, dp(46)).apply {
+                topMargin = dp(7); bottomMargin = dp(6)
             })
-            panel.addView(text(
-                SimpleDateFormat("EEE, d MMM", Locale("ru")).format(Date()),
-                9f, Color.rgb(220, 216, 255), true
-            ))
         }
-        val scroll = ScrollView(this).apply { isFillViewport = false }
+        val scroll = ScrollView(this).apply {
+            isFillViewport = false
+            clipToPadding = false
+            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+        }
         val body = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(1), dp(5), dp(1), dp(5))
+            setPadding(dp(2), dp(5), dp(2), dp(10))
         }
         val page = if (ios) iosPage else androidPage
         if (page == null) renderHome(body, side, accent) else renderPage(body, side, page, accent)
         scroll.addView(body)
         panel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        panel.addView(buildOsDock(side), LinearLayout.LayoutParams(-1, dp(58)))
+        panel.addView(buildOsDock(side), LinearLayout.LayoutParams(-1, dp(70)))
+        val homeIndicator = TextView(this).apply {
+            text = "━━━━━━━━━━━━━━━━"
+            textSize = 10f
+            gravity = Gravity.CENTER
+            setTextColor(if (ios) Color.argb(210, 255, 255, 255) else Color.argb(180, 220, 230, 245))
+            setOnClickListener {
+                if (side == "ios") iosPage = null else androidPage = null
+                activeSide = side
+                render()
+            }
+        }
+        panel.addView(homeIndicator, LinearLayout.LayoutParams(-1, dp(17)))
         return panel
     }
 
@@ -755,11 +819,17 @@ class MainActivity : Activity() {
             setPadding(dp(5), 0, dp(5), 0)
         }
         val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-        row.addView(text(time, 8.5f, Color.WHITE, true), LinearLayout.LayoutParams(0, -1, 1f))
+        val battery = try {
+            (getSystemService(BATTERY_SERVICE) as BatteryManager)
+                .getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        } catch (_: Exception) { -1 }
+        row.addView(text(time, 12f, Color.WHITE, true), LinearLayout.LayoutParams(0, -1, 1f))
         row.addView(text(
-            if (ios) "●●●  Wi-Fi  ▰" else "▴  ●●●  Wi-Fi  ▰",
-            7.5f, Color.WHITE, true
+            if (ios) "●●●   Wi-Fi   " + (if (battery in 0..100) battery else 100) + "% ▰"
+            else "◈  Wi-Fi   " + (if (battery in 0..100) battery else 100) + "% ▰",
+            9f, Color.WHITE, true
         ))
+        row.setOnClickListener { setPage(if (ios) "ios" else "android", if (ios) "control" else "quick") }
         return row
     }
 
@@ -768,10 +838,11 @@ class MainActivity : Activity() {
         val dock = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(3), dp(3), dp(3), dp(3))
+            setPadding(dp(7), dp(7), dp(7), dp(7))
             background = rounded(
-                if (ios) Color.argb(125, 225, 235, 255) else Color.argb(150, 222, 231, 245),
-                if (ios) 19 else 9
+                if (ios) Color.argb(135, 225, 235, 255) else Color.argb(220, 28, 39, 54),
+                if (ios) 25 else 23,
+                if (ios) Color.argb(75, 255, 255, 255) else Color.argb(60, 255, 255, 255)
             )
         }
         val preferred = if (ios) listOf("phone", "messages", "safari", "music")
@@ -784,7 +855,7 @@ class MainActivity : Activity() {
                 isFocusable = true
                 setOnClickListener { selectedTileId = tile.id; activeSide = side; openTile(tile) }
             }
-            item.addView(tileIconView(tile, 34), LinearLayout.LayoutParams(dp(34), dp(34)))
+            item.addView(tileIconView(tile, 48), LinearLayout.LayoutParams(dp(48), dp(48)))
             dock.addView(item, LinearLayout.LayoutParams(0, -1, 1f))
         }
         return dock
@@ -792,61 +863,73 @@ class MainActivity : Activity() {
 
     private fun renderHome(body: LinearLayout, side: String, accent: Int) {
         val ios = side == "ios"
-        val widget = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(10), dp(7), dp(10), dp(7))
-            background = rounded(
-                if (ios) Color.argb(105, 245, 246, 255) else Color.argb(120, 226, 243, 239),
-                14, Color.argb(75, 255, 255, 255)
-            )
-        }
         if (ios) {
-            widget.addView(text(SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date()),
-                8.5f, Color.WHITE, true))
-            widget.addView(text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
-                27f, Color.WHITE, true))
-            widget.addView(text("Виджеты • Активности • Фокус", 8f, Color.rgb(238, 239, 255)))
+            val hero = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(15), dp(12), dp(15), dp(12))
+                background = rounded(Color.argb(92, 246, 247, 255), 23, Color.argb(55, 255, 255, 255))
+            }
+            hero.addView(text(
+                SimpleDateFormat("EEEE, d MMMM", Locale("ru")).format(Date()),
+                12f, Color.WHITE, true
+            ))
+            hero.addView(text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
+                43f, Color.WHITE, true))
+            hero.addView(text("ПОГОДА     КАЛЕНДАРЬ     ФОКУС", 8f, Color.rgb(240, 241, 255)))
+            body.addView(hero, LinearLayout.LayoutParams(-1, dp(126)).apply { bottomMargin = dp(12) })
+            body.addView(text("ПРИЛОЖЕНИЯ", 10f, Color.WHITE, true))
         } else {
-            widget.addView(text("Краткий обзор", 8.5f, Color.WHITE, true))
-            widget.addView(text(SimpleDateFormat("EEE, MMM d  •  HH:mm", Locale.getDefault()).format(Date()),
-                17f, Color.WHITE, true))
-            widget.addView(text("Поиск • Приложения • Быстрые действия", 8f, Color.rgb(228, 245, 243)))
+            val hero = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(15), dp(12), dp(15), dp(12))
+                background = rounded(Color.argb(145, 29, 49, 58), 25, Color.argb(80, 255, 255, 255))
+            }
+            hero.addView(text("СЕГОДНЯ", 9f, Color.rgb(205, 229, 222), true))
+            hero.addView(text(SimpleDateFormat("d MMMM • EEEE", Locale("ru")).format(Date()),
+                18f, Color.WHITE, true))
+            hero.addView(text("Погода  ·  Календарь  ·  Быстрые действия", 9f, Color.rgb(215, 235, 230)))
+            body.addView(hero, LinearLayout.LayoutParams(-1, dp(91)).apply { bottomMargin = dp(12) })
+            body.addView(text("ВСЕ ПРИЛОЖЕНИЯ", 10f, Color.WHITE, true))
         }
-        body.addView(widget, LinearLayout.LayoutParams(-1, dp(82)).apply { bottomMargin = dp(7) })
-        body.addView(text(if (ios) "Рекомендуемые" else "Ваши приложения", 9.5f, Color.WHITE, true))
         val dockIds = if (ios) listOf("phone", "messages", "safari", "music")
                       else listOf("phone", "chrome", "camera", "photos")
         val list = tiles.filter { it.side == side && it.id !in dockIds }
         var i = 0
         while (i < list.size) {
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            for (col in 0..2) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+            for (col in 0..3) {
                 val ix = i + col
                 if (ix < list.size) {
                     row.addView(appTileView(list[ix]),
-                        LinearLayout.LayoutParams(0, dp(68), 1f).apply {
-                            setMargins(dp(1), dp(1), dp(1), dp(1))
+                        LinearLayout.LayoutParams(0, dp(91), 1f).apply {
+                            setMargins(dp(2), dp(2), dp(2), dp(2))
                         })
-                } else row.addView(View(this), LinearLayout.LayoutParams(0, dp(68), 1f))
+                } else row.addView(View(this), LinearLayout.LayoutParams(0, dp(91), 1f))
             }
             body.addView(row)
-            i += 3
+            i += 4
         }
-        body.addView(text(if (ios) "БИБЛИОТЕКА ПРИЛОЖЕНИЙ" else "ВСЕ ПРИЛОЖЕНИЯ", 8f, accent, true))
         if (ios) {
+            addButton(body, "⌕  Поиск Spotlight") { setPage(side, "search") }
+            addButton(body, "▦  Библиотека приложений") { setPage(side, "apps") }
             addButton(body, "◉  Центр управления iPhone") { setPage(side, "control") }
             addButton(body, "✨  Особые функции iPhone") { setPage(side, "iosfeatures") }
-            addButton(body, "🎮  Игровой центр") { setPage(side, "games") }
-            addButton(body, "▣  Архив приложений IPA") { setPage(side, "ipa") }
+            addButton(body, "🎮  Game Center") { setPage(side, "games") }
+            addButton(body, "▣  Архив IPA") { setPage(side, "ipa") }
         } else {
-            addButton(body, "⚡  Быстрые настройки Android") { setPage(side, "quick") }
+            addButton(body, "▦  Панель приложений") { setPage(side, "apps") }
+            addButton(body, "⚡  Быстрые настройки и уведомления") { setPage(side, "quick") }
+            addButton(body, "🎨  Настроить цвета Material You") { setPage(side, "quick") }
             addButton(body, "🛡  Лаборатория безопасности") { setPage(side, "securitylab") }
             addButton(body, "🎮  Библиотека игр") { setPage(side, "games") }
         }
         addButton(body, "＋  Добавить приложение") { makerDialog(side) }
-        addButton(body, "▦  Все приложения") { setPage(side, "apps") }
-        addButton(body, "⌕  Поиск") { setPage(side, "search") }
-        addButton(body, if (ios) "Магазин App Store" else "Магазин CYBORG") { setPage(side, "store") }
+        addButton(body, if (ios) "Магазин CYBORG для iPhone" else "Магазин CYBORG для Android") {
+            setPage(side, "store")
+        }
         addButton(body, "▤  Рабочий стол ПК") { showPcDesktop() }
     }
 
@@ -874,9 +957,10 @@ class MainActivity : Activity() {
             }
         }
         return GradientDrawable(GradientDrawable.Orientation.TL_BR, palette).apply {
-            // Clearly distinguish the two virtual interfaces: circular iPhone badges vs square Android icons.
-            shape = if (side == "ios") GradientDrawable.OVAL else GradientDrawable.RECTANGLE
-            cornerRadius = dp(if (side == "ios") 21 else 7).toFloat()
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dp(if (side == "ios") 18 else 14).toFloat()
+            setStroke(dp(1), if (side == "ios") Color.argb(45, 255, 255, 255)
+                else Color.argb(28, 0, 0, 0))
         }
     }
 
@@ -1093,12 +1177,13 @@ class MainActivity : Activity() {
             isFocusable = true
             contentDescription = tile.title
         }
-        card.addView(tileIconView(tile, 42), LinearLayout.LayoutParams(dp(42), dp(42)))
-        card.addView(text(tile.title, 8.5f, Color.WHITE, true).apply {
+        val iconSize = if (tile.side == "ios") 56 else 52
+        card.addView(tileIconView(tile, iconSize), LinearLayout.LayoutParams(dp(iconSize), dp(iconSize)))
+        card.addView(text(tile.title, 10f, Color.WHITE, true).apply {
             gravity = Gravity.CENTER
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
-        }, LinearLayout.LayoutParams(-1, dp(21)))
+        }, LinearLayout.LayoutParams(-1, dp(24)))
         card.setOnClickListener { selectedTileId = tile.id; activeSide = tile.side; openTile(tile) }
         card.setOnLongClickListener {
             it.startDragAndDrop(ClipData.newPlainText("cyborg_app", tile.id),
@@ -2187,7 +2272,7 @@ class MainActivity : Activity() {
     }
 
     private fun showCyborgAbout() {
-        AlertDialog.Builder(this).setTitle("CYBORG OS 1.7")
+        AlertDialog.Builder(this).setTitle("CYBORG OS 1.8")
             .setMessage(
                 "Виртуальная система с двумя рабочими пространствами, собственным магазином CYBORG, встроенными Google и YouTube, калькулятором и панелью ПК. Это приложение внутри Android, а не отдельная загружаемая iOS или Android-машина."
             )
