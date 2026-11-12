@@ -1,0 +1,86 @@
+name: Build CYBORG OS APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "CyborgOS/**"
+      - ".github/workflows/build-cyborg-os.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout CYBORG OS source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-34 build-tools;34.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Create Gradle wrapper
+        working-directory: CyborgOS
+        run: gradle wrapper --gradle-version 8.7
+
+      - name: Build debug APK
+        working-directory: CyborgOS
+        run: ./gradlew --no-daemon --stacktrace clean assembleDebug
+
+      - name: Verify APK and package metadata
+        run: |
+          set -euo pipefail
+          APK="CyborgOS/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          ls -lh "$APK"
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | head -n 8
+
+      - name: Android 14 launch smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim
+          script: |
+            APK="CyborgOS/app/build/outputs/apk/debug/app-debug.apk"
+            adb install -r "$APK"
+            adb logcat -c
+            adb shell am start -W -n com.cyborgos.mobile/.MainActivity
+            sleep 8
+            if ! adb shell pidof com.cyborgos.mobile >/dev/null; then
+              adb logcat -d -t 3000
+              echo "CYBORG OS process exited after launch"
+              exit 1
+            fi
+            adb logcat -d -t 3000 > /tmp/cyborg-logcat.txt
+            if grep -E "FATAL EXCEPTION|Process: com.cyborgos.mobile" /tmp/cyborg-logcat.txt; then
+              cat /tmp/cyborg-logcat.txt
+              exit 1
+            fi
+            echo "CYBORG OS Android 14 launch smoke test passed"
+
+      - name: Upload CYBORG OS APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CYBORG-OS-1.0.0-Android-14-APK
+          path: CyborgOS/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
