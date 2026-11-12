@@ -33,6 +33,14 @@ import sys
 
 root = Path(sys.argv[1])
 
+def replace_first(path, old, new, label):
+    p = root / path
+    text = p.read_text(encoding="utf-8")
+    count = text.count(old)
+    if count < 1:
+        raise SystemExit(f"Patch anchor missing in {path}: {label}")
+    p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
 def replace_once(path, old, new, label):
     p = root / path
     text = p.read_text(encoding="utf-8")
@@ -80,7 +88,7 @@ replace_once(
 )
 
 # Make the native Android front-end enter the actual guest desktop after boot.
-replace_once(
+replace_first(
     "app/src/main/java/com/excp/podroid/ui/navigation/NavGraph.kt",
     '                onNavigateToContainerBackup = {\n'
     '                    navController.navigate(Routes.CONTAINER_BACKUP) { launchSingleTop = true }\n'
