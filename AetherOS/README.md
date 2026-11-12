@@ -1,15 +1,12 @@
-# Aether OS — first Android build
+# Aether OS Fusion 3.0
 
-Aether OS is a standalone Android application that presents a personal, customizable system shell inside an ordinary APK. It does not replace Android or virtualize a second Android kernel.
+Aether OS is an Android-hosted mobile shell and optional Home launcher, combining Aether's own apps and personal workspace with familiar Android and iPhone-inspired interaction patterns.
 
-Target: Honor X8b / Android 14 (API 34)
-Minimum Android: 8.0 (API 26)
-App ID: com.aetheros.shell
-Required permission: INTERNET (for the built-in browser)
-No root, ADB, Shizuku, overlay, contacts, camera, microphone, or broad storage permission.
+## Build
+Open this folder as the Gradle Android project, or run the GitHub Actions workflow **Build Aether OS APK**. The APK targets Android 14/API 34 and supports API 26+.
 
-Working in this prototype: Home dashboard, in-app browser, Google Search entry point, local notes, private app files, web-app shortcuts, simple app studio, settings, profile name, quick panel shortcuts to Android Settings, app history, photo picker, external camera hand-off, calculator, and JSON backup export through Android's document picker.
+## Device setup
+Install the APK, open it, and use **Set Aether as the phone's Home app** to open Android's Home-app picker. Select Aether only if you want its home screen to replace the current launcher. You can switch back later in Android settings.
 
-Boundaries: This is an app-level environment, not a second Android OS. Android apps installed on the host do not automatically become apps inside Aether OS. The Store in this first version saves and opens web-app shortcuts; it does not install arbitrary APKs into a separate Android runtime. Google Play Services and Google Play Store are not bundled or emulated. The browser opens Google websites, subject to Google's WebView/login policies.
-
-No permission is requested for photos or camera by this app: the user hands off to Android's system picker/camera app.
+## Important
+Aether is not a new kernel, firmware image or bootable guest OS. Android remains installed and controls protected hardware/system settings. See [FEATURE_MATRIX_3.0.0.md](FEATURE_MATRIX_3.0.0.md) for the exact feature list and boundaries.
