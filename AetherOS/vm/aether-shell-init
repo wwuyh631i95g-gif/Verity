@@ -1,0 +1,22 @@
+#!/sbin/openrc-run
+description="Aether OS guest phone interface"
+
+depend() {
+    need podroid-x11
+    before podroid-ready
+}
+
+start() {
+    ebegin "Starting Aether OS interface"
+    start-stop-daemon --start --background \
+        --pidfile /run/aether-shell.pid --make-pidfile \
+        --stdout /var/log/aether-shell.log --stderr /var/log/aether-shell.log \
+        --exec /usr/local/bin/aether-shell-launcher
+    eend $?
+}
+
+stop() {
+    ebegin "Stopping Aether OS interface"
+    start-stop-daemon --stop --pidfile /run/aether-shell.pid 2>/dev/null
+    eend 0
+}
