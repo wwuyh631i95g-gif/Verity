@@ -1044,7 +1044,7 @@ class MainActivity : Activity() {
     private fun exportBackup() {
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE); type = "application/json"
-            putExtra(Intent.EXTRA_TITLE, "aether-os-2-backup.json")
+            putExtra(Intent.EXTRA_TITLE, "aether-os-fusion-3-backup.json")
         }
         try { startActivityForResult(intent, exportRequest) } catch (_: Exception) { toast("Document picker unavailable") }
     }
@@ -1059,7 +1059,7 @@ class MainActivity : Activity() {
     private fun makeBackup(): JSONObject {
         return JSONObject()
             .put("system", "Aether OS")
-            .put("version", "2.0.0")
+            .put("version", "3.0.0")
             .put("profile", prefs.getString("profile", "Guest"))
             .put("appearance", prefs.getString("appearance", "dark"))
             .put("wallpaper", prefs.getString("wallpaper", "aurora"))
@@ -1067,6 +1067,9 @@ class MainActivity : Activity() {
             .put("web_apps", prefs.getString("web_apps", "[]"))
             .put("planner_items", prefs.getString("planner_items", "[]"))
             .put("custom_routines", JSONArray((prefs.getStringSet("custom_routines", emptySet()) ?: emptySet()).toList()))
+            .put("favorite_packages", JSONArray((prefs.getStringSet("favorite_packages", emptySet()) ?: emptySet()).toList()))
+            .put("font_scale", prefs.getFloat("font_scale", 1.0f).toDouble())
+            .put("reduce_motion", prefs.getBoolean("reduce_motion", false))
     }
 
     private fun restoreBackup(json: JSONObject) {
@@ -1081,6 +1084,12 @@ class MainActivity : Activity() {
         val set = mutableSetOf<String>()
         for (i in 0 until routines.length()) set.add(routines.optString(i))
         editor.putStringSet("custom_routines", set)
+        val favorites = json.optJSONArray("favorite_packages") ?: JSONArray()
+        val favoriteSet = mutableSetOf<String>()
+        for (i in 0 until favorites.length()) favoriteSet.add(favorites.optString(i))
+        editor.putStringSet("favorite_packages", favoriteSet)
+        editor.putFloat("font_scale", json.optDouble("font_scale", 1.0).toFloat().coerceIn(0.8f, 1.4f))
+        editor.putBoolean("reduce_motion", json.optBoolean("reduce_motion", false))
         editor.apply()
     }
 
