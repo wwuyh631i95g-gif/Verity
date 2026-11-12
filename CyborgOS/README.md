@@ -1,47 +1,31 @@
-# CYBORG VM 1.2
+# CYBORG VM 1.3
 
-CYBORG VM is a full-screen, self-contained virtual-device-style Android application. When launched, it opens its own two-panel mobile workspace with persistent app shortcuts, shared notes, a small module catalogue, and a PC-style touch/keyboard control dock.
+CYBORG VM is a full-screen, dual-workspace Android app. It presents two side-by-side mobile home screens and a PC-style control dock. Android on the host phone remains the real operating system.
 
-## Two mobile workspaces
+## Visual improvements in 1.3
+- Two distinct wallpaper palettes and rounded screen surfaces.
+- Left workspace uses an iPhone-inspired date/time widget, squircle-style icon tiles and bottom dock.
+- Right workspace uses an Android-inspired glance/search layout and home dock.
+- The app grid now uses three columns in each half.
+- Where a matching app is installed on the host Android device, CYBORG displays that app's actual launcher icon and can launch the real app.
+- Long-press an icon, drag it across the centre divider, and release to move that shortcut between the two halves. This works with touch; keyboard navigation remains available too.
+- App Store tile opens the CYBORG local catalogue. It is not Apple's App Store and cannot install iOS apps.
+- Play Store tile opens the CYBORG catalogue; the Android store page also has an action to open Google Play if it is installed.
 
-- Left workspace: iPhone-inspired home screen layout, island-style top element, app grid and dock.
-- Right workspace: Android-inspired launcher, search bar, app grid and dock.
-- Both halves use touch interaction. Tap app icons to open them; long-press and drag an icon across the divider to move it between workspaces.
-- Real Android apps installed on the host phone can be pinned and launched from either workspace. The custom catalogue and app creator store local shortcuts and modules.
+## PC dock
+The bottom dock scrolls horizontally and includes mouse pointer, keyboard, trackpad, Ctrl, Alt, Shift, Tab, Esc, Enter, Backspace, Delete, F1-F12, arrow keys, Insert, Home, End, Page Up and Page Down.
 
-The visual design follows familiar mobile interface patterns, but the two workspaces are not exact copies of Apple's or Google's operating systems.
+Function keys:
+- F1 Help; F2 rename selected shortcut; F3 Search; F4 Desktop
+- F5 Refresh; F6 switch active half; F7 Keyboard; F8 Trackpad
+- F9 installed apps; F10 Android Settings; F11 immersive mode; F12 About
 
-## PC controls
+Touch interaction is still enabled. These controls act inside CYBORG VM; they do not inject input into unrelated apps outside it.
 
-The bottom dock scrolls horizontally and includes a mouse pointer, keyboard, trackpad, Ctrl, Alt, Shift, Tab, Esc, Enter, Backspace, Delete, F1-F12, arrow keys, Insert, Home, End, Page Up and Page Down.
+## Virtualization boundary
+This APK runs as its own full-screen workspace inside Android. It is not a hypervisor or a bootable ISO/QCOW2 image. Android remains the host OS. The left side is an iPhone-inspired interface, not genuine iOS; Apple's App Store and iOS apps cannot run inside this APK. The right side can launch compatible Android apps already installed on the phone.
 
-Function keys have local actions inside CYBORG VM:
-- F1 Help
-- F2 Rename selected app tile
-- F3 Search
-- F4 Desktop workspace
-- F5 Refresh
-- F6 Switch active workspace
-- F7 Keyboard
-- F8 Trackpad
-- F9 Installed Android apps
-- F10 Android Settings
-- F11 Immersive full-screen toggle
-- F12 About
-
-Touch controls remain enabled. The pointer and keyboard controls operate inside CYBORG VM; they do not inject input globally into unrelated Android apps.
-
-## Important virtualization boundary
-
-CYBORG VM is delivered as an APK that runs as a separate full-screen environment inside the phone's Android system. It is a virtual-device-style app shell, not a hardware hypervisor or a bootable Android/iOS disk image. Android remains the host operating system and provides actual hardware access.
-
-The left workspace is an iPhone-inspired interface, not genuine iOS. Apple does not provide a redistributable iOS guest image for Android, and this APK cannot run iOS apps or the real Apple App Store. The right workspace launches actual Android apps already installed on the host device.
-
-## Compatibility and build
-
-- Android API 26 or newer; build target Android 14/API 34.
-- Kotlin Android app; no external runtime libraries.
-- No runtime permissions requested by the application.
-- GitHub Actions creates a debug APK artifact.
-
-This APK can be installed on an Android phone or inside an Android-based VM that supports APK installation. It is not an ISO, QCOW2, or raw virtual-disk image.
+## Build
+- minSdk 26, targetSdk 34, Kotlin.
+- No runtime permissions requested.
+- GitHub Actions builds a debug APK artifact.
