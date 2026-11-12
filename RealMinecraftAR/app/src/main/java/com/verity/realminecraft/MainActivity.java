@@ -156,15 +156,15 @@ public class MainActivity extends FragmentActivity
         }
         for (int i=0;i<MOB_COLORS.length;i++) {
             final int index=i;
-            MaterialFactory.makeOpaqueWithColor(this, new SceneColor(MOB_COLORS[i]))
+            MaterialFactory.makeOpaqueWithColor(this, new com.google.ar.sceneform.rendering.Color(MOB_COLORS[i]))
                 .thenAccept(material -> mobCubes[index] =
                     ShapeFactory.makeCube(new Vector3(1f,1f,1f), Vector3.zero(), material));
         }
-        MaterialFactory.makeOpaqueWithColor(this, new SceneColor(0xff24242a))
+        MaterialFactory.makeOpaqueWithColor(this, new com.google.ar.sceneform.rendering.Color(0xff24242a))
             .thenAccept(material -> darkCube=ShapeFactory.makeCube(new Vector3(1f,1f,1f),Vector3.zero(),material));
-        MaterialFactory.makeOpaqueWithColor(this, new SceneColor(0xfff5f0d8))
+        MaterialFactory.makeOpaqueWithColor(this, new com.google.ar.sceneform.rendering.Color(0xfff5f0d8))
             .thenAccept(material -> whiteCube=ShapeFactory.makeCube(new Vector3(1f,1f,1f),Vector3.zero(),material));
-        MaterialFactory.makeOpaqueWithColor(this, new SceneColor(0xff181818))
+        MaterialFactory.makeOpaqueWithColor(this, new com.google.ar.sceneform.rendering.Color(0xff181818))
             .thenAccept(material -> eyeCube=ShapeFactory.makeCube(new Vector3(1f,1f,1f),Vector3.zero(),material));
 
     }
