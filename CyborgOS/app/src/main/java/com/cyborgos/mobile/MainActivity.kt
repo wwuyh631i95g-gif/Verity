@@ -54,6 +54,79 @@ import java.util.Locale
 import java.util.UUID
 
 class MainActivity : Activity() {
+    private class CalculatorParser(private val source: String) {
+        private var position = 0
+        fun parse(): Double {
+            if (source.isBlank()) throw IllegalArgumentException("Пустое выражение")
+            val value = expression()
+            skipSpaces()
+            if (position != source.length || !value.isFinite()) throw IllegalArgumentException("Некорректное выражение")
+            return value
+        }
+        private fun expression(): Double {
+            var value = term()
+            while (true) {
+                skipSpaces()
+                when {
+                    take('+') -> value += term()
+                    take('-') -> value -= term()
+                    else -> return value
+                }
+            }
+        }
+        private fun term(): Double {
+            var value = factor()
+            while (true) {
+                skipSpaces()
+                when {
+                    take('*') -> value *= factor()
+                    take('/') -> {
+                        val right = factor()
+                        if (right == 0.0) throw ArithmeticException("Деление на ноль")
+                        value /= right
+                    }
+                    take('%') -> {
+                        val right = factor()
+                        if (right == 0.0) throw ArithmeticException("Деление на ноль")
+                        value %= right
+                    }
+                    else -> return value
+                }
+            }
+        }
+        private fun factor(): Double {
+            skipSpaces()
+            if (take('+')) return factor()
+            if (take('-')) return -factor()
+            if (take('(')) {
+                val value = expression()
+                skipSpaces()
+                if (!take(')')) throw IllegalArgumentException("Не закрыта скобка")
+                return value
+            }
+            val start = position
+            var dot = false
+            while (position < source.length) {
+                val ch = source[position]
+                if (ch.isDigit()) position++
+                else if (ch == '.' && !dot) { dot = true; position++ }
+                else break
+            }
+            if (start == position) throw IllegalArgumentException("Ожидалось число")
+            return source.substring(start, position).toDouble()
+        }
+        private fun skipSpaces() {
+            while (position < source.length && source[position].isWhitespace()) position++
+        }
+        private fun take(ch: Char): Boolean {
+            if (position < source.length && source[position] == ch) {
+                position++
+                return true
+            }
+            return false
+        }
+    }
+
     private data class AppTile(
         val id: String, val title: String, val icon: String, val side: String,
         val packageName: String = "", val url: String = ""
@@ -948,12 +1021,12 @@ class MainActivity : Activity() {
         body.addView(text(if (ios) "CYBORG APP SHELF" else "CYBORG MODULES",
             9.5f, Color.WHITE, true))
         catalogue.forEach { item ->
-            addActionRow(body, item.icon, item.title, item.info, "ADD") {
-                if (tiles.any { it.id == item.id }) toast(item.title + " is already on a workspace")
+            addActionRow(body, item.icon, item.title, item.info, "УСТАНОВИТЬ") {
+                if (tiles.any { it.id == item.id }) toast(item.title + " уже установлено на одном из экранов")
                 else {
                     tiles.add(AppTile(item.id, item.title, item.icon, side))
                     saveTiles()
-                    toast(item.title + " added to " + if (ios) "iPhone" else "Android")
+                    toast(item.title + " добавлено в CYBORG")
                     render()
                 }
             }
@@ -1218,7 +1291,7 @@ class MainActivity : Activity() {
 
     private fun renderGameHub(body: LinearLayout, side: String) {
         val ios = side == "ios"
-        body.addView(text(if (ios) "GAME CENTER" else "GAME LIBRARY", 18f, Color.WHITE, true))
+        body.addView(text(if (ios) "ИГРОВОЙ ЦЕНТР" else "БИБЛИОТЕКА ИГР", 18f, Color.WHITE, true))
         body.addView(text(
             if (ios) "iPHONE-STYLE GAME SHELF" else "CYBORG APP GAMES",
             8f, if (ios) Color.rgb(205, 216, 255) else Color.rgb(170, 226, 214), true
@@ -1242,7 +1315,7 @@ class MainActivity : Activity() {
                 8.5f, Color.rgb(255, 211, 173)
             ))
         }
-        body.addView(text("INSTALLED CYBORG WEB GAMES", 9.5f, Color.WHITE, true))
+        body.addView(text("УСТАНОВЛЕННЫЕ ИГРЫ CYBORG", 9.5f, Color.WHITE, true))
         val games = tiles.filter { it.side == side && it.url.isNotBlank() }
         if (games.isEmpty()) body.addView(text("No .capp games installed yet.", 9f, Color.LTGRAY))
         games.forEach { game ->
@@ -1284,11 +1357,16 @@ class MainActivity : Activity() {
                 setOnClickListener { action() }
             }, LinearLayout.LayoutParams(-2, dp(34)).apply { setMargins(dp(2), 0, dp(2), 0) })
         }
-        toolbarButton("BACK") { if (web.canGoBack()) web.goBack() else dialog.dismiss() }
+        toolbarButton("НАЗАД") { if (web.canGoBack()) web.goBack() else dialog.dismiss() }
         toolbarButton("↻") { web.reload() }
         toolbarButton("×") { dialog.dismiss() }
+        android.webkit.CookieManager.getInstance().setAcceptCookie(true)
         web.settings.apply {
             javaScriptEnabled = true
+            mediaPlaybackRequiresUserGesture = true
+            setSupportZoom(true)
+            builtInZoomControls = true
+            displayZoomControls = false
             domStorageEnabled = true
             allowFileAccess = false
             allowContentAccess = false
@@ -1691,41 +1769,36 @@ class MainActivity : Activity() {
         }
         when (tile.id) {
             "appstore", "playstore" -> setPage(tile.side, "store")
-            "google", "androidsearch" -> showCyborgWebApp("Google", "https://www.google.com/")
+            "google" -> showCyborgWebApp("Google", "https://www.google.com/")
+            "androidsearch", "mykit" -> setPage(tile.side, "search")
             "youtube" -> showCyborgWebApp("YouTube", "https://m.youtube.com/")
             "calculator" -> showCalculator()
             "chrome", "safari", "web" -> showCyborgWebApp(
-                if (tile.side == "ios") "Safari" else "Браузер",
+                if (tile.side == "ios") "Safari" else "Браузер CYBORG",
                 if (tile.side == "ios") "https://www.apple.com/" else "https://www.google.com/"
             )
             "gamehub", "androidgames" -> setPage(tile.side, "games")
             "securitylab" -> setPage("android", "securitylab")
-            "mykit", "androidsearch" -> setPage(tile.side, "search")
             "notes", "shared_notes" -> setPage(tile.side, "notes")
-            "phone" -> runIntent(Intent(Intent.ACTION_DIAL), "Phone app unavailable")
-            "messages" -> runIntent(Intent(Intent.ACTION_VIEW, Uri.parse("sms:")), "Messages app unavailable")
-            "photos" -> runIntent(Intent(Intent.ACTION_GET_CONTENT).setType("image/*"), "Photo picker unavailable")
-            "camera" -> runIntent(Intent(MediaStore.ACTION_IMAGE_CAPTURE), "Camera unavailable")
+            "phone" -> runIntent(Intent(Intent.ACTION_DIAL), "Не удалось открыть телефон")
+            "messages" -> runIntent(Intent(Intent.ACTION_VIEW, Uri.parse("sms:")), "Приложение сообщений недоступно")
+            "photos" -> runIntent(Intent(Intent.ACTION_GET_CONTENT).setType("image/*"), "Выбор фотографий недоступен")
+            "camera" -> runIntent(Intent(MediaStore.ACTION_IMAGE_CAPTURE), "Камера недоступна")
             "files" -> runIntent(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*")
-                .addCategory(Intent.CATEGORY_OPENABLE), "File picker unavailable")
-            "safari", "chrome", "web" -> runIntent(
-                Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")), "Browser unavailable")
+                .addCategory(Intent.CATEGORY_OPENABLE), "Файловый менеджер недоступен")
             "iosmaps", "maps" -> showCyborgWebApp("Карты", "https://www.google.com/maps")
-            "youtube" -> runIntent(
-                Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com")), "Browser unavailable")
-            "clock" -> runIntent(Intent("android.intent.action.SHOW_ALARMS"), "Clock unavailable")
-            "calculator" -> openCalculator()
+            "clock" -> runIntent(Intent("android.intent.action.SHOW_ALARMS"), "Часы недоступны")
             "weather" -> showCyborgWebApp("Погода", "https://weather.com")
             "calendar" -> runIntent(
-                Intent(Intent.ACTION_VIEW, Uri.parse("content://com.android.calendar/time/")), "Calendar unavailable")
+                Intent(Intent.ACTION_VIEW, Uri.parse("content://com.android.calendar/time/")), "Календарь недоступен")
             "pcdesk" -> showPcDesktop()
             "apkmanager" -> setPage("android", "store")
             "ipaarchive" -> setPage("ios", "ipa")
             "iossettings" -> setPage("ios", "control")
             "androidsettings" -> setPage("android", "quick")
             else -> AlertDialog.Builder(this).setTitle(tile.title)
-                .setMessage("This Cyborg module is ready for an app or web shortcut.")
-                .setPositiveButton("OK", null).show()
+                .setMessage("Это приложение CYBORG готово к настройке.")
+                .setPositiveButton("ПОНЯТНО", null).show()
         }
     }
 
