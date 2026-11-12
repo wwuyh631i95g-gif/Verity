@@ -9,8 +9,8 @@ android {
         applicationId = "com.cyborgos.mobile"
         minSdk = 26
         targetSdk = 34
-        versionCode = 140
-        versionName = "1.4.0"
+        versionCode = 150
+        versionName = "1.5.0"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
