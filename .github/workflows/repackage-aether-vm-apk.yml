@@ -1,0 +1,52 @@
+name: Repackage Aether OS VM APK
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - ".github/workflows/repackage-aether-vm-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  repackage:
+    name: Extract the already-built ARM64 APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Download the successful VM build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Aether-OS-VM-Edition-4.0.0
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 43245615565
+          path: /tmp/aether-vm-artifact
+
+      - name: Extract and verify only the APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK_SOURCE="$(find /tmp/aether-vm-artifact -type f -name 'Aether-OS-VM-4.0.0-ARM64.apk' -print -quit)"
+          test -n "$APK_SOURCE"
+          test -s "$APK_SOURCE"
+          mkdir -p release
+          cp "$APK_SOURCE" release/Aether-OS-VM-4.0.0-ARM64.apk
+          sha256sum release/Aether-OS-VM-4.0.0-ARM64.apk | tee release/SHA256SUMS.txt
+          test "$(stat -c %s release/Aether-OS-VM-4.0.0-ARM64.apk)" -gt 300000000
+          file release/Aether-OS-VM-4.0.0-ARM64.apk
+          ls -lh release/
+
+      - name: Upload APK-only artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aether-OS-VM-4.0.0-ARM64-APK-only
+          path: |
+            release/Aether-OS-VM-4.0.0-ARM64.apk
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
