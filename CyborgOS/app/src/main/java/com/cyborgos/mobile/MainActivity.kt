@@ -619,17 +619,30 @@ class MainActivity : Activity() {
         panel.addView(buildStatusStrip(ios), LinearLayout.LayoutParams(-1, dp(22)))
         if (ios) {
             val island = FrameLayout(this)
-            val pill = View(this).apply { background = rounded(Color.BLACK, 20) }
-            island.addView(pill, FrameLayout.LayoutParams(dp(50), dp(13), Gravity.CENTER))
-            panel.addView(island, LinearLayout.LayoutParams(-1, dp(17)))
+            val islandActive = prefs.getBoolean("ios_live", false)
+            val pill = TextView(this).apply {
+                text = if (islandActive) "♫  CYBORG" else ""
+                textSize = 7f
+                gravity = Gravity.CENTER
+                setTextColor(Color.WHITE)
+                background = rounded(Color.BLACK, 20)
+                setOnClickListener {
+                    prefs.edit().putBoolean("ios_live", !islandActive).apply()
+                    render()
+                }
+            }
+            island.addView(pill, FrameLayout.LayoutParams(dp(if (islandActive) 76 else 58), dp(17), Gravity.CENTER))
+            panel.addView(island, LinearLayout.LayoutParams(-1, dp(20)))
             panel.addView(text(
-                SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date()),
+                SimpleDateFormat("EEEE, d MMMM", Locale("ru")).format(Date()),
                 8.5f, Color.rgb(220, 231, 255), true
             ))
-            panel.addView(text("9:41", 22f, Color.WHITE, true))
+            panel.addView(text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
+                26f, Color.WHITE, true))
+            panel.addView(text("Виджеты • Фокус • Активности", 7.5f, Color.rgb(238, 239, 255)))
         } else {
             val search = TextView(this).apply {
-                text = "G     Search     ☷"
+                text = "G     Поиск     ☷"
                 textSize = 10f
                 setTextColor(Color.rgb(40, 40, 58))
                 gravity = Gravity.CENTER_VERTICAL
@@ -641,7 +654,7 @@ class MainActivity : Activity() {
                 topMargin = dp(7); bottomMargin = dp(5)
             })
             panel.addView(text(
-                SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date()),
+                SimpleDateFormat("EEE, d MMM", Locale("ru")).format(Date()),
                 9f, Color.rgb(220, 216, 255), true
             ))
         }
@@ -680,8 +693,8 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             setPadding(dp(3), dp(3), dp(3), dp(3))
             background = rounded(
-                if (ios) Color.argb(125, 225, 235, 255) else Color.argb(135, 220, 218, 250),
-                17
+                if (ios) Color.argb(125, 225, 235, 255) else Color.argb(150, 222, 231, 245),
+                if (ios) 19 else 9
             )
         }
         val preferred = if (ios) listOf("phone", "messages", "safari", "music")
@@ -763,6 +776,9 @@ class MainActivity : Activity() {
     private fun iconBackground(tile: AppTile, side: String): GradientDrawable {
         val palette = when (tile.id) {
             "phone" -> intArrayOf(Color.rgb(65, 205, 129), Color.rgb(20, 142, 92))
+            "youtube" -> intArrayOf(Color.rgb(250, 74, 74), Color.rgb(190, 22, 33))
+            "google" -> intArrayOf(Color.rgb(252, 252, 255), Color.rgb(225, 232, 248))
+            "calculator" -> intArrayOf(Color.rgb(50, 76, 119), Color.rgb(22, 37, 63))
             "messages" -> intArrayOf(Color.rgb(90, 224, 139), Color.rgb(28, 160, 93))
             "photos" -> intArrayOf(Color.rgb(255, 202, 99), Color.rgb(239, 112, 111))
             "safari", "chrome", "web" -> intArrayOf(Color.rgb(92, 194, 255), Color.rgb(57, 106, 225))
@@ -791,8 +807,8 @@ class MainActivity : Activity() {
         if (tile.packageName.isNotBlank()) return tile.packageName
         if (tile.side != "android") return null
         val candidates = when (tile.id) {
-            "chrome", "safari", "web" -> listOf("com.android.chrome")
-            "youtube" -> listOf("com.google.android.youtube")
+            "chrome", "safari", "web" -> emptyList()
+            "youtube", "google", "calculator", "playstore" -> emptyList()
             "photos" -> listOf("com.google.android.apps.photos", "com.huawei.photos")
             "phone" -> listOf("com.google.android.dialer", "com.android.dialer", "com.android.phone")
             "messages" -> listOf("com.google.android.apps.messaging", "com.android.mms")
@@ -841,6 +857,39 @@ class MainActivity : Activity() {
             p.strokeJoin = Paint.Join.ROUND
             p.style = Paint.Style.STROKE
             when (tile.id) {
+                "google" -> {
+                    p.style = Paint.Style.FILL
+                    p.textAlign = Paint.Align.CENTER
+                    p.typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    p.textSize = size * .80f
+                    p.color = Color.rgb(66, 133, 244)
+                    canvas.drawText("G", cx, cy + size * .27f, p)
+                }
+                "youtube" -> {
+                    p.style = Paint.Style.FILL
+                    val box = RectF(cx - size * .40f, cy - size * .27f, cx + size * .40f, cy + size * .27f)
+                    p.color = Color.WHITE
+                    canvas.drawRoundRect(box, size * .15f, size * .15f, p)
+                    p.color = Color.rgb(220, 35, 45)
+                    val tri = Path().apply {
+                        moveTo(cx - size * .10f, cy - size * .15f)
+                        lineTo(cx + size * .19f, cy)
+                        lineTo(cx - size * .10f, cy + size * .15f)
+                        close()
+                    }
+                    canvas.drawPath(tri, p)
+                }
+                "calculator" -> {
+                    p.style = Paint.Style.STROKE
+                    p.strokeWidth = size * .06f
+                    val body = RectF(cx - size * .30f, cy - size * .39f, cx + size * .30f, cy + size * .39f)
+                    canvas.drawRoundRect(body, size * .07f, size * .07f, p)
+                    p.style = Paint.Style.FILL
+                    canvas.drawRoundRect(RectF(cx - size * .21f, cy - size * .29f, cx + size * .21f, cy - size * .10f), size * .03f, size * .03f, p)
+                    for (r in 0..1) for (col in 0..2) {
+                        canvas.drawCircle(cx - size * .14f + col * size * .14f, cy + size * .04f + r * size * .17f, size * .035f, p)
+                    }
+                }
                 "phone" -> {
                     val path = Path().apply {
                         moveTo(cx - size * .30f, cy - size * .34f)
