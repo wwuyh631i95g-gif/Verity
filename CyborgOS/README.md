@@ -1,36 +1,37 @@
-# CYBORG VM 1.5
+# CYBORG VM 1.6
 
-CYBORG VM is a full-screen dual-workspace Android app. It gives you an iPhone-inspired workspace on the left and an Android-inspired workspace on the right. Android on the phone remains the real host operating system.
+CYBORG VM is an Android-hosted dual virtual workspace. The left workspace has iPhone-inspired interaction patterns; the right workspace has Android/Material-inspired panels. Android remains the host operating system. This is not a bootable iOS or Android guest OS.
 
-## 1.5 visual and custom features
-- iPhone-side app badges are now circular; Android-side app badges are square with tighter corners, so the two workspaces are easier to tell apart.
-- The PC dock, keyboard button, modifier keys, trackpad and function-key row are retained unchanged.
-- Import a `.capp` CYBORG package from either app centre. A `.capp` file is UTF-8 JSON with `name`, `icon`, `side` (`ios` or `android`) and an `https://` or `http://` `url`. Installing it adds a CYBORG shortcut that opens the web app/game in the host browser; it does not install a native iOS game.
-- New original vector wallpapers for both halves: fluid layered blue/pink curves on the iPhone side and teal/blue Material-style colour fields on the Android side.
-- Rounded icon tiles, separate docks, date/time widgets, home-screen app grids and drag-and-drop shortcut transfer between halves.
-- The visual references are inspired by public iOS 18 and Android/Material wallpaper styles; the included wallpapers are drawn by CYBORG and are not extracted Apple or Google system files.
-- Create CYBORG mini-app shortcuts with a custom name, icon and optional web address.
-- CYBORG catalogue modules can be added independently to either workspace.
+## 1.6 features
+- iPhone Control Center: virtual Focus and silent modes, Live Island activity demo, lock-screen preview and a saved virtual brightness slider.
+- Android Quick Settings: separate simulated Wi-Fi, Bluetooth, Airplane, Battery Saver and Do Not Disturb tiles; Material You accent palettes; notification preview and app-info shortcut.
+- The two workspaces have distinct visual systems: round iPhone-style app badges, translucent dock and Control Center; squarer Android app badges, Material-style quick tiles and theme colours.
+- The PC dock is retained: on-screen keyboard dialog, mouse pointer, trackpad, CTRL/ALT/SHIFT, function keys, arrows and desktop shortcut remain.
+- CYBORG packages (.capp) install as internal web-app shortcuts. Their games open in a CYBORG full-screen WebView, not an external browser. The WebView allows HTTP/HTTPS only, disables local-file access and blocks mixed content.
+- The file-backed app shelf and workspace selections are stored in app preferences.
 
-## Android side: APK and Google Play
-- The Android app centre can open Google Play when it is installed on the host phone.
-- Install APK from files opens Android's document picker for a single .apk file.
-- Android 8 and later require the user to allow this app to request installs from unknown sources. Android then displays its own installation confirmation. CYBORG cannot silently install an app or bypass Android's warning.
-- The installed app is a real Android app on the phone and can be pinned to either CYBORG workspace from the installed-app list.
+## iOS apps and games
+- A native iOS .ipa is not an Android APK and cannot generally be installed or executed by this app.
+- CYBORG can keep an IPA in its archive and can run compatible web games through .capp packages.
+- There are experimental Android compatibility projects for narrow subsets of iOS games; one current research project targets ARM64 iOS applications built with Unreal Engine 3. That is not a general iOS runtime, and it is not bundled into CYBORG. Compatibility depends on the exact game and device.
+- CYBORG does not include Apple's App Store or distribute copyrighted games.
 
-## iPhone side: App Store-style catalogue and IPA archive
-- The left-side App Store is a CYBORG mini-app catalogue with iPhone-style presentation. It is not Apple's actual App Store.
-- .ipa files can be imported into the IPA archive list for keeping track of files.
-- An IPA is an iOS application package. It cannot be installed or executed by this Android APK: the iOS runtime, Apple signing environment and iOS platform are not present.
-- CYBORG mini-apps and web shortcuts can be created and opened in either workspace, but they are not native iOS applications.
+## Security Lab / Quarantine
+- The Virus Lab copies a selected file into CYBORG's private internal app storage, with a 128 MB intake limit.
+- It calculates a SHA-256 fingerprint and records the filename, extension and size. It never installs, opens or executes the quarantined file.
+- You can inspect the fingerprint, delete one copy or empty the quarantine. Deletion affects only CYBORG's private copy, not the original file.
+- A harmless visual threat simulation demonstrates blocked actions. It does not run real malware.
+- This is not an antivirus engine, not a full Android virtual machine and not an airtight malware-analysis sandbox. A hash is not a clean-file verdict. Do not install suspicious APKs on the host phone.
+- The separate APK Installer sends a package to Android's real system installer and is not isolated by the Virus Lab.
+
+## Android APK installation
+- The Android app centre can open Google Play when present on the host.
+- APK installation uses Android's own package installer and user confirmation. Android may require the user to allow installs from this app. Installed APKs become apps on the real phone, not apps inside a separate guest Android.
 
 ## PC dock and touch
-The scrollable PC dock is unchanged in this version. Touch, long-press and cross-half drag-and-drop remain enabled. Keyboard and pointer controls act inside CYBORG; they do not inject input into unrelated apps outside it.
-
-## Virtualization boundary
-This is an Android-hosted dual workspace, not a hypervisor or a bootable iOS/Android virtual machine. The right side can launch compatible apps installed on the Android host. The left side reproduces selected iPhone-style interface patterns but cannot boot iOS, access Apple's App Store, or run .ipa binaries.
+- The PC dock and keyboard controls remain present at the bottom of the screen. These controls are part of CYBORG and do not inject input into unrelated apps.
 
 ## Build
 - minSdk 26, targetSdk 34, Kotlin/JVM 17.
-- APK sideloading uses Android's user-confirmed package installer flow and REQUEST_INSTALL_PACKAGES.
-- GitHub Actions builds a debug APK artifact.
+- INTERNET is used for CYBORG WebView mini-apps. No new runtime permission prompts were added for the security lab.
+- GitHub Actions builds a debug APK artifact named CYBORG-VM-1.6.0-Android-APK.
