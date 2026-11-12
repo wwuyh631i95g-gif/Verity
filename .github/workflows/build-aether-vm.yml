@@ -1,0 +1,122 @@
+name: Build Aether OS VM Edition
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "AetherOS/vm/**"
+      - ".github/workflows/build-aether-vm.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-aether-vm:
+    name: Build real ARM64 guest VM APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout Aether OS project
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK, build tools and NDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-36.1 build-tools;36.0.0 ndk;27.2.12479018"
+
+      - name: Check out the pinned Podroid VM engine
+        uses: actions/checkout@v4
+        with:
+          repository: ExTV/Podroid
+          ref: e3fc1befa3c135d28bf8d40e3c2264d93fea87ef
+          path: podroid-engine
+          persist-credentials: false
+
+      - name: Apply Aether OS phone interface and no-prompt configuration
+        run: |
+          bash AetherOS/vm/patch-aether.sh "$GITHUB_WORKSPACE/podroid-engine"
+          python3 -m py_compile AetherOS/vm/aether-shell.py
+          bash -n AetherOS/vm/aether-shell-launcher
+          bash -n AetherOS/vm/aether-shell-init
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          manifest = ET.parse("podroid-engine/app/src/main/AndroidManifest.xml").getroot()
+          android = "{http://schemas.android.com/apk/res/android}"
+          permissions = {e.attrib.get(android + "name") for e in manifest.findall("uses-permission")}
+          forbidden = {
+              "android.permission.POST_NOTIFICATIONS",
+              "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+              "android.permission.MANAGE_EXTERNAL_STORAGE",
+              "android.permission.READ_EXTERNAL_STORAGE",
+              "android.permission.WRITE_EXTERNAL_STORAGE",
+              "android.permission.MANAGE_VIRTUAL_MACHINE",
+              "android.permission.USE_CUSTOM_VIRTUAL_MACHINE",
+              "android.permission.RECEIVE_BOOT_COMPLETED",
+          }
+          assert not (permissions & forbidden), sorted(permissions & forbidden)
+          assert "android.permission.INTERNET" in permissions
+          print("Manifest permission check passed:", sorted(permissions))
+          ET.parse("podroid-engine/app/src/main/res/values-ru/strings.xml")
+          print("Russian Android resource XML parsed successfully.")
+          PY
+
+      - name: Configure Android NDK path
+        run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - name: Build Linux kernel and boot initramfs
+        working-directory: podroid-engine
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: ./build-all.sh initramfs
+
+      - name: Build persistent Alpine Linux guest filesystem
+        working-directory: podroid-engine
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: ./build-all.sh rootfs
+
+      - name: Build ARM64 QEMU engine
+        working-directory: podroid-engine
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: ./build-all.sh qemu
+
+      - name: Compile Aether OS VM APK
+        working-directory: podroid-engine
+        run: ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Verify and package APK
+        run: |
+          set -euo pipefail
+          APK="podroid-engine/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          mkdir -p release
+          cp "$APK" release/Aether-OS-VM-4.0.0-ARM64.apk
+          sha256sum release/Aether-OS-VM-4.0.0-ARM64.apk | tee release/SHA256SUMS.txt
+          ls -lh release/Aether-OS-VM-4.0.0-ARM64.apk
+          if command -v aapt >/dev/null 2>&1; then
+            aapt dump badging release/Aether-OS-VM-4.0.0-ARM64.apk | head -n 8
+          fi
+
+      - name: Package corresponding GPL source
+        run: |
+          tar -czf release/Aether-OS-VM-4.0.0-source-GPLv2.tar.gz --exclude=.git -C podroid-engine .
+          ls -lh release/
+
+      - name: Upload APK and source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aether-OS-VM-Edition-4.0.0
+          path: |
+            release/Aether-OS-VM-4.0.0-ARM64.apk
+            release/Aether-OS-VM-4.0.0-source-GPLv2.tar.gz
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
