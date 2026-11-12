@@ -7,7 +7,7 @@ CYBORG VM is a full-screen, self-contained virtual-device-style Android applicat
 - Left workspace: iPhone-inspired home screen layout, island-style top element, app grid and dock.
 - Right workspace: Android-inspired launcher, search bar, app grid and dock.
 - Both halves use touch interaction. Tap app icons to open them; long-press and drag an icon across the divider to move it between workspaces.
-- Real Android apps installed on the host phone can be pinned and launched from the right workspace or the left workspace. The custom catalogue and app creator store local shortcuts and modules.
+- Real Android apps installed on the host phone can be pinned and launched from either workspace. The custom catalogue and app creator store local shortcuts and modules.
 
 The visual design follows familiar mobile interface patterns, but the two workspaces are not exact copies of Apple's or Google's operating systems.
 
@@ -33,15 +33,15 @@ Touch controls remain enabled. The pointer and keyboard controls operate inside 
 
 ## Important virtualization boundary
 
-CYBORG VM is delivered as an APK that runs as a separate full-screen environment **inside the phone's Android system**. It is a virtual-device-style app shell, not a hardware hypervisor or a bootable Android/iOS disk image. Android remains the host operating system and provides the actual hardware access.
+CYBORG VM is delivered as an APK that runs as a separate full-screen environment inside the phone's Android system. It is a virtual-device-style app shell, not a hardware hypervisor or a bootable Android/iOS disk image. Android remains the host operating system and provides actual hardware access.
 
 The left workspace is an iPhone-inspired interface, not genuine iOS. Apple does not provide a redistributable iOS guest image for Android, and this APK cannot run iOS apps or the real Apple App Store. The right workspace launches actual Android apps already installed on the host device.
 
 ## Compatibility and build
 
-- Android 8.0/API 26 or newer; tested build target: Android 14/API 34.
+- Android API 26 or newer; build target Android 14/API 34.
 - Kotlin Android app; no external runtime libraries.
 - No runtime permissions requested by the application.
 - GitHub Actions creates a debug APK artifact.
 
-This APK can be installed directly on an Android phone or inside an Android-based VM that supports installing APKs. It is not an ISO, QCOW2, or raw virtual-disk image.
+This APK can be installed on an Android phone or inside an Android-based VM that supports APK installation. It is not an ISO, QCOW2, or raw virtual-disk image.

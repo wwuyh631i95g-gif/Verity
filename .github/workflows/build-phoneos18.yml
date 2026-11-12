@@ -1,0 +1,133 @@
+name: Build Phone OS 18 APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - ".github/workflows/build-phoneos18.yml"
+      - "scripts/apply_verity_55.py"
+      - "scripts/verity55/**"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android API 37 preview platform
+        run: |
+          sdkmanager --channel=3 --install "platforms;android-37.0" "build-tools;36.0.0"
+          SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          test -d "$SDK_ROOT/platforms/android-37.0"
+          ln -sfn android-37.0 "$SDK_ROOT/platforms/android-37"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Extract Verity project and apply customization fixes
+        run: |
+          unzip -q Verity-5.0.1-Minecraft-2D-Build-Fix.zip -d .
+          python3 scripts/apply_custom_updates.py
+
+      - name: Install image processing helpers
+        run: python3 -m pip install --user pillow numpy
+
+      - name: Patch source compatibility points
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("Verity-main/app/src/main/java/dev/veriti/app")
+          main = root / "MainActivity.kt"
+          source = main.read_text(encoding="utf-8")
+          start = source.index("private fun VeritiApp(")
+          marker = "    val state = vm.state"
+          index = source.index(marker, start)
+          source = source[:index] + "    val context = LocalContext.current" + chr(10) + source[index:]
+          main.write_text(source, encoding="utf-8")
+          service = root / "service/FloatingAssistantService.kt"
+          code = service.read_text(encoding="utf-8")
+          anti_count = code.count("antiAlias = true")
+          if anti_count == 1:
+              code = code.replace("antiAlias = true", "setAntiAlias(true)", 1)
+          elif anti_count == 0 and code.count("setAntiAlias(true)") >= 1:
+              pass
+          else:
+              raise SystemExit(f"antiAlias compatibility point unexpected (plain={anti_count}, setter={code.count('setAntiAlias(true)')})")
+          service.write_text(code, encoding="utf-8")
+          PY
+
+      - name: Apply Verity Widget V2
+        run: python3 scripts/apply_widget_v2.py
+
+      - name: Apply Verity Life V6
+        run: python3 scripts/apply_life_v6.py
+
+      - name: Apply Verity Life V7
+        run: |
+          cat scripts/apply_life_v7.py.gz.b64.part0 scripts/apply_life_v7.py.gz.b64.part1 > /tmp/verity-life-v7.py.gz.b64
+          base64 -d /tmp/verity-life-v7.py.gz.b64 | gzip -dc > scripts/apply_life_v7.py
+          python3 -m py_compile scripts/apply_life_v7.py
+          python3 scripts/apply_life_v7.py
+
+      - name: Apply Verity 5.2.0
+        run: |
+          cat scripts/verity52_payload.b64 scripts/verity52_payload.part1.b64 scripts/verity52_payload.part2.b64 scripts/verity52_payload.part3.b64 > /tmp/verity52_payload.b64
+          base64 -d /tmp/verity52_payload.b64 > /tmp/verity52_payload.gz
+          printf '%s  %s\n' '510bd9cb1145b586462fc9ea7fbbf805687cf71ff16a0937d168e8f84d2bc3ef' '/tmp/verity52_payload.gz' | sha256sum -c -
+          tar -xz --no-overwrite-dir --no-same-owner --no-same-permissions -f /tmp/verity52_payload.gz -C /tmp
+          python3 -m py_compile /tmp/apply_verity_52.py
+          python3 /tmp/apply_verity_52.py Verity-main
+
+      - name: Apply Verity 5.3.0 virtual OS
+        run: |
+          python3 -m py_compile scripts/apply_verity_53.py
+          python3 scripts/apply_verity_53.py Verity-main
+
+      - name: Apply Verity 5.4.0 Universe modules
+        run: |
+          python3 -m py_compile scripts/apply_verity_54.py
+          python3 scripts/apply_verity_54.py Verity-main
+
+      - name: Apply Phone OS 18.0 simulator
+        run: |
+          python3 -m py_compile scripts/apply_verity_55.py
+          python3 scripts/apply_verity_55.py Verity-main
+
+      - name: Build APK
+        working-directory: Verity-main
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Upload Phone OS 18 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Verity-PhoneOS18-5.5.0-APK
+          path: Verity-main/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload prepared project for diagnostics
+        if: failure()
+        run: |
+          if [ -d Verity-main ]; then
+            zip -qr /tmp/Verity-PhoneOS18-build-debug.zip Verity-main -x "Verity-main/.gradle/*" "Verity-main/app/build/*"
+          fi

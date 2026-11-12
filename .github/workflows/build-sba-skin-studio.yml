@@ -1,0 +1,228 @@
+name: Build SBA Skin Studio APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "SBA-Skin-Studio-Android.project.b64/**"
+      - "SBA-Skin-Studio-Android.project.tail/**"
+      - ".github/workflows/build-sba-skin-studio.yml"
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build-sba-skin-studio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Record current build run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "Run ID: $GITHUB_RUN_ID"
+            echo "Run number: $GITHUB_RUN_NUMBER"
+            echo "Status: in_progress"
+            echo "Commit: $GITHUB_SHA"
+            echo "Run URL: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > SBA-Skin-Studio-CURRENT-RUN.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SBA-Skin-Studio-CURRENT-RUN.txt
+          git commit -m "Record current SBA Skin Studio build run" || true
+          git push origin HEAD:main
+
+      - name: Install Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Python 3.10 for Chaquopy
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Android SDK, NDK and CMake packages
+        run: |
+          echo "Android SDK: $ANDROID_HOME"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | sort | tail -n 1)"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.2.12479018"
+
+      - name: Extract and validate SBA Skin Studio Android project
+        run: |
+          python3 - <<'PY'
+          import base64, gzip, io, tarfile
+          from pathlib import Path
+
+          b64dir = Path("SBA-Skin-Studio-Android.project.b64")
+          taildir = Path("SBA-Skin-Studio-Android.project.tail")
+          first = (b64dir / "part00").read_text().strip()
+          common = [(b64dir / f"part{i:02d}").read_text().strip() for i in range(4)]
+          legacy_last = (b64dir / "part04").read_text().strip()
+          tail = [(taildir / f"part040{i}").read_text().strip() for i in range(6)]
+
+          # The saved part00 is 8001 chars while the other normal chunks are
+          # 8000 chars. Test every possible one-character deletion from part00.
+          # Two versions of the last chunk exist in the repo; test both.
+          last_chunk_variants = [
+              ("original part04", legacy_last),
+              ("extended tail chunks", "".join(tail)),
+          ]
+
+          failures = []
+          found = False
+          for last_label, last_chunk in last_chunk_variants:
+              middle = "".join(common[1:]) + last_chunk
+              for remove_at in range(len(first)):
+                  encoded = first[:remove_at] + first[remove_at + 1:] + middle
+                  encoded += "=" * ((-len(encoded)) % 4)
+                  try:
+                      compressed = base64.b64decode(encoded, validate=True)
+                      archive_bytes = gzip.decompress(compressed)
+                      with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:") as archive:
+                          members = archive.getmembers()
+                          if not members:
+                              raise RuntimeError("empty tar archive")
+                          names = [m.name for m in members]
+                          if not any("app/" in n or n.endswith("settings.gradle") or n.endswith("settings.gradle.kts") for n in names):
+                              raise RuntimeError("decompressed tar does not look like an Android project")
+                      Path("/tmp/sba-project.tar.gz").write_bytes(compressed)
+                      print(f"VALID ARCHIVE: last={last_label}; removed part00 char index={remove_at}")
+                      print(f"Archive entries: {len(members)}; compressed bytes: {len(compressed)}")
+                      found = True
+                      break
+                  except Exception as exc:
+                      if remove_at in (0, 1, 2, 3, 4, 8000):
+                          failures.append(f"{last_label}, remove {remove_at}: {type(exc).__name__}: {exc}")
+              if found:
+                  break
+
+          if not found:
+              print("\n".join(failures))
+              raise SystemExit("No valid Android source archive found after scanning all 8001 possible extra-character positions in part00.")
+
+          PY
+          tar -xzf /tmp/sba-project.tar.gz -C .
+
+      - name: Use Chaquopy-supported Pillow wheel
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path("SBA-Skin-Studio-Android")
+          changed = []
+          allowed = {".txt", ".toml", ".in", ".cfg", ".gradle", ".kts"}
+          for path in root.rglob("*"):
+              if not path.is_file() or path.suffix.lower() not in allowed:
+                  continue
+              try:
+                  source = path.read_text(encoding="utf-8")
+              except (UnicodeDecodeError, OSError):
+                  continue
+              updated = source.replace("Pillow==11.3.0", "Pillow==11.0.0")
+              updated = updated.replace("pillow==11.3.0", "pillow==11.0.0")
+              if updated != source:
+                  path.write_text(updated, encoding="utf-8")
+                  changed.append(str(path))
+
+          if not changed:
+              raise SystemExit("Could not find the Pillow 11.3.0 pin to patch.")
+          print("Updated Pillow pin in:")
+          print("\\n".join(changed))
+          PY
+
+      - name: Fetch pinned UnityPy Python package
+        run: |
+          git lfs install
+          git clone https://github.com/K0lb3/UnityPy.git /tmp/UnityPy
+          git -C /tmp/UnityPy checkout 417d59522a998fdee9a9c2b29fe35f3063222457
+          git -C /tmp/UnityPy lfs pull
+          cp -a /tmp/UnityPy/UnityPy SBA-Skin-Studio-Android/app/src/main/python/UnityPy
+          cp /tmp/UnityPy/LICENSE SBA-Skin-Studio-Android/app/src/main/assets/skin_studio/licenses/UnityPy-LICENSE.txt
+
+      - name: Fetch pinned native texture decoder sources
+        run: |
+          git clone https://github.com/K0lb3/texture2ddecoder.git /tmp/texture2ddecoder
+          git -C /tmp/texture2ddecoder checkout 3ebc3b758bd6b1a3108b50148f7998ee34f058c6
+          mkdir -p SBA-Skin-Studio-Android/third_party
+          cp -a /tmp/texture2ddecoder SBA-Skin-Studio-Android/third_party/texture2ddecoder
+          cp /tmp/texture2ddecoder/LICENSE SBA-Skin-Studio-Android/app/src/main/assets/skin_studio/licenses/texture2ddecoder-LICENSE.txt
+
+      - name: Fetch pure-Python TPK parser
+        run: |
+          git clone https://github.com/K0lb3/tpk_ar.git SBA-Skin-Studio-Android/app/third_party/tpk_ar
+          git -C SBA-Skin-Studio-Android/app/third_party/tpk_ar checkout 42f247847993b822000d8c09b35ac72451a0353a
+          cp SBA-Skin-Studio-Android/app/third_party/tpk_ar/LICENSE SBA-Skin-Studio-Android/app/src/main/assets/skin_studio/licenses/tpk_ar-LICENSE.txt
+
+      - name: Validate bundled project sources
+        run: |
+          test -f SBA-Skin-Studio-Android/app/src/main/python/app.py
+          test -f SBA-Skin-Studio-Android/app/src/main/python/UnityPy/__init__.py
+          test -f SBA-Skin-Studio-Android/app/src/main/cpp/jni_texture_decoder.cpp
+          test -f SBA-Skin-Studio-Android/third_party/texture2ddecoder/src/Texture2DDecoder/astc.cpp
+
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+
+      - name: Build SBA Skin Studio debug APK
+        working-directory: SBA-Skin-Studio-Android
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8"
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Verify APK package
+        run: |
+          APK="SBA-Skin-Studio-Android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -n 5
+          mkdir -p dist
+          cp "$APK" dist/SBA-Skin-Studio-1.0.0-debug.apk
+
+      - name: Upload SBA Skin Studio APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SBA-Skin-Studio-APK
+          path: dist/SBA-Skin-Studio-1.0.0-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish APK release
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG_NAME="sba-skin-studio-build-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG_NAME" \
+            dist/SBA-Skin-Studio-1.0.0-debug.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "SBA Skin Studio APK build #${GITHUB_RUN_NUMBER}" \
+            --notes "Automatically built Android APK. Built from the dedicated SBA Skin Studio project archive in this repository."
+
+      - name: Record build result
+        if: always()
+        env:
+          BUILD_RESULT: ${{ job.status }}
+        run: |
+          {
+            echo "Result: $BUILD_RESULT"
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "Commit: $GITHUB_SHA"
+            echo "Updated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > SBA-Skin-Studio-BUILD-STATUS.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SBA-Skin-Studio-BUILD-STATUS.txt
+          git commit -m "Record SBA Skin Studio build result" || true
+          git push origin HEAD:main
+
