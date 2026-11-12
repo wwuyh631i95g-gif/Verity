@@ -642,15 +642,15 @@ class MainActivity : Activity() {
                 8.5f, Color.WHITE, true))
             widget.addView(text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
                 27f, Color.WHITE, true))
-            widget.addView(text("Cupertino-style home workspace", 8f, Color.rgb(238, 239, 255)))
+            widget.addView(text("Виджеты • Активности • Фокус", 8f, Color.rgb(238, 239, 255)))
         } else {
-            widget.addView(text("At a glance", 8.5f, Color.WHITE, true))
+            widget.addView(text("Краткий обзор", 8.5f, Color.WHITE, true))
             widget.addView(text(SimpleDateFormat("EEE, MMM d  •  HH:mm", Locale.getDefault()).format(Date()),
                 17f, Color.WHITE, true))
-            widget.addView(text("Search, apps and device shortcuts", 8f, Color.rgb(228, 245, 243)))
+            widget.addView(text("Поиск • Приложения • Быстрые действия", 8f, Color.rgb(228, 245, 243)))
         }
         body.addView(widget, LinearLayout.LayoutParams(-1, dp(82)).apply { bottomMargin = dp(7) })
-        body.addView(text(if (ios) "Suggestions" else "Your apps", 9.5f, Color.WHITE, true))
+        body.addView(text(if (ios) "Рекомендуемые" else "Ваши приложения", 9.5f, Color.WHITE, true))
         val dockIds = if (ios) listOf("phone", "messages", "safari", "music")
                       else listOf("phone", "chrome", "camera", "photos")
         val list = tiles.filter { it.side == side && it.id !in dockIds }
@@ -669,21 +669,22 @@ class MainActivity : Activity() {
             body.addView(row)
             i += 3
         }
-        body.addView(text(if (ios) "APP LIBRARY" else "ALL APPS", 8f, accent, true))
+        body.addView(text(if (ios) "БИБЛИОТЕКА ПРИЛОЖЕНИЙ" else "ВСЕ ПРИЛОЖЕНИЯ", 8f, accent, true))
         if (ios) {
-            addButton(body, "◉  Control Center • Focus • Live Island") { setPage(side, "control") }
-            addButton(body, "🎮  Game Center • iOS compatibility") { setPage(side, "games") }
-            addButton(body, "▣  IPA Library") { setPage(side, "ipa") }
+            addButton(body, "◉  Центр управления iPhone") { setPage(side, "control") }
+            addButton(body, "✨  Особые функции iPhone") { setPage(side, "iosfeatures") }
+            addButton(body, "🎮  Игровой центр") { setPage(side, "games") }
+            addButton(body, "▣  Архив приложений IPA") { setPage(side, "ipa") }
         } else {
-            addButton(body, "⚡  Quick Settings • Material You") { setPage(side, "quick") }
-            addButton(body, "🛡  Virus Lab • Safe Quarantine") { setPage(side, "securitylab") }
-            addButton(body, "🎮  Game Library") { setPage(side, "games") }
+            addButton(body, "⚡  Быстрые настройки Android") { setPage(side, "quick") }
+            addButton(body, "🛡  Лаборатория безопасности") { setPage(side, "securitylab") }
+            addButton(body, "🎮  Библиотека игр") { setPage(side, "games") }
         }
-        addButton(body, "＋  Add app") { makerDialog(side) }
-        addButton(body, "▦  All installed apps") { setPage(side, "apps") }
-        addButton(body, "⌕  Search") { setPage(side, "search") }
-        addButton(body, if (ios) "App Store" else "Play Store") { setPage(side, "store") }
-        addButton(body, "▤  PC Desktop") { showPcDesktop() }
+        addButton(body, "＋  Добавить приложение") { makerDialog(side) }
+        addButton(body, "▦  Все приложения") { setPage(side, "apps") }
+        addButton(body, "⌕  Поиск") { setPage(side, "search") }
+        addButton(body, if (ios) "Магазин App Store" else "Магазин CYBORG") { setPage(side, "store") }
+        addButton(body, "▤  Рабочий стол ПК") { showPcDesktop() }
     }
 
     private fun iconBackground(tile: AppTile, side: String): GradientDrawable {
@@ -918,6 +919,7 @@ class MainActivity : Activity() {
             "quick" -> renderAndroidQuickSettings(body)
             "games" -> renderGameHub(body, side)
             "securitylab" -> renderSecurityLab(body)
+            "iosfeatures" -> renderIosFeatures(body)
             "search" -> renderSearch(body, accent)
             "notes" -> renderNotes(body, accent)
             else -> renderSettings(body, accent)
@@ -926,30 +928,21 @@ class MainActivity : Activity() {
 
     private fun renderStore(body: LinearLayout, side: String, accent: Int) {
         val ios = side == "ios"
-        body.addView(text(if (ios) "App Store" else "Google Play", 19f, Color.WHITE, true))
-        body.addView(text(if (ios) "CURATED FOR THE iPHONE WORKSPACE" else "ANDROID APP CENTRE",
+        body.addView(text(if (ios) "App Store CYBORG" else "Магазин CYBORG", 19f, Color.WHITE, true))
+        body.addView(text(if (ios) "КАТАЛОГ ДЛЯ IPHONE-РАБОЧЕГО ПРОСТРАНСТВА" else "СОБСТВЕННЫЙ МАГАЗИН ANDROID",
             8.5f, accent, true))
-        body.addView(text(if (ios)
-            "CYBORG mini-apps and web apps live here. Imported .ipa files can be archived, but iOS apps cannot run on Android."
-            else "Use Google Play for store downloads, or choose an APK file to install through Android.",
+        body.addView(text(
+            "Приложения из этого каталога добавляются в систему CYBORG и запускаются внутри неё. Это собственный магазин CYBORG, а не настоящий Google Play или Apple App Store.",
             8.5f, Color.LTGRAY))
 
         if (ios) {
-            addButton(body, "＋  Import .IPA package (archive only)") { openIpaPicker() }
-            addButton(body, "▣  My imported IPA files") { setPage("ios", "ipa") }
-            addButton(body, "⬇  Install CYBORG app package (.capp)") { openCyborgPackagePicker() }
+            addButton(body, "＋  Импортировать IPA (только архив)") { openIpaPicker() }
+            addButton(body, "▣  Мои IPA-файлы") { setPage("ios", "ipa") }
+            addButton(body, "⬇  Установить пакет CYBORG (.capp)") { openCyborgPackagePicker() }
         } else {
-            addButton(body, "↓  Install APK from files") { openApkPicker() }
-            addButton(body, "⬇  Install CYBORG app package (.capp)") { openCyborgPackagePicker() }
-            addButton(body, "▦  Browse apps installed on this phone") { setPage("android", "apps") }
-            addButton(body, "Open Google Play") {
-                try {
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://search?q=apps")))
-                } catch (_: Exception) {
-                    runIntent(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps")),
-                        "Google Play is unavailable")
-                }
-            }
+            addButton(body, "↓  Установить APK на телефон") { openApkPicker() }
+            addButton(body, "⬇  Установить пакет CYBORG (.capp)") { openCyborgPackagePicker() }
+            addButton(body, "▦  Приложения на телефоне") { setPage("android", "apps") }
         }
 
         body.addView(text(if (ios) "CYBORG APP SHELF" else "CYBORG MODULES",
@@ -965,12 +958,12 @@ class MainActivity : Activity() {
                 }
             }
         }
-        addButton(body, "＋  Create a CYBORG mini-app") { makerDialog(side) }
+        addButton(body, "＋  Создать приложение CYBORG") { makerDialog(side) }
         body.addView(text(
             if (ios)
-                "Important: .ipa files are iOS binaries. Android cannot install or execute iPhone games. CYBORG can archive IPA files, or install .capp web-app shortcuts that open compatible online games. This is not Apple's App Store."
+                "Важно: IPA — это приложения для iOS. Android не умеет запускать их напрямую. Совместимые веб-игры можно добавить через пакет .capp."
             else
-                ".capp packages install inside CYBORG as web-app shortcuts. APK files are handed to Android's installer and need system confirmation.",
+                "Пакеты .capp запускаются внутри CYBORG. APK устанавливается системным установщиком Android на настоящий телефон.",
             8f, Color.LTGRAY
         ))
     }
@@ -1379,10 +1372,10 @@ class MainActivity : Activity() {
     }
 
     private fun renderSearch(body: LinearLayout, accent: Int) {
-        body.addView(text("MyKit Search", 18f, Color.WHITE, true))
-        body.addView(text("Search your app shelf or the web.", 9f, accent))
+        body.addView(text("Поиск CYBORG", 18f, Color.WHITE, true))
+        body.addView(text("Поиск приложений, настроек и сайтов.", 9f, accent))
         val input = EditText(this).apply {
-            hint = "App, setting or search phrase"
+            hint = "Приложение, настройка или запрос"
             textSize = 13f
             setSingleLine(true)
             setTextColor(Color.WHITE)
@@ -1391,7 +1384,7 @@ class MainActivity : Activity() {
             setPadding(dp(10), dp(7), dp(10), dp(7))
         }
         body.addView(input, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(8) })
-        addButton(body, "⌕  Search Cyborg apps") {
+        addButton(body, "⌕  Найти приложение CYBORG") {
             val q = input.text.toString().trim()
             val found = tiles.filter { it.title.contains(q, true) || it.id.contains(q, true) }
             if (q.isBlank()) toast("Type something first")
@@ -1400,12 +1393,9 @@ class MainActivity : Activity() {
                 .setMessage(found.joinToString("\n") { it.title + "  •  " + it.side })
                 .setPositiveButton("OK", null).show()
         }
-        addButton(body, "🌐  Search the web") {
+        addButton(body, "🌐  Искать в Google внутри CYBORG") {
             val q = input.text.toString().trim()
-            if (q.isNotEmpty()) runIntent(
-                Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=" + Uri.encode(q))),
-                "No browser is available"
-            )
+            if (q.isNotEmpty()) showCyborgWebApp("Google", "https://www.google.com/search?q=" + Uri.encode(q))
         }
     }
 
