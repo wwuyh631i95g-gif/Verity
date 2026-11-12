@@ -27,6 +27,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -276,14 +277,14 @@ class MainActivity : Activity() {
     private fun buildPanel(side: String): View {
         val ios = side == "ios"
         val accent = if (ios) Color.rgb(151, 181, 255) else Color.rgb(174, 164, 255)
-        val colors = if (ios) intArrayOf(Color.rgb(34, 63, 119), Color.rgb(16, 29, 65))
-                    else intArrayOf(Color.rgb(47, 47, 77), Color.rgb(24, 26, 48))
+        val colors = if (ios) intArrayOf(Color.rgb(70, 103, 190), Color.rgb(118, 112, 194), Color.rgb(207, 143, 173))
+                    else intArrayOf(Color.rgb(23, 53, 69), Color.rgb(39, 87, 100), Color.rgb(69, 105, 133))
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(6), dp(5), dp(6), dp(6))
             background = GradientDrawable(GradientDrawable.Orientation.TL_BR, colors).apply {
-                cornerRadius = dp(22).toFloat()
-                setStroke(dp(1), if (ios) Color.rgb(101, 139, 218) else Color.rgb(119, 111, 177))
+                cornerRadius = dp(16).toFloat()
+                setStroke(dp(1), if (ios) Color.argb(90, 235, 242, 255) else Color.argb(90, 220, 240, 242))
             }
             setOnDragListener { _, e ->
                 when (e.action) {
@@ -387,14 +388,7 @@ class MainActivity : Activity() {
                 isFocusable = true
                 setOnClickListener { selectedTileId = tile.id; activeSide = side; openTile(tile) }
             }
-            val icon = TextView(this).apply {
-                text = tile.icon
-                textSize = 18f
-                gravity = Gravity.CENTER
-                setTextColor(Color.WHITE)
-                background = iconBackground(tile, side)
-            }
-            item.addView(icon, LinearLayout.LayoutParams(dp(34), dp(34)))
+            item.addView(tileIconView(tile, 34), LinearLayout.LayoutParams(dp(34), dp(34)))
             dock.addView(item, LinearLayout.LayoutParams(0, -1, 1f))
         }
         return dock
@@ -402,24 +396,45 @@ class MainActivity : Activity() {
 
     private fun renderHome(body: LinearLayout, side: String, accent: Int) {
         val ios = side == "ios"
-        body.addView(text(if (ios) "Favourites" else "Apps", 10f, Color.WHITE, true))
+        val widget = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(10), dp(7), dp(10), dp(7))
+            background = rounded(
+                if (ios) Color.argb(105, 245, 246, 255) else Color.argb(120, 226, 243, 239),
+                14, Color.argb(75, 255, 255, 255)
+            )
+        }
+        if (ios) {
+            widget.addView(text(SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date()),
+                8.5f, Color.WHITE, true))
+            widget.addView(text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
+                27f, Color.WHITE, true))
+            widget.addView(text("Cupertino-style home workspace", 8f, Color.rgb(238, 239, 255)))
+        } else {
+            widget.addView(text("At a glance", 8.5f, Color.WHITE, true))
+            widget.addView(text(SimpleDateFormat("EEE, MMM d  •  HH:mm", Locale.getDefault()).format(Date()),
+                17f, Color.WHITE, true))
+            widget.addView(text("Search, apps and device shortcuts", 8f, Color.rgb(228, 245, 243)))
+        }
+        body.addView(widget, LinearLayout.LayoutParams(-1, dp(82)).apply { bottomMargin = dp(7) })
+        body.addView(text(if (ios) "Suggestions" else "Your apps", 9.5f, Color.WHITE, true))
         val dockIds = if (ios) listOf("phone", "messages", "safari", "music")
                       else listOf("phone", "chrome", "camera", "photos")
         val list = tiles.filter { it.side == side && it.id !in dockIds }
         var i = 0
         while (i < list.size) {
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            for (col in 0..1) {
+            for (col in 0..2) {
                 val ix = i + col
                 if (ix < list.size) {
                     row.addView(appTileView(list[ix]),
-                        LinearLayout.LayoutParams(0, dp(70), 1f).apply {
-                            setMargins(dp(1), dp(2), dp(1), dp(2))
+                        LinearLayout.LayoutParams(0, dp(68), 1f).apply {
+                            setMargins(dp(1), dp(1), dp(1), dp(1))
                         })
-                } else row.addView(View(this), LinearLayout.LayoutParams(0, dp(70), 1f))
+                } else row.addView(View(this), LinearLayout.LayoutParams(0, dp(68), 1f))
             }
             body.addView(row)
-            i += 2
+            i += 3
         }
         body.addView(text(if (ios) "APP LIBRARY" else "ALL APPS", 8f, accent, true))
         addButton(body, "＋  Add app") { makerDialog(side) }
@@ -454,6 +469,49 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun hostPackageFor(tile: AppTile): String? {
+        if (tile.packageName.isNotBlank()) return tile.packageName
+        if (tile.side != "android") return null
+        val candidates = when (tile.id) {
+            "chrome", "safari", "web" -> listOf("com.android.chrome")
+            "youtube" -> listOf("com.google.android.youtube")
+            "photos" -> listOf("com.google.android.apps.photos", "com.huawei.photos")
+            "phone" -> listOf("com.google.android.dialer", "com.android.dialer", "com.android.phone")
+            "messages" -> listOf("com.google.android.apps.messaging", "com.android.mms")
+            "maps", "iosmaps" -> listOf("com.google.android.apps.maps")
+            "camera" -> listOf("com.huawei.camera", "com.android.camera2", "com.android.camera")
+            "files" -> listOf("com.google.android.documentsui", "com.huawei.filemanager")
+            "calculator" -> listOf("com.google.android.calculator", "com.android.calculator2")
+            "clock" -> listOf("com.google.android.deskclock", "com.android.deskclock")
+            "playstore" -> listOf("com.android.vending")
+            else -> emptyList()
+        }
+        return candidates.firstOrNull { packageManager.getLaunchIntentForPackage(it) != null }
+    }
+
+    private fun tileIconView(tile: AppTile, size: Int): View {
+        val pkg = hostPackageFor(tile)
+        if (pkg != null) {
+            try {
+                return ImageView(this).apply {
+                    setImageDrawable(packageManager.getApplicationIcon(pkg))
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    background = iconBackground(tile, tile.side)
+                    setPadding(dp(2), dp(2), dp(2), dp(2))
+                    contentDescription = tile.title
+                }
+            } catch (_: Exception) { }
+        }
+        return TextView(this).apply {
+            text = tile.icon
+            textSize = if (size >= 40) 21f else 18f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            background = iconBackground(tile, tile.side)
+            contentDescription = tile.title
+        }
+    }
+
     private fun appTileView(tile: AppTile): View {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -462,19 +520,12 @@ class MainActivity : Activity() {
             isFocusable = true
             contentDescription = tile.title
         }
-        val icon = TextView(this).apply {
-            text = tile.icon
-            textSize = 20f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            background = iconBackground(tile, tile.side)
-        }
-        card.addView(icon, LinearLayout.LayoutParams(dp(40), dp(40)))
+        card.addView(tileIconView(tile, 42), LinearLayout.LayoutParams(dp(42), dp(42)))
         card.addView(text(tile.title, 8.5f, Color.WHITE, true).apply {
             gravity = Gravity.CENTER
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
-        }, LinearLayout.LayoutParams(-1, dp(22)))
+        }, LinearLayout.LayoutParams(-1, dp(21)))
         card.setOnClickListener { selectedTileId = tile.id; activeSide = tile.side; openTile(tile) }
         card.setOnLongClickListener {
             it.startDragAndDrop(ClipData.newPlainText("cyborg_app", tile.id),
@@ -484,7 +535,7 @@ class MainActivity : Activity() {
         return card
     }
 
-    private fun renderPage(body: LinearLayout, side: String, page: String, accent: Int) {    private fun renderPage(body: LinearLayout, side: String, page: String, accent: Int) {
+    private fun renderPage(body: LinearLayout, side: String, page: String, accent: Int) {
         addButton(body, "←  Back to " + if (side == "ios") "iPhone" else "Android") { setPage(side, null) }
         when (page) {
             "store" -> renderStore(body, side, accent)
@@ -511,6 +562,19 @@ class MainActivity : Activity() {
             }
         }
         addButton(body, "＋  Create your own app") { makerDialog(side) }
+        if (side == "android") {
+            addButton(body, "Open Google Play Store") {
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://search?q=apps")))
+                } catch (_: Exception) {
+                    runIntent(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps")),
+                        "Google Play is unavailable")
+                }
+            }
+        } else {
+            body.addView(text("This is the CYBORG app catalogue. Apple's App Store cannot run inside Android.",
+                8.5f, Color.LTGRAY))
+        }
     }
 
     @Suppress("DEPRECATION")
@@ -871,7 +935,7 @@ class MainActivity : Activity() {
             KeyEvent.KEYCODE_F2 -> renameSelectedTile()
             KeyEvent.KEYCODE_F3 -> setPage(activeSide, "search")
             KeyEvent.KEYCODE_F4 -> showPcDesktop()
-            KeyEvent.KEYCODE_F5 -> { render(); toast("CYBORG OS refreshed") }
+            KeyEvent.KEYCODE_F5 -> { render(); toast("CYBORG VM refreshed") }
             KeyEvent.KEYCODE_F6 -> cycleActiveSide()
             KeyEvent.KEYCODE_F7 -> keyboardDialog()
             KeyEvent.KEYCODE_F8 -> { trackpadVisible = !trackpadVisible; render() }
@@ -962,7 +1026,7 @@ class MainActivity : Activity() {
     }
 
     private fun showCyborgAbout() {
-        AlertDialog.Builder(this).setTitle("CYBORG OS 1.1")
+        AlertDialog.Builder(this).setTitle("CYBORG VM 1.3")
             .setMessage(
                 "A virtual-device-style dual workspace with PC controls. The two screens recreate familiar mobile interface patterns; they are not separate bootable Apple or Google operating systems. Android remains the host."
             )
