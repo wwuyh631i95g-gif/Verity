@@ -1556,7 +1556,9 @@ class MainActivity : Activity() {
         addButton(body, "☁  iCloud — виртуальная синхронизация") {
             val count = tiles.size
             AlertDialog.Builder(this).setTitle("Облако CYBORG")
-                .setMessage("Виртуальный снимок состояния создан.\\nЯрлыков: " + count +\\n                    "\\nЗаметки и настройки CYBORG хранятся локально на телефоне. Это не подключение к настоящему iCloud.")
+                .setMessage("Виртуальный снимок состояния создан.\\n" +
+                    "Ярлыков: " + count +
+                    "\\nЗаметки и настройки CYBORG хранятся локально на телефоне. Это не подключение к настоящему iCloud.")
                 .setPositiveButton("ГОТОВО", null).show()
         }
         addButton(body, "↔  Handoff — перенести выбранное приложение на Android") {
