@@ -1484,7 +1484,6 @@ class MainActivity : Activity() {
             "securitylab" -> setPage("android", "securitylab")
             "mykit", "androidsearch" -> setPage(tile.side, "search")
             "notes", "shared_notes" -> setPage(tile.side, "notes")
-            "iossettings", "androidsettings" -> runIntent(Intent(Settings.ACTION_SETTINGS), "Settings unavailable")
             "phone" -> runIntent(Intent(Intent.ACTION_DIAL), "Phone app unavailable")
             "messages" -> runIntent(Intent(Intent.ACTION_VIEW, Uri.parse("sms:")), "Messages app unavailable")
             "photos" -> runIntent(Intent(Intent.ACTION_GET_CONTENT).setType("image/*"), "Photo picker unavailable")
