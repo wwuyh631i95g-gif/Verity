@@ -15,8 +15,10 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.BatteryManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.provider.Settings
 import android.view.DragEvent
 import android.view.Gravity
@@ -65,6 +67,9 @@ class MainActivity : Activity() {
     private var altLatched = false
     private var shiftLatched = false
     private var fullScreen = false
+    private val reqPickApk = 7101
+    private val reqPickIpa = 7102
+    private val reqInstallSettings = 7103
 
     private val catalogue = listOf(
         StoreItem("mykit", "MyKit Search", "⌕", "Search apps, settings and the web"),
@@ -116,6 +121,120 @@ class MainActivity : Activity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus && fullScreen) applyImmersiveMode()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (Build.VERSION.SDK_INT >= 26 && packageManager.canRequestPackageInstalls()) {
+            launchPendingApkInstaller()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode != RESULT_OK) return
+        val uri = data?.data ?: return
+        keepReadAccess(uri)
+        when (requestCode) {
+            reqPickApk -> {
+                val name = displayName(uri)
+                if (!name.endsWith(".apk", true)) {
+                    toast("Choose one .apk file")
+                    return
+                }
+                prefs.edit().putString("pending_apk_uri", uri.toString()).apply()
+                if (Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
+                    AlertDialog.Builder(this)
+                        .setTitle("Allow APK installation")
+                        .setMessage("Android requires a one-time permission for CYBORG VM to request APK installation. Android will still show its own confirmation before installing.")
+                        .setPositiveButton("OPEN SETTINGS") { _, _ ->
+                            try {
+                                startActivityForResult(
+                                    Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                        Uri.parse("package:$packageName")),
+                                    reqInstallSettings
+                                )
+                            } catch (_: Exception) {
+                                toast("Open Android Settings and allow installs from this app")
+                            }
+                        }
+                        .setNegativeButton("CANCEL", null)
+                        .show()
+                } else launchPendingApkInstaller()
+            }
+            reqPickIpa -> {
+                val name = displayName(uri)
+                if (!name.endsWith(".ipa", true)) {
+                    toast("Choose an .ipa file")
+                    return
+                }
+                val arr = JSONArray(prefs.getString("ipa_archives", "[]"))
+                arr.put(JSONObject()
+                    .put("name", name)
+                    .put("uri", uri.toString())
+                    .put("added", System.currentTimeMillis()))
+                prefs.edit().putString("ipa_archives", arr.toString()).apply()
+                setPage("ios", "ipa")
+                toast("IPA saved to the iPhone-side archive")
+            }
+        }
+    }
+
+    private fun keepReadAccess(uri: Uri) {
+        try {
+            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (_: Exception) { }
+    }
+
+    private fun displayName(uri: Uri): String {
+        var name = uri.lastPathSegment ?: "package"
+        try {
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                if (c.moveToFirst()) name = c.getString(0) ?: name
+            }
+        } catch (_: Exception) { }
+        return name
+    }
+
+    private fun openApkPicker() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            type = "*/*"
+            putExtra(Intent.EXTRA_MIME_TYPES,
+                arrayOf("application/vnd.android.package-archive", "application/octet-stream"))
+            addCategory(Intent.CATEGORY_OPENABLE)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        }
+        try { startActivityForResult(intent, reqPickApk) }
+        catch (_: Exception) { toast("Android file picker is unavailable") }
+    }
+
+    private fun openIpaPicker() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            type = "*/*"
+            putExtra(Intent.EXTRA_MIME_TYPES,
+                arrayOf("application/octet-stream", "application/zip", "application/x-itunes-ipa"))
+            addCategory(Intent.CATEGORY_OPENABLE)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        }
+        try { startActivityForResult(intent, reqPickIpa) }
+        catch (_: Exception) { toast("Android file picker is unavailable") }
+    }
+
+    private fun launchPendingApkInstaller() {
+        val raw = prefs.getString("pending_apk_uri", null) ?: return
+        if (Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) return
+        val uri = Uri.parse(raw)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        try {
+            prefs.edit().remove("pending_apk_uri").apply()
+            startActivity(intent)
+        } catch (_: Exception) {
+            toast("Android could not open this APK. Check that the file is valid.")
+        }
     }
 
     private fun applyImmersiveMode() {
@@ -188,6 +307,7 @@ class MainActivity : Activity() {
         AppTile("notes", "Notes", "✎", "ios"),
         AppTile("mykit", "MyKit Search", "⌕", "ios"),
         AppTile("iossettings", "Settings", "⚙", "ios"),
+        AppTile("ipaarchive", "IPA Archive", "▣", "ios"),
         AppTile("playstore", "Play Store", "▶", "android"),
         AppTile("chrome", "Chrome", "🌐", "android"),
         AppTile("camera", "Camera", "📷", "android"),
@@ -197,7 +317,8 @@ class MainActivity : Activity() {
         AppTile("calculator", "Calculator", "🧮", "android"),
         AppTile("clock", "Clock", "◷", "android"),
         AppTile("androidsearch", "MyKit Search", "⌕", "android"),
-        AppTile("androidsettings", "Settings", "⚙", "android")
+        AppTile("androidsettings", "Settings", "⚙", "android"),
+        AppTile("apkmanager", "APK Installer", "↓", "android")
     )
 
     private fun loadTiles() {
@@ -219,6 +340,10 @@ class MainActivity : Activity() {
                 ))
             }
             if (tiles.isEmpty()) tiles.addAll(defaults())
+            else {
+                defaults().filter { fresh -> tiles.none { it.id == fresh.id } }.forEach { tiles.add(it) }
+            }
+            saveTiles()
         } catch (_: Exception) {
             tiles.clear()
             tiles.addAll(defaults())
@@ -283,10 +408,7 @@ class MainActivity : Activity() {
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(6), dp(5), dp(6), dp(6))
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, colors).apply {
-                cornerRadius = dp(16).toFloat()
-                setStroke(dp(1), if (ios) Color.argb(90, 235, 242, 255) else Color.argb(90, 220, 240, 242))
-            }
+            background = DualWallpaperDrawable(ios)
             setOnDragListener { _, e ->
                 when (e.action) {
                     DragEvent.ACTION_DRAG_STARTED -> e.localState is AppTile
@@ -669,6 +791,7 @@ class MainActivity : Activity() {
         addButton(body, "←  Back to " + if (side == "ios") "iPhone" else "Android") { setPage(side, null) }
         when (page) {
             "store" -> renderStore(body, side, accent)
+            "ipa" -> renderIpaArchives(body)
             "apps" -> renderInstalledApps(body, side)
             "search" -> renderSearch(body, accent)
             "notes" -> renderNotes(body, accent)
@@ -677,23 +800,22 @@ class MainActivity : Activity() {
     }
 
     private fun renderStore(body: LinearLayout, side: String, accent: Int) {
-        body.addView(text(if (side == "ios") "App Store" else "Google Play", 19f, Color.WHITE, true))
-        body.addView(text("Cyborg catalogue • shared app shelf", 9f, accent))
-        body.addView(text("Adds Cyborg modules and shortcuts, not Apple or Google downloads.", 9f, Color.LTGRAY))
-        catalogue.forEach { item ->
-            addActionRow(body, item.icon, item.title, item.info, "ADD") {
-                if (tiles.any { it.id == item.id }) toast(item.title + " is already installed")
-                else {
-                    tiles.add(AppTile(item.id, item.title, item.icon, side))
-                    saveTiles()
-                    toast(item.title + " added to " + if (side == "ios") "iPhone" else "Android")
-                    render()
-                }
-            }
-        }
-        addButton(body, "＋  Create your own app") { makerDialog(side) }
-        if (side == "android") {
-            addButton(body, "Open Google Play Store") {
+        val ios = side == "ios"
+        body.addView(text(if (ios) "App Store" else "Google Play", 19f, Color.WHITE, true))
+        body.addView(text(if (ios) "CURATED FOR THE iPHONE WORKSPACE" else "ANDROID APP CENTRE",
+            8.5f, accent, true))
+        body.addView(text(if (ios)
+            "CYBORG mini-apps and web apps live here. Imported .ipa files can be archived, but iOS apps cannot run on Android."
+            else "Use Google Play for store downloads, or choose an APK file to install through Android.",
+            8.5f, Color.LTGRAY))
+
+        if (ios) {
+            addButton(body, "＋  Import .IPA package") { openIpaPicker() }
+            addButton(body, "▣  My imported IPA files") { setPage("ios", "ipa") }
+        } else {
+            addButton(body, "↓  Install APK from files") { openApkPicker() }
+            addButton(body, "▦  Browse apps installed on this phone") { setPage("android", "apps") }
+            addButton(body, "Open Google Play") {
                 try {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://search?q=apps")))
                 } catch (_: Exception) {
@@ -701,10 +823,46 @@ class MainActivity : Activity() {
                         "Google Play is unavailable")
                 }
             }
-        } else {
-            body.addView(text("This is the CYBORG app catalogue. Apple's App Store cannot run inside Android.",
-                8.5f, Color.LTGRAY))
         }
+
+        body.addView(text(if (ios) "CYBORG APP SHELF" else "CYBORG MODULES",
+            9.5f, Color.WHITE, true))
+        catalogue.forEach { item ->
+            addActionRow(body, item.icon, item.title, item.info, "ADD") {
+                if (tiles.any { it.id == item.id }) toast(item.title + " is already on a workspace")
+                else {
+                    tiles.add(AppTile(item.id, item.title, item.icon, side))
+                    saveTiles()
+                    toast(item.title + " added to " + if (ios) "iPhone" else "Android")
+                    render()
+                }
+            }
+        }
+        addButton(body, "＋  Create a CYBORG mini-app") { makerDialog(side) }
+        if (ios) body.addView(text(
+            "This screen is an iPhone-style catalogue created by CYBORG, not Apple's App Store. iOS .ipa binaries require iOS and cannot be installed or launched by this Android app.",
+            8f, Color.LTGRAY
+        ))
+    }
+
+    private fun renderIpaArchives(body: LinearLayout) {
+        body.addView(text("Imported IPA packages", 17f, Color.WHITE, true))
+        body.addView(text("Stored as files only. CYBORG can catalogue them, but cannot execute iOS binaries on Android.",
+            8.5f, Color.LTGRAY))
+        val arr = JSONArray(prefs.getString("ipa_archives", "[]"))
+        if (arr.length() == 0) {
+            body.addView(text("No IPA files imported yet.", 10f, Color.LTGRAY))
+        }
+        for (i in 0 until arr.length()) {
+            val item = arr.optJSONObject(i) ?: continue
+            val title = item.optString("name", "iOS package")
+            addActionRow(body, "▣", title, "IPA archive • not installable on Android", "INFO") {
+                AlertDialog.Builder(this).setTitle(title)
+                    .setMessage("This is an iOS app package archive. Android phones cannot install or run iOS .ipa apps. The file remains listed here as an archive.")
+                    .setPositiveButton("OK", null).show()
+            }
+        }
+        addButton(body, "＋  Import another IPA") { openIpaPicker() }
     }
 
     @Suppress("DEPRECATION")
@@ -916,6 +1074,8 @@ class MainActivity : Activity() {
             "calendar" -> runIntent(
                 Intent(Intent.ACTION_VIEW, Uri.parse("content://com.android.calendar/time/")), "Calendar unavailable")
             "pcdesk" -> showPcDesktop()
+            "apkmanager" -> setPage("android", "store")
+            "ipaarchive" -> setPage("ios", "ipa")
             else -> AlertDialog.Builder(this).setTitle(tile.title)
                 .setMessage("This Cyborg module is ready for an app or web shortcut.")
                 .setPositiveButton("OK", null).show()
