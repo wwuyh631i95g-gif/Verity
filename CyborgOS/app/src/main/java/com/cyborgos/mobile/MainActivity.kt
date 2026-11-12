@@ -778,7 +778,13 @@ class MainActivity : Activity() {
         toast("Active workspace: " + if (activeSide == "ios") "iPhone side" else "Android side")
     }
 
-    private fun moveFocus(direction: Int) {
+    private fun moveFocus(keyCode: Int) {
+        val direction = when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT -> View.FOCUS_LEFT
+            KeyEvent.KEYCODE_DPAD_RIGHT -> View.FOCUS_RIGHT
+            KeyEvent.KEYCODE_DPAD_UP -> View.FOCUS_UP
+            else -> View.FOCUS_DOWN
+        }
         val current = currentFocus ?: root
         val next = current.focusSearch(direction)
         if (next != null) next.requestFocus()
