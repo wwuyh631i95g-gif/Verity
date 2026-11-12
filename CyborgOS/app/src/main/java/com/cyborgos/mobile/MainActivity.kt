@@ -1719,11 +1719,36 @@ class MainActivity : Activity() {
             .sortedBy { it.loadLabel(packageManager).toString().lowercase(Locale.ROOT) }
 
     private fun renderInstalledApps(body: LinearLayout, side: String) {
-        body.addView(text("Приложения, установленные на телефоне", 15f, Color.WHITE, true))
-        body.addView(text("Закрепи приложение на любом экране. Значок можно перетащить на другую половину.", 9f, Color.LTGRAY))
+        if (side == "ios") {
+            body.addView(text("БИБЛИОТЕКА ПРИЛОЖЕНИЙ IPHONE", 16f, Color.WHITE, true))
+            body.addView(text("Приложения левого виртуального пространства CYBORG.", 9f, Color.LTGRAY))
+            val iosApps = tiles.filter { it.side == "ios" }
+            if (iosApps.isEmpty()) body.addView(text("Пока нет приложений.", 10f, Color.LTGRAY))
+            iosApps.forEach { tile ->
+                addActionRow(body, tile.icon, tile.title, "Установлено в iPhone-пространстве", "ОТКРЫТЬ") {
+                    selectedTileId = tile.id
+                    activeSide = "ios"
+                    openTile(tile)
+                }
+            }
+            addButton(body, "ОТКРЫТЬ МАГАЗИН APP STORE") { setPage("ios", "store") }
+            return
+        }
+
+        body.addView(text("ПРИЛОЖЕНИЯ ANDROID", 16f, Color.WHITE, true))
+        body.addView(text("Встроенные приложения CYBORG и ярлыки программ телефона.", 9f, Color.LTGRAY))
+        val virtualApps = tiles.filter { it.side == "android" && it.packageName.isBlank() }
+        virtualApps.forEach { tile ->
+            addActionRow(body, tile.icon, tile.title, "Приложение внутри CYBORG", "ОТКРЫТЬ") {
+                selectedTileId = tile.id
+                activeSide = "android"
+                openTile(tile)
+            }
+        }
+        body.addView(text("ПРИЛОЖЕНИЯ, УСТАНОВЛЕННЫЕ НА ТЕЛЕФОНЕ", 10f, Color.WHITE, true))
         val pinned = tiles.map { it.packageName }.toSet()
         val apps = installedLaunchers()
-        if (apps.isEmpty()) body.addView(text("Не найдено приложений, которые можно открыть.", 11f, Color.LTGRAY))
+        if (apps.isEmpty()) body.addView(text("Не найдено запускаемых приложений телефона.", 10f, Color.LTGRAY))
         apps.take(60).forEach { info ->
             val pkg = info.activityInfo.packageName
             val title = info.loadLabel(packageManager).toString()
