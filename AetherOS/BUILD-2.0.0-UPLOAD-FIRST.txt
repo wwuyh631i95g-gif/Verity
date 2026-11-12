@@ -1,0 +1,1 @@
+Trigger after moving the APK artifact upload directly after the Gradle build.
