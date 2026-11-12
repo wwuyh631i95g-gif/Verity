@@ -920,6 +920,359 @@ class MainActivity : Activity() {
         ))
     }
 
+
+    private fun openLabPicker() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            type = "*/*"
+            addCategory(Intent.CATEGORY_OPENABLE)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        try { startActivityForResult(intent, reqPickLabFile) }
+        catch (_: Exception) { toast("Android file picker is unavailable") }
+    }
+
+    // Defensive-only file intake: bytes are copied to CYBORG private storage and never executed.
+    private fun quarantineFile(uri: Uri) {
+        var created: File? = null
+        try {
+            val folder = File(filesDir, "cyborg_quarantine")
+            if (!folder.exists() && !folder.mkdirs()) throw IllegalStateException("Cannot create private quarantine")
+            val id = UUID.randomUUID().toString()
+            val outputFile = File(folder, id + ".bin")
+            created = outputFile
+            val digest = MessageDigest.getInstance("SHA-256")
+            var total = 0L
+            val input = contentResolver.openInputStream(uri)
+                ?: throw IllegalArgumentException("Cannot read selected file")
+            input.use { source ->
+                FileOutputStream(outputFile).use { target ->
+                    val buffer = ByteArray(8192)
+                    while (true) {
+                        val count = source.read(buffer)
+                        if (count < 0) break
+                        total += count
+                        if (total > 128L * 1024L * 1024L) {
+                            throw IllegalArgumentException("File is larger than the 128 MB lab limit")
+                        }
+                        digest.update(buffer, 0, count)
+                        target.write(buffer, 0, count)
+                    }
+                }
+            }
+            val name = displayName(uri).take(120)
+            val extension = name.substringAfterLast('.', "FILE").uppercase(Locale.ROOT)
+            val hash = digest.digest().joinToString("") { b -> "%02x".format(b) }
+            val list = JSONArray(prefs.getString("quarantine_items", "[]"))
+            list.put(JSONObject()
+                .put("id", id)
+                .put("name", name)
+                .put("extension", extension)
+                .put("bytes", total)
+                .put("sha256", hash)
+                .put("added", System.currentTimeMillis()))
+            prefs.edit().putString("quarantine_items", list.toString()).apply()
+            created = null
+            setPage("android", "securitylab")
+            toast("Copied to private quarantine. The file was not opened or run.")
+        } catch (e: Exception) {
+            created?.delete()
+            AlertDialog.Builder(this).setTitle("Quarantine failed")
+                .setMessage(e.message ?: "The file could not be copied.")
+                .setPositiveButton("OK", null).show()
+        }
+    }
+
+    private fun deleteQuarantineItem(id: String) {
+        File(File(filesDir, "cyborg_quarantine"), id + ".bin").delete()
+        val old = JSONArray(prefs.getString("quarantine_items", "[]"))
+        val updated = JSONArray()
+        for (i in 0 until old.length()) {
+            val item = old.optJSONObject(i) ?: continue
+            if (item.optString("id") != id) updated.put(item)
+        }
+        prefs.edit().putString("quarantine_items", updated.toString()).apply()
+        setPage("android", "securitylab")
+        toast("Quarantined copy deleted")
+    }
+
+    private fun clearQuarantine() {
+        val old = JSONArray(prefs.getString("quarantine_items", "[]"))
+        for (i in 0 until old.length()) {
+            val item = old.optJSONObject(i) ?: continue
+            val id = item.optString("id")
+            if (id.matches(Regex("[0-9a-fA-F-]{36}"))) {
+                File(File(filesDir, "cyborg_quarantine"), id + ".bin").delete()
+            }
+        }
+        prefs.edit().putString("quarantine_items", "[]").apply()
+        setPage("android", "securitylab")
+        toast("Quarantine emptied")
+    }
+
+    private fun runHarmlessLabDemo() {
+        val count = prefs.getInt("lab_demo_count", 0) + 1
+        prefs.edit().putInt("lab_demo_count", count).apply()
+        AlertDialog.Builder(this)
+            .setTitle("SAFE SIMULATION • TEST " + count)
+            .setMessage(
+                "This is a visual-only training simulation. No virus, APK, script or unknown code is launched.\n\n" +
+                "SIMULATED EVENTS\n" +
+                "• Unknown app requests access to files — BLOCKED in demo\n" +
+                "• Unknown app tries to persist — BLOCKED in demo\n" +
+                "• Unknown app attempts network access — BLOCKED in demo\n\n" +
+                "This does not test real malware or prove a file is clean."
+            )
+            .setPositiveButton("RESET DEMO") { _, _ ->
+                prefs.edit().putInt("lab_demo_count", 0).apply()
+                toast("Demo state reset")
+                setPage("android", "securitylab")
+            }
+            .setNegativeButton("CLOSE", null)
+            .show()
+    }
+
+    private fun renderSecurityLab(body: LinearLayout) {
+        body.addView(text("CYBORG SECURITY LAB", 18f, Color.WHITE, true))
+        body.addView(text("PRIVATE QUARANTINE • NO EXECUTION", 8.5f, Color.rgb(131, 231, 190), true))
+        body.addView(text(
+            "Files chosen here are copied into CYBORG's private app storage. The lab calculates a SHA-256 fingerprint and records the file type and size. It never installs or runs the file.",
+            9f, Color.LTGRAY
+        ))
+        addButton(body, "＋  Put a file in quarantine") { openLabPicker() }
+        addButton(body, "▶  Run harmless threat simulation") { runHarmlessLabDemo() }
+        addButton(body, "🧹  Delete every quarantined copy") { clearQuarantine() }
+        body.addView(text(
+            "IMPORTANT: this is a safe storage and fingerprint tool, not an antivirus engine or a separate Android virtual machine. It cannot identify every virus. Do not install suspicious APKs on the real phone. The APK installer elsewhere in CYBORG installs on the host Android system, not in this lab.",
+            8.5f, Color.rgb(255, 205, 165), true
+        ))
+        body.addView(text("QUARANTINED FILES", 10f, Color.WHITE, true))
+        val items = JSONArray(prefs.getString("quarantine_items", "[]"))
+        if (items.length() == 0) {
+            body.addView(text("Quarantine is empty.", 9f, Color.LTGRAY))
+        }
+        for (i in items.length() - 1 downTo 0) {
+            val item = items.optJSONObject(i) ?: continue
+            val id = item.optString("id")
+            val name = item.optString("name", "Unnamed file")
+            val detail = item.optString("extension", "FILE") + " • " +
+                item.optLong("bytes").toString() + " bytes • fingerprint saved"
+            addActionRow(body, "🔒", name, detail, "DETAILS") {
+                AlertDialog.Builder(this).setTitle(name)
+                    .setMessage(
+                        "Stored in CYBORG's private quarantine.\n\n" +
+                        "Type: " + item.optString("extension") + "\n" +
+                        "Size: " + item.optLong("bytes") + " bytes\n" +
+                        "SHA-256:\n" + item.optString("sha256") + "\n\n" +
+                        "No code was executed. A fingerprint is not a malware verdict."
+                    )
+                    .setPositiveButton("DELETE COPY") { _, _ -> deleteQuarantineItem(id) }
+                    .setNegativeButton("CLOSE", null)
+                    .show()
+            }
+        }
+        body.addView(text(
+            "Deleting a quarantined copy removes only the CYBORG copy. It does not modify the original file you selected.",
+            8f, Color.LTGRAY
+        ))
+    }
+
+    private fun toggleVirtualSetting(key: String, label: String, side: String, page: String) {
+        val next = !prefs.getBoolean(key, false)
+        prefs.edit().putBoolean(key, next).apply()
+        toast(label + if (next) " enabled in CYBORG" else " disabled in CYBORG")
+        setPage(side, page)
+    }
+
+    private fun renderIosControlCenter(body: LinearLayout) {
+        body.addView(text("CONTROL CENTER", 18f, Color.WHITE, true))
+        body.addView(text("iPHONE WORKSPACE • FOCUS • LIVE ACTIVITIES", 8f, Color.rgb(201, 216, 255), true))
+        addButton(body, (if (prefs.getBoolean("ios_focus", false)) "🌙  Focus: ON" else "🌙  Focus: OFF") +
+            "  •  toggle") {
+            toggleVirtualSetting("ios_focus", "Focus", "ios", "control")
+        }
+        addButton(body, (if (prefs.getBoolean("ios_silent", false)) "🔕  Silent mode: ON" else "🔔  Silent mode: OFF") +
+            "  •  toggle") {
+            toggleVirtualSetting("ios_silent", "Silent mode", "ios", "control")
+        }
+        addButton(body, (if (prefs.getBoolean("ios_live", false)) "♫  Live Island: playing" else "♫  Start Live Island demo")) {
+            toggleVirtualSetting("ios_live", "Live Island demo", "ios", "control")
+        }
+        addButton(body, "▣  Lock Screen preview") {
+            AlertDialog.Builder(this).setTitle("CYBORG Lock Screen")
+                .setMessage(
+                    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()) +
+                    "\n" + SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date()) +
+                    "\n\nWeather widget  •  Calendar widget  •  Focus status\n\nPreview only: it does not replace the real Android lock screen."
+                ).setPositiveButton("DONE", null).show()
+        }
+        body.addView(text("DISPLAY BRIGHTNESS • SIMULATED", 9f, Color.WHITE, true))
+        val brightness = SeekBar(this).apply {
+            max = 100
+            progress = prefs.getInt("ios_virtual_brightness", 72)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) prefs.edit().putInt("ios_virtual_brightness", progress).apply()
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                    toast("Virtual screen brightness saved")
+                }
+            })
+        }
+        body.addView(brightness, LinearLayout.LayoutParams(-1, dp(36)))
+        body.addView(text(
+            "The iPhone side has its own Focus, silent state, Live Island demo and lock-screen preview. These are virtual CYBORG settings and do not change the host phone's radios or lock screen.",
+            8f, Color.LTGRAY
+        ))
+    }
+
+    private fun renderAndroidQuickSettings(body: LinearLayout) {
+        body.addView(text("QUICK SETTINGS", 18f, Color.WHITE, true))
+        body.addView(text("ANDROID WORKSPACE • MATERIAL YOU", 8f, Color.rgb(192, 220, 255), true))
+        val toggles = listOf(
+            Triple("q_wifi", "Wi-Fi", "Virtual quick tile"),
+            Triple("q_bluetooth", "Bluetooth", "Virtual quick tile"),
+            Triple("q_airplane", "Airplane mode", "Visual demo only"),
+            Triple("q_battery", "Battery saver", "Virtual power profile"),
+            Triple("q_dnd", "Do Not Disturb", "Virtual notification mode")
+        )
+        toggles.forEach { item ->
+            val enabled = prefs.getBoolean(item.first, false)
+            addButton(body, (if (enabled) "●  " else "○  ") + item.second +
+                (if (enabled) "  ON" else "  OFF") + "   •   " + item.third) {
+                toggleVirtualSetting(item.first, item.second, "android", "quick")
+            }
+        }
+        body.addView(text("MATERIAL YOU COLOUR", 9f, Color.WHITE, true))
+        val palettes = listOf(
+            "BLUE" to Color.rgb(100, 160, 255),
+            "VIOLET" to Color.rgb(182, 135, 255),
+            "MINT" to Color.rgb(94, 210, 176),
+            "CORAL" to Color.rgb(255, 139, 126)
+        )
+        palettes.forEach { palette ->
+            addButton(body, "●  " + palette.first + if (prefs.getInt("android_accent", Color.rgb(174, 164, 255)) == palette.second) "  ✓" else "") {
+                prefs.edit().putInt("android_accent", palette.second).apply()
+                render()
+                toast(palette.first + " theme applied to Android workspace")
+            }
+        }
+        addButton(body, "▤  Notification shade preview") {
+            AlertDialog.Builder(this).setTitle("CYBORG Notifications")
+                .setMessage("No new notifications\n\nSystem update  •  CYBORG virtual environment\nGame Hub  •  Your library is ready\n\nThis is a local preview, not the Android notification shade.")
+                .setPositiveButton("CLEAR PREVIEW", null).show()
+        }
+        addButton(body, "🔐  Privacy & app permissions") {
+            runIntent(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")),
+                "Android app info is unavailable")
+        }
+    }
+
+    private fun renderGameHub(body: LinearLayout, side: String) {
+        val ios = side == "ios"
+        body.addView(text(if (ios) "GAME CENTER" else "GAME LIBRARY", 18f, Color.WHITE, true))
+        body.addView(text(
+            if (ios) "iPHONE-STYLE GAME SHELF" else "CYBORG APP GAMES",
+            8f, if (ios) Color.rgb(205, 216, 255) else Color.rgb(170, 226, 214), true
+        ))
+        body.addView(text(
+            "CYBORG can run web games and mini-apps packaged as .capp. Tap a game below to open it in CYBORG's own full-screen browser view.",
+            9f, Color.LTGRAY
+        ))
+        addButton(body, "⬇  Install a CYBORG game package (.capp)") { openCyborgPackagePicker() }
+        if (ios) {
+            addButton(body, "▣  Import an iOS .IPA file to archive") { openIpaPicker() }
+            addButton(body, "▣  Open IPA archive") { setPage("ios", "ipa") }
+            body.addView(text(
+                "Native .ipa games are not generally compatible with Android. Experimental compatibility projects exist for narrow groups of apps, but CYBORG does not include a general iOS runtime and cannot promise that a game will launch.",
+                8.5f, Color.rgb(255, 211, 173)
+            ))
+        } else {
+            addButton(body, "↓  Install Android APK on this phone") { openApkPicker() }
+            body.addView(text(
+                "APK installation uses the real Android package installer on the host phone. It is not isolated inside CYBORG. Use the Security Lab to store a suspicious file without running it.",
+                8.5f, Color.rgb(255, 211, 173)
+            ))
+        }
+        body.addView(text("INSTALLED CYBORG WEB GAMES", 9.5f, Color.WHITE, true))
+        val games = tiles.filter { it.side == side && it.url.isNotBlank() }
+        if (games.isEmpty()) body.addView(text("No .capp games installed yet.", 9f, Color.LTGRAY))
+        games.forEach { game ->
+            addActionRow(body, game.icon, game.title, game.url, "PLAY") {
+                showCyborgWebApp(game.title, game.url)
+            }
+        }
+    }
+
+    private fun showCyborgWebApp(title: String, address: String) {
+        val safeAddress = address.trim()
+        val uri = Uri.parse(safeAddress)
+        if (uri.scheme != "https" && uri.scheme != "http") {
+            toast("Only web addresses are supported by CYBORG mini-apps")
+            return
+        }
+        val dialog = Dialog(this)
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.rgb(10, 15, 28))
+        }
+        val toolbar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(7), dp(5), dp(7), dp(5))
+            background = rounded(Color.rgb(24, 34, 56), 10)
+        }
+        toolbar.addView(text(title, 12f, Color.WHITE, true),
+            LinearLayout.LayoutParams(0, dp(40), 1f))
+        val web = WebView(this)
+        fun toolbarButton(label: String, action: () -> Unit) {
+            toolbar.addView(TextView(this).apply {
+                text = label
+                textSize = 10f
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                background = rounded(Color.rgb(58, 78, 117), 8)
+                setPadding(dp(8), dp(7), dp(8), dp(7))
+                setOnClickListener { action() }
+            }, LinearLayout.LayoutParams(-2, dp(34)).apply { setMargins(dp(2), 0, dp(2), 0) })
+        }
+        toolbarButton("BACK") { if (web.canGoBack()) web.goBack() else dialog.dismiss() }
+        toolbarButton("↻") { web.reload() }
+        toolbarButton("×") { dialog.dismiss() }
+        web.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = false
+            allowContentAccess = false
+            javaScriptCanOpenWindowsAutomatically = false
+            setSupportMultipleWindows(false)
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            if (Build.VERSION.SDK_INT >= 26) safeBrowsingEnabled = true
+        }
+        web.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val scheme = request?.url?.scheme ?: return true
+                return scheme != "https" && scheme != "http"
+            }
+        }
+        layout.addView(toolbar, LinearLayout.LayoutParams(-1, -2))
+        layout.addView(web, LinearLayout.LayoutParams(-1, 0, 1f))
+        dialog.setContentView(layout)
+        dialog.setOnKeyListener { _, keyCode, event ->
+            if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_DOWN) {
+                if (web.canGoBack()) web.goBack() else dialog.dismiss()
+                true
+            } else false
+        }
+        dialog.setOnDismissListener {
+            web.stopLoading()
+            web.destroy()
+        }
+        dialog.show()
+        dialog.window?.setLayout(-1, -1)
+        web.loadUrl(safeAddress)
+    }
+
     private fun renderIpaArchives(body: LinearLayout) {
         body.addView(text("Imported IPA packages", 17f, Color.WHITE, true))
         body.addView(text("Stored as files only. CYBORG can catalogue them, but cannot execute iOS binaries on Android.",
