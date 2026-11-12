@@ -70,6 +70,7 @@ class MainActivity : Activity() {
     private val reqPickApk = 7101
     private val reqPickIpa = 7102
     private val reqInstallSettings = 7103
+    private val reqPickCyborgPackage = 7104
 
     private val catalogue = listOf(
         StoreItem("mykit", "MyKit Search", "⌕", "Search apps, settings and the web"),
@@ -176,8 +177,9 @@ class MainActivity : Activity() {
                     .put("added", System.currentTimeMillis()))
                 prefs.edit().putString("ipa_archives", arr.toString()).apply()
                 setPage("ios", "ipa")
-                toast("IPA saved to the iPhone-side archive")
+                toast("IPA archived; native iOS games cannot run on Android")
             }
+            reqPickCyborgPackage -> installCyborgPackage(uri)
         }
     }
 
@@ -219,6 +221,44 @@ class MainActivity : Activity() {
         }
         try { startActivityForResult(intent, reqPickIpa) }
         catch (_: Exception) { toast("Android file picker is unavailable") }
+    }
+
+    // .capp is a CYBORG web-app definition, not a native iOS/Android binary.
+    // JSON format: {"name":"Game","icon":"🎮","side":"ios","url":"https://example.com"}
+    private fun openCyborgPackagePicker() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            type = "*/*"
+            addCategory(Intent.CATEGORY_OPENABLE)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        }
+        try { startActivityForResult(intent, reqPickCyborgPackage) }
+        catch (_: Exception) { toast("File picker is unavailable") }
+    }
+
+    private fun installCyborgPackage(uri: Uri) {
+        try {
+            val raw = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                ?: throw IllegalArgumentException("Could not read package")
+            val obj = JSONObject(raw)
+            val title = obj.optString("name").trim()
+            val icon = obj.optString("icon", "🎮").ifBlank { "🎮" }
+            val url = obj.optString("url").trim()
+            val side = if (obj.optString("side", activeSide) == "ios") "ios" else "android"
+            if (title.isBlank() || url.isBlank() ||
+                !(url.startsWith("https://") || url.startsWith("http://"))) {
+                throw IllegalArgumentException("Package must contain name and http/https URL")
+            }
+            val id = "capp:" + title.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]+"), "_") +
+                ":" + System.currentTimeMillis()
+            tiles.add(AppTile(id, title, icon, side, "", url))
+            saveTiles()
+            setPage(side, null)
+            toast(title + " installed in CYBORG")
+        } catch (e: Exception) {
+            AlertDialog.Builder(this).setTitle("Cannot install CYBORG package")
+                .setMessage(e.message ?: "Invalid .capp package")
+                .setPositiveButton("OK", null).show()
+        }
     }
 
     private fun launchPendingApkInstaller() {
@@ -588,7 +628,9 @@ class MainActivity : Activity() {
             }
         }
         return GradientDrawable(GradientDrawable.Orientation.TL_BR, palette).apply {
-            cornerRadius = dp(if (side == "ios") 11 else 14).toFloat()
+            // Clearly distinguish the two virtual interfaces: circular iPhone badges vs square Android icons.
+            shape = if (side == "ios") GradientDrawable.OVAL else GradientDrawable.RECTANGLE
+            cornerRadius = dp(if (side == "ios") 21 else 7).toFloat()
         }
     }
 
@@ -810,10 +852,12 @@ class MainActivity : Activity() {
             8.5f, Color.LTGRAY))
 
         if (ios) {
-            addButton(body, "＋  Import .IPA package") { openIpaPicker() }
+            addButton(body, "＋  Import .IPA package (archive only)") { openIpaPicker() }
             addButton(body, "▣  My imported IPA files") { setPage("ios", "ipa") }
+            addButton(body, "⬇  Install CYBORG app package (.capp)") { openCyborgPackagePicker() }
         } else {
             addButton(body, "↓  Install APK from files") { openApkPicker() }
+            addButton(body, "⬇  Install CYBORG app package (.capp)") { openCyborgPackagePicker() }
             addButton(body, "▦  Browse apps installed on this phone") { setPage("android", "apps") }
             addButton(body, "Open Google Play") {
                 try {
@@ -839,8 +883,11 @@ class MainActivity : Activity() {
             }
         }
         addButton(body, "＋  Create a CYBORG mini-app") { makerDialog(side) }
-        if (ios) body.addView(text(
-            "This screen is an iPhone-style catalogue created by CYBORG, not Apple's App Store. iOS .ipa binaries require iOS and cannot be installed or launched by this Android app.",
+        body.addView(text(
+            if (ios)
+                "Important: .ipa files are iOS binaries. Android cannot install or execute iPhone games. CYBORG can archive IPA files, or install .capp web-app shortcuts that open compatible online games. This is not Apple's App Store."
+            else
+                ".capp packages install inside CYBORG as web-app shortcuts. APK files are handed to Android's installer and need system confirmation.",
             8f, Color.LTGRAY
         ))
     }
@@ -1316,7 +1363,7 @@ class MainActivity : Activity() {
     }
 
     private fun showCyborgAbout() {
-        AlertDialog.Builder(this).setTitle("CYBORG VM 1.3")
+        AlertDialog.Builder(this).setTitle("CYBORG VM 1.5")
             .setMessage(
                 "A virtual-device-style dual workspace with PC controls. The two screens recreate familiar mobile interface patterns; they are not separate bootable Apple or Google operating systems. Android remains the host."
             )
