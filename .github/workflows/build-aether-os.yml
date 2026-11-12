@@ -1,4 +1,4 @@
-name: Build Aether OS APK
+name: Build Aether OS Fusion APK
 
 on:
   workflow_dispatch:
@@ -39,14 +39,14 @@ jobs:
         working-directory: AetherOS
         run: gradle wrapper --gradle-version 8.7
 
-      - name: Build debug APK
+      - name: Clean and build debug APK
         working-directory: AetherOS
-        run: ./gradlew --no-daemon --stacktrace assembleDebug
+        run: ./gradlew --no-daemon --stacktrace clean assembleDebug
 
-      - name: Upload Aether OS APK
+      - name: Upload Aether OS Fusion APK
         uses: actions/upload-artifact@v4
         with:
-          name: Aether-OS-2.0.0-Android-14-APK
+          name: Aether-OS-Fusion-3.0.0-Android-14-APK
           path: AetherOS/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
@@ -77,12 +77,4 @@ jobs:
               cat /tmp/aether-logcat.txt
               exit 1
             fi
-            echo "Aether OS Android 14 smoke test passed"
-
-      - name: Upload Aether OS APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Aether-OS-2.0.0-Android-14-APK
-          path: AetherOS/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
+            echo "Aether OS Android 14 launch smoke test passed"
