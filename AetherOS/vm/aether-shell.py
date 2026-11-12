@@ -67,7 +67,7 @@ class AetherShell:
         self.window = Gtk.Window(title="Aether OS")
         self.window.set_decorated(False)
         self.window.fullscreen()
-        self.window.set_default_size(720, 1280)
+        self.window.set_default_size(720, 1600)
         self.root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.root.get_style_context().add_class("aether-root")
         self.window.add(self.root)
