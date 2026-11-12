@@ -80,7 +80,7 @@ jobs:
       - name: Upload CYBORG OS APK
         uses: actions/upload-artifact@v4
         with:
-          name: CYBORG-OS-1.0.0-Android-14-APK
+          name: CYBORG-OS-1.1.0-Android-14-APK
           path: CyborgOS/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
