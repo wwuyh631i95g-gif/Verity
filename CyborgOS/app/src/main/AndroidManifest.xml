@@ -11,7 +11,7 @@
     <application
         android:allowBackup="false"
         android:hardwareAccelerated="true"
-        android:label="CYBORG VM"
+        android:label="CYBORG OS 1.8"
         android:icon="@drawable/cyborg_icon"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
