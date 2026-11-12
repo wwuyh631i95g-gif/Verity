@@ -265,6 +265,18 @@ class MainActivity : Activity() {
         val profile = prefs.getString("profile", "Guest") ?: "Guest"
         val date = SimpleDateFormat("EEE, d MMM  •  HH:mm", Locale.getDefault()).format(Date())
         addText(body, "Welcome back, " + profile + "  •  " + date + "  •  " + batteryText(), 12, true)
+        val homeFavorites = prefs.getStringSet("favorite_packages", emptySet()) ?: emptySet()
+        if (homeFavorites.isNotEmpty()) {
+            addText(body, "Your favorites", 12, true)
+            homeFavorites.take(8).forEach { pkg ->
+                try {
+                    val info = packageManager.getApplicationInfo(pkg, 0)
+                    val title = packageManager.getApplicationLabel(info).toString()
+                    addButton(body, "★   " + title, { launchHostApp(pkg) })
+                } catch (_: Exception) { }
+            }
+        }
+        addButton(body, "Set Aether as the phone's Home app", { launchSystem("android.settings.HOME_SETTINGS") })
         addGridRow(body, Triple("▦", "All apps", "Full app drawer"), Triple("⌘", "System hub", "Aether OS modules"),
             { showAppDrawer() }, { showSystemHub() })
         addGridRow(body, Triple("◉", "Quick panel", "System shortcuts"), Triple("▣", "Device center", "Battery, memory, storage"),
@@ -342,14 +354,8 @@ class MainActivity : Activity() {
         if (q.isEmpty()) return
         val s = q.lowercase(Locale.ROOT)
         when {
-            s.contains("note") -> showNotes()
-            s.contains("file") -> showFiles()
-            s.contains("setting") -> showSettings()
-            s.contains("store") || s.contains("app") -> showStore()
-            s.contains("photo") || s.contains("gallery") -> showGallery()
-            s.contains("assistant") || s.contains("siri") -> showAssistant()
             s.contains("calculator") || s.contains("calculate") -> showCalculator()
-            s.contains("app drawer") || s == "apps" -> showAppDrawer()
+            s.contains("app drawer") || s == "apps" || s.contains("installed app") -> showAppDrawer()
             s.contains("quick panel") || s.contains("control center") -> showQuickPanel()
             s.contains("device") || s.contains("battery") || s.contains("storage") -> showDeviceCenter()
             s.contains("calendar") || s.contains("event") -> showCalendarHub()
@@ -359,7 +365,14 @@ class MainActivity : Activity() {
             s.contains("security") || s.contains("privacy") -> showSecurityCenter()
             s.contains("system settings") -> showSystemSettings()
             s.contains("vault") || s.contains("password") -> showVault()
-            s.contains("calendar") || s.contains("task") || s.contains("planner") -> showPlanner()
+            s.contains("note") -> showNotes()
+            s.contains("file") -> showFiles()
+            s.contains("store") -> showStore()
+            s.contains("app") -> showAppDrawer()
+            s.contains("setting") -> showSettings()
+            s.contains("photo") || s.contains("gallery") -> showGallery()
+            s.contains("assistant") || s.contains("siri") -> showAssistant()
+            s.contains("task") || s.contains("planner") -> showPlanner()
             else -> openBrowser("https://www.google.com/search?q=" + Uri.encode(q))
         }
     }
@@ -879,6 +892,12 @@ class MainActivity : Activity() {
     private fun showSettings() {
         val body = beginPage("Settings", "Unified Android flexibility and iPhone-inspired personalization")
         addButton(body, "Appearance & Liquid Glass styles", { showThemeStudio() })
+        addButton(body, "Open Aether System Hub", { showSystemHub() })
+        addButton(body, "Open app drawer and favorites", { showAppDrawer() })
+        addButton(body, "Device center", { showDeviceCenter() })
+        addButton(body, "Quick panel", { showQuickPanel() })
+        addButton(body, "Security and privacy center", { showSecurityCenter() })
+        addButton(body, "Focus and digital wellbeing", { showFocusCenter() })
         addButton(body, "Profile name", { editProfile() })
         addButton(body, "Export full Aether backup (JSON)", { exportBackup() })
         addButton(body, "Import Aether backup (JSON)", { importBackup() })
@@ -1231,6 +1250,7 @@ class MainActivity : Activity() {
             { launchSystem(Settings.ACTION_DATE_SETTINGS) }, { launchSystem("android.settings.INTERNAL_STORAGE_SETTINGS") })
         addButton(body, "Battery optimization", { launchSystem("android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS") })
         addButton(body, "Default apps", { launchSystem("android.settings.MANAGE_DEFAULT_APPS_SETTINGS") })
+        addButton(body, "Language, keyboard and text-to-speech", { showLocaleInputSettings() })
         addButton(body, "Developer options", { launchSystem(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS) })
         addButton(body, "Print services", { launchSystem("android.settings.ACTION_PRINT_SETTINGS") })
         addButton(body, "All Android Settings", { launchSystem(Settings.ACTION_SETTINGS) })
