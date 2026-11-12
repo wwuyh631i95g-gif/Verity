@@ -4,7 +4,6 @@ import android.app.AlertDialog;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
@@ -18,7 +17,6 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.fragment.app.FragmentActivity;
 
 import com.google.ar.core.Anchor;
@@ -28,10 +26,8 @@ import com.google.ar.core.Plane;
 import com.google.ar.core.Session;
 import com.google.ar.sceneform.AnchorNode;
 import com.google.ar.sceneform.Node;
-import com.google.ar.sceneform.Scene;
 import com.google.ar.sceneform.SceneView;
 import com.google.ar.sceneform.ArSceneView;
-import com.google.ar.sceneform.rendering.Material;
 import com.google.ar.sceneform.rendering.MaterialFactory;
 import com.google.ar.sceneform.rendering.ModelRenderable;
 import com.google.ar.sceneform.rendering.ShapeFactory;
@@ -39,13 +35,11 @@ import com.google.ar.sceneform.rendering.ViewRenderable;
 import com.google.ar.sceneform.ux.ArFragment;
 
 import com.google.ar.sceneform.math.Vector3;
-import com.google.ar.sceneform.rendering.Renderable;
 import com.google.ar.sceneform.Sceneform;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 
 public class MainActivity extends FragmentActivity
         implements ArFragment.OnViewCreatedListener,
@@ -76,8 +70,6 @@ public class MainActivity extends FragmentActivity
         0xff4d9b55,0xffd5d1c5,0xff65b94d,0xff272332,0xff51413b,
         0xff72cf62,0xffed9da6,0xff8a6549,0xffe9e6dc,0xfff1eee5
     };
-    private static final int CREAM = 0xffe8e3d2;
-    private static final int DARK = 0xff202820;
 
     private ArFragment arFragment;
     private FrameLayout arHost;
@@ -87,7 +79,6 @@ public class MainActivity extends FragmentActivity
     private ModelRenderable darkCube;
     private ModelRenderable eyeCube;
     private ModelRenderable whiteCube;
-    private ViewRenderable friendLabelRenderable;
     private final List<PlacedBlock> placedBlocks = new ArrayList<>();
     private final List<Creature> creatures = new ArrayList<>();
     private final List<AnchorNode> friendAnchors = new ArrayList<>();
@@ -269,7 +260,6 @@ public class MainActivity extends FragmentActivity
         float depth = type==4 ? 0.72f : (type==5 ? 0.50f : 0.38f);
         ModelRenderable body = mobCubes[type];
         ModelRenderable light = type==1 || type==8 || type==9 ? whiteCube : body;
-        ModelRenderable dark = eyeCube;
 
         if (type==4) {
             addPart(c,body,0f,0.15f,0f,0.48f,0.22f,0.38f);
@@ -373,10 +363,6 @@ public class MainActivity extends FragmentActivity
     }
 
     private void placeFriendTag(HitResult hit) {
-        if (friendLabelRenderable==null) {
-            Toast.makeText(this,"Табличка загружается",Toast.LENGTH_SHORT).show();
-            return;
-        }
         TextView tag = new TextView(this);
         tag.setText(friendName);
         tag.setTextColor(Color.WHITE);
