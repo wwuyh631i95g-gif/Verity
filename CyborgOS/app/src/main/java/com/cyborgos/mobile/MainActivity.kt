@@ -19,6 +19,7 @@ import android.provider.MediaStore
 import android.provider.Settings
 import android.view.DragEvent
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -56,6 +57,12 @@ class MainActivity : Activity() {
     private var pointerY = 0f
     private var pointerAt = 0L
     private var trackpadVisible = false
+    private var selectedTileId: String? = null
+    private var activeSide = "ios"
+    private var ctrlLatched = false
+    private var altLatched = false
+    private var shiftLatched = false
+    private var fullScreen = false
 
     private val catalogue = listOf(
         StoreItem("mykit", "MyKit Search", "⌕", "Search apps, settings and the web"),
@@ -101,6 +108,33 @@ class MainActivity : Activity() {
         root.addView(pointerLayer, FrameLayout.LayoutParams(-1, -1))
         setContentView(root)
         render()
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+            when {
+                event.keyCode in KeyEvent.KEYCODE_F1..KeyEvent.KEYCODE_F12 -> {
+                    handleFunctionKey(event.keyCode)
+                    return true
+                }
+                event.keyCode == KeyEvent.KEYCODE_ESCAPE -> {
+                    onBackPressed()
+                    return true
+                }
+                event.keyCode == KeyEvent.KEYCODE_TAB -> {
+                    cycleActiveSide()
+                    return true
+                }
+                event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
+                event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ||
+                event.keyCode == KeyEvent.KEYCODE_DPAD_UP ||
+                event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    moveFocus(event.keyCode)
+                    return true
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -331,7 +365,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             maxLines = 2
         })
-        card.setOnClickListener { openTile(tile) }
+        card.setOnClickListener { selectedTileId = tile.id; activeSide = tile.side; openTile(tile) }
         card.setOnLongClickListener {
             it.startDragAndDrop(ClipData.newPlainText("cyborg_app", tile.id),
                 View.DragShadowBuilder(it), tile, 0)
@@ -626,24 +660,56 @@ class MainActivity : Activity() {
                 })
             }, LinearLayout.LayoutParams(-1, dp(36)).apply { bottomMargin = dp(5) })
         }
-        val scroller = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        pcButton(row, "🖱 Mouse") {
+
+        val mainScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
+        val mainRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        pcButton(mainRow, "🖱 Mouse") {
             pointerEnabled = !pointerEnabled
             pointerVisible = pointerEnabled
             pointerLayer.invalidate()
             toast(if (pointerEnabled) "PC pointer on" else "PC pointer off")
         }
-        pcButton(row, "⌨ Keyboard") { keyboardDialog() }
-        pcButton(row, "CTRL") { toast("CTRL key") }
-        pcButton(row, "ALT") { toast("ALT key") }
-        pcButton(row, "TAB") { toast("TAB key") }
-        pcButton(row, "ESC") { toast("ESC key") }
-        pcButton(row, "⌖ Trackpad") { trackpadVisible = !trackpadVisible; render() }
-        pcButton(row, "▤ Desktop") { showPcDesktop() }
-        pcButton(row, "⌂ Home") { iosPage = null; androidPage = null; render() }
-        scroller.addView(row)
-        dock.addView(scroller, LinearLayout.LayoutParams(-1, dp(42)))
+        pcButton(mainRow, "⌨ Keyboard") { keyboardDialog() }
+        pcButton(mainRow, if (ctrlLatched) "CTRL ✓" else "CTRL") {
+            ctrlLatched = !ctrlLatched; toast(if (ctrlLatched) "CTRL armed" else "CTRL off")
+        }
+        pcButton(mainRow, if (altLatched) "ALT ✓" else "ALT") {
+            altLatched = !altLatched; toast(if (altLatched) "ALT armed" else "ALT off")
+        }
+        pcButton(mainRow, if (shiftLatched) "SHIFT ✓" else "SHIFT") {
+            shiftLatched = !shiftLatched; toast(if (shiftLatched) "SHIFT armed" else "SHIFT off")
+        }
+        pcButton(mainRow, "TAB") { sendVirtualKey(KeyEvent.KEYCODE_TAB) }
+        pcButton(mainRow, "ESC") { sendVirtualKey(KeyEvent.KEYCODE_ESCAPE) }
+        pcButton(mainRow, "ENTER") { sendVirtualKey(KeyEvent.KEYCODE_ENTER) }
+        pcButton(mainRow, "⌫") { sendVirtualKey(KeyEvent.KEYCODE_DEL) }
+        pcButton(mainRow, "DEL") { sendVirtualKey(KeyEvent.KEYCODE_FORWARD_DEL) }
+        pcButton(mainRow, "⌖ Trackpad") { trackpadVisible = !trackpadVisible; render() }
+        pcButton(mainRow, "▤ Desktop") { showPcDesktop() }
+        pcButton(mainRow, "⌂ Home") { iosPage = null; androidPage = null; render() }
+        mainScroll.addView(mainRow)
+        dock.addView(mainScroll, LinearLayout.LayoutParams(-1, dp(39)))
+
+        val functionScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+        }
+        val functionRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        for (n in 1..12) {
+            pcButton(functionRow, "F$n") { sendVirtualKey(KeyEvent.KEYCODE_F1 + n - 1) }
+        }
+        pcButton(functionRow, "←") { sendVirtualKey(KeyEvent.KEYCODE_DPAD_LEFT) }
+        pcButton(functionRow, "↑") { sendVirtualKey(KeyEvent.KEYCODE_DPAD_UP) }
+        pcButton(functionRow, "↓") { sendVirtualKey(KeyEvent.KEYCODE_DPAD_DOWN) }
+        pcButton(functionRow, "→") { sendVirtualKey(KeyEvent.KEYCODE_DPAD_RIGHT) }
+        pcButton(functionRow, "INS") { sendVirtualKey(KeyEvent.KEYCODE_INSERT) }
+        pcButton(functionRow, "HOME") { iosPage = null; androidPage = null; render() }
+        pcButton(functionRow, "END") { sendVirtualKey(KeyEvent.KEYCODE_MOVE_END) }
+        pcButton(functionRow, "PG↑") { sendVirtualKey(KeyEvent.KEYCODE_PAGE_UP) }
+        pcButton(functionRow, "PG↓") { sendVirtualKey(KeyEvent.KEYCODE_PAGE_DOWN) }
+        functionScroll.addView(functionRow)
+        dock.addView(functionScroll, LinearLayout.LayoutParams(-1, dp(39)).apply {
+            topMargin = dp(3)
+        })
         return dock
     }
 
@@ -654,6 +720,139 @@ class MainActivity : Activity() {
             setPadding(dp(10), dp(8), dp(10), dp(8))
             setOnClickListener { action() }
         }, LinearLayout.LayoutParams(-2, dp(37)).apply { setMargins(dp(3), 0, dp(3), 0) })
+    }
+
+    private fun sendVirtualKey(keyCode: Int) {
+        if (keyCode in KeyEvent.KEYCODE_F1..KeyEvent.KEYCODE_F12) {
+            ctrlLatched = false; altLatched = false; shiftLatched = false
+            handleFunctionKey(keyCode)
+            return
+        }
+        if (keyCode == KeyEvent.KEYCODE_TAB) {
+            ctrlLatched = false; altLatched = false; shiftLatched = false
+            cycleActiveSide()
+            return
+        }
+        if (keyCode == KeyEvent.KEYCODE_ESCAPE || keyCode == KeyEvent.KEYCODE_BACK) {
+            ctrlLatched = false; altLatched = false; shiftLatched = false
+            onBackPressed()
+            return
+        }
+        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ||
+            keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            ctrlLatched = false; altLatched = false; shiftLatched = false
+            moveFocus(keyCode)
+            return
+        }
+
+        val meta = (if (ctrlLatched) KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON else 0) or
+            (if (altLatched) KeyEvent.META_ALT_ON or KeyEvent.META_ALT_LEFT_ON else 0) or
+            (if (shiftLatched) KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON else 0)
+        val now = System.currentTimeMillis()
+        val target = currentFocus ?: root
+        target.dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0, meta))
+        target.dispatchKeyEvent(KeyEvent(now, now + 1, KeyEvent.ACTION_UP, keyCode, 0, meta))
+        ctrlLatched = false; altLatched = false; shiftLatched = false
+    }
+
+    private fun handleFunctionKey(keyCode: Int) {
+        when (keyCode) {
+            KeyEvent.KEYCODE_F1 -> showKeyboardHelp()
+            KeyEvent.KEYCODE_F2 -> renameSelectedTile()
+            KeyEvent.KEYCODE_F3 -> setPage(activeSide, "search")
+            KeyEvent.KEYCODE_F4 -> showPcDesktop()
+            KeyEvent.KEYCODE_F5 -> { render(); toast("CYBORG OS refreshed") }
+            KeyEvent.KEYCODE_F6 -> cycleActiveSide()
+            KeyEvent.KEYCODE_F7 -> keyboardDialog()
+            KeyEvent.KEYCODE_F8 -> { trackpadVisible = !trackpadVisible; render() }
+            KeyEvent.KEYCODE_F9 -> setPage(activeSide, "apps")
+            KeyEvent.KEYCODE_F10 -> runIntent(Intent(Settings.ACTION_SETTINGS), "Settings unavailable")
+            KeyEvent.KEYCODE_F11 -> toggleFullScreen()
+            KeyEvent.KEYCODE_F12 -> showCyborgAbout()
+        }
+    }
+
+    private fun cycleActiveSide() {
+        activeSide = if (activeSide == "ios") "android" else "ios"
+        render()
+        toast("Active workspace: " + if (activeSide == "ios") "iPhone side" else "Android side")
+    }
+
+    private fun moveFocus(direction: Int) {
+        val current = currentFocus ?: root
+        val next = current.focusSearch(direction)
+        if (next != null) next.requestFocus()
+        else {
+            val step = dp(18).toFloat()
+            when (direction) {
+                View.FOCUS_LEFT -> pointerX -= step
+                View.FOCUS_RIGHT -> pointerX += step
+                View.FOCUS_UP -> pointerY -= step
+                View.FOCUS_DOWN -> pointerY += step
+            }
+            pointerVisible = true
+            pointerAt = System.currentTimeMillis()
+            pointerLayer.invalidate()
+        }
+    }
+
+    private fun renameSelectedTile() {
+        val index = tiles.indexOfFirst { it.id == selectedTileId }
+        if (index < 0) {
+            toast("Tap an app tile first, then press F2")
+            return
+        }
+        val input = EditText(this).apply {
+            setSingleLine(true)
+            setText(tiles[index].title)
+            setSelection(text.length)
+        }
+        AlertDialog.Builder(this).setTitle("Rename app tile")
+            .setView(input)
+            .setPositiveButton("SAVE") { _, _ ->
+                val newName = input.text.toString().trim()
+                if (newName.isNotBlank()) {
+                    tiles[index] = tiles[index].copy(title = newName)
+                    saveTiles()
+                    render()
+                }
+            }
+            .setNegativeButton("CANCEL", null).show()
+    }
+
+    private fun showKeyboardHelp() {
+        AlertDialog.Builder(this).setTitle("CYBORG PC keys")
+            .setMessage(
+                "F1 Help • F2 Rename selected app • F3 Search • F4 Desktop\n" +
+                "F5 Refresh • F6 Switch workspace • F7 Keyboard • F8 Trackpad\n" +
+                "F9 Installed apps • F10 Android settings • F11 Full screen • F12 About\n\n" +
+                "Arrow keys move focus. TAB switches between the two workspaces. " +
+                "CTRL, ALT and SHIFT are one-shot modifiers for the next key."
+            )
+            .setPositiveButton("OK", null).show()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun toggleFullScreen() {
+        fullScreen = !fullScreen
+        window.decorView.systemUiVisibility = if (fullScreen) {
+            (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+        } else {
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        }
+        toast(if (fullScreen) "Full screen on • swipe from an edge to show system bars"
+            else "Full screen off")
+    }
+
+    private fun showCyborgAbout() {
+        AlertDialog.Builder(this).setTitle("CYBORG OS 1.1")
+            .setMessage(
+                "Android-hosted dual-workspace shell with a PC control strip. " +
+                "The iPhone side is an interface workspace, not a bootable iOS system. " +
+                "Android remains the real host operating system."
+            )
+            .setPositiveButton("OK", null).show()
     }
 
     private fun keyboardDialog() {
