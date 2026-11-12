@@ -1,31 +1,33 @@
-# CYBORG VM 1.3
+# CYBORG VM 1.4
 
-CYBORG VM is a full-screen, dual-workspace Android app. It presents two side-by-side mobile home screens and a PC-style control dock. Android on the host phone remains the real operating system.
+CYBORG VM is a full-screen dual-workspace Android app. It gives you an iPhone-inspired workspace on the left and an Android-inspired workspace on the right. Android on the phone remains the real host operating system.
 
-## Visual improvements in 1.3
-- Two distinct wallpaper palettes and rounded screen surfaces.
-- Left workspace uses an iPhone-inspired date/time widget, squircle-style icon tiles and bottom dock.
-- Right workspace uses an Android-inspired glance/search layout and home dock.
-- The app grid now uses three columns in each half.
-- Where a matching app is installed on the host Android device, CYBORG displays that app's actual launcher icon and can launch the real app.
-- Long-press an icon, drag it across the centre divider, and release to move that shortcut between the two halves. This works with touch; keyboard navigation remains available too.
-- App Store tile opens the CYBORG local catalogue. It is not Apple's App Store and cannot install iOS apps.
-- Play Store tile opens the CYBORG catalogue; the Android store page also has an action to open Google Play if it is installed.
+## 1.4 visual and custom features
+- New original vector wallpapers for both halves: fluid layered blue/pink curves on the iPhone side and teal/blue Material-style colour fields on the Android side.
+- Rounded icon tiles, separate docks, date/time widgets, home-screen app grids and drag-and-drop shortcut transfer between halves.
+- The visual references are inspired by public iOS 18 and Android/Material wallpaper styles; the included wallpapers are drawn by CYBORG and are not extracted Apple or Google system files.
+- Create CYBORG mini-app shortcuts with a custom name, icon and optional web address.
+- CYBORG catalogue modules can be added independently to either workspace.
 
-## PC dock
-The bottom dock scrolls horizontally and includes mouse pointer, keyboard, trackpad, Ctrl, Alt, Shift, Tab, Esc, Enter, Backspace, Delete, F1-F12, arrow keys, Insert, Home, End, Page Up and Page Down.
+## Android side: APK and Google Play
+- The Android app centre can open Google Play when it is installed on the host phone.
+- Install APK from files opens Android's document picker for a single .apk file.
+- Android 8 and later require the user to allow this app to request installs from unknown sources. Android then displays its own installation confirmation. CYBORG cannot silently install an app or bypass Android's warning.
+- The installed app is a real Android app on the phone and can be pinned to either CYBORG workspace from the installed-app list.
 
-Function keys:
-- F1 Help; F2 rename selected shortcut; F3 Search; F4 Desktop
-- F5 Refresh; F6 switch active half; F7 Keyboard; F8 Trackpad
-- F9 installed apps; F10 Android Settings; F11 immersive mode; F12 About
+## iPhone side: App Store-style catalogue and IPA archive
+- The left-side App Store is a CYBORG mini-app catalogue with iPhone-style presentation. It is not Apple's actual App Store.
+- .ipa files can be imported into the IPA archive list for keeping track of files.
+- An IPA is an iOS application package. It cannot be installed or executed by this Android APK: the iOS runtime, Apple signing environment and iOS platform are not present.
+- CYBORG mini-apps and web shortcuts can be created and opened in either workspace, but they are not native iOS applications.
 
-Touch interaction is still enabled. These controls act inside CYBORG VM; they do not inject input into unrelated apps outside it.
+## PC dock and touch
+The scrollable PC dock is unchanged in this version. Touch, long-press and cross-half drag-and-drop remain enabled. Keyboard and pointer controls act inside CYBORG; they do not inject input into unrelated apps outside it.
 
 ## Virtualization boundary
-This APK runs as its own full-screen workspace inside Android. It is not a hypervisor or a bootable ISO/QCOW2 image. Android remains the host OS. The left side is an iPhone-inspired interface, not genuine iOS; Apple's App Store and iOS apps cannot run inside this APK. The right side can launch compatible Android apps already installed on the phone.
+This is an Android-hosted dual workspace, not a hypervisor or a bootable iOS/Android virtual machine. The right side can launch compatible apps installed on the Android host. The left side reproduces selected iPhone-style interface patterns but cannot boot iOS, access Apple's App Store, or run .ipa binaries.
 
 ## Build
-- minSdk 26, targetSdk 34, Kotlin.
-- No runtime permissions requested.
+- minSdk 26, targetSdk 34, Kotlin/JVM 17.
+- APK sideloading uses Android's user-confirmed package installer flow and REQUEST_INSTALL_PACKAGES.
 - GitHub Actions builds a debug APK artifact.
