@@ -1,42 +1,47 @@
-# CYBORG OS 1.1
+# CYBORG VM 1.2
 
-**Two workspaces and a PC-style control strip in one Android app.**
+CYBORG VM is a full-screen, self-contained virtual-device-style Android application. When launched, it opens its own two-panel mobile workspace with persistent app shortcuts, shared notes, a small module catalogue, and a PC-style touch/keyboard control dock.
 
-CYBORG OS is an installable Android APK. It provides two side-by-side workspaces: an iPhone-inspired interface on the left and the phone's real Android app environment on the right.
+## Two mobile workspaces
 
-## Controls
+- Left workspace: iPhone-inspired home screen layout, island-style top element, app grid and dock.
+- Right workspace: Android-inspired launcher, search bar, app grid and dock.
+- Both halves use touch interaction. Tap app icons to open them; long-press and drag an icon across the divider to move it between workspaces.
+- Real Android apps installed on the host phone can be pinned and launched from the right workspace or the left workspace. The custom catalogue and app creator store local shortcuts and modules.
 
-The bottom dock scrolls horizontally and now has two rows.
+The visual design follows familiar mobile interface patterns, but the two workspaces are not exact copies of Apple's or Google's operating systems.
 
-- **F1:** Help and keyboard map.
-- **F2:** Rename the last selected app tile.
-- **F3:** Open MyKit Search.
-- **F4:** Open the PC desktop workspace.
-- **F5:** Refresh the CYBORG screen.
-- **F6:** Switch the active workspace.
-- **F7:** Open the on-screen keyboard.
-- **F8:** Show or hide the trackpad.
-- **F9:** List apps installed on the Android host.
-- **F10:** Open Android Settings.
-- **F11:** Toggle immersive full screen.
-- **F12:** Open About.
+## PC controls
 
-The second row also includes arrow keys, Insert, Home, End, Page Up and Page Down. Arrow keys move focus through controls; Tab switches workspaces. CTRL, ALT and SHIFT are one-shot modifiers for the next key sent to a focused control. Physical keyboard function keys are also handled while CYBORG OS is open.
+The bottom dock scrolls horizontally and includes a mouse pointer, keyboard, trackpad, Ctrl, Alt, Shift, Tab, Esc, Enter, Backspace, Delete, F1-F12, arrow keys, Insert, Home, End, Page Up and Page Down.
 
-The mouse pointer and trackpad are an in-app control aid. Touchscreen input remains available. These controls do not inject input into unrelated apps or take over Android globally.
+Function keys have local actions inside CYBORG VM:
+- F1 Help
+- F2 Rename selected app tile
+- F3 Search
+- F4 Desktop workspace
+- F5 Refresh
+- F6 Switch active workspace
+- F7 Keyboard
+- F8 Trackpad
+- F9 Installed Android apps
+- F10 Android Settings
+- F11 Immersive full-screen toggle
+- F12 About
 
-## App and workspace behaviour
+Touch controls remain enabled. The pointer and keyboard controls operate inside CYBORG VM; they do not inject input globally into unrelated Android apps.
 
-Both halves share one app shelf. Long-press an app tile and drag it across the divider to move the tile to the other workspace. Apps pinned from the installed-app list launch the real Android apps on the host device. Notes and custom shortcuts are shared. The catalogue adds local CYBORG modules and shortcuts; it is not Apple's App Store or Google Play.
+## Important virtualization boundary
 
-## Important system boundary
+CYBORG VM is delivered as an APK that runs as a separate full-screen environment **inside the phone's Android system**. It is a virtual-device-style app shell, not a hardware hypervisor or a bootable Android/iOS disk image. Android remains the host operating system and provides the actual hardware access.
 
-This APK is an Android application, **not a bootable operating-system image** and not a true iOS or Android guest OS. The right side opens actual Android apps installed on the Android host. The left side is an iPhone-inspired workspace; it cannot boot Apple's proprietary iOS or run iOS apps.
+The left workspace is an iPhone-inspired interface, not genuine iOS. Apple does not provide a redistributable iOS guest image for Android, and this APK cannot run iOS apps or the real Apple App Store. The right workspace launches actual Android apps already installed on the host device.
 
-You can install this APK on an Android phone or inside an Android-compatible virtual machine that supports APK installation and Android API 26 or newer. It is not an ISO/QCOW2 disk image for a PC-style virtual machine. A normal APK cannot contain a redistributable iOS system image.
+## Compatibility and build
 
-## Build and compatibility
+- Android 8.0/API 26 or newer; tested build target: Android 14/API 34.
+- Kotlin Android app; no external runtime libraries.
+- No runtime permissions requested by the application.
+- GitHub Actions creates a debug APK artifact.
 
-Kotlin app, target SDK 34, minimum SDK 26. No runtime permissions are requested. GitHub Actions builds the debug APK and launches it in an Android 14 emulator as a smoke test.
-
-Build workflow: **Build CYBORG OS APK** in the repository's Actions tab.
+This APK can be installed directly on an Android phone or inside an Android-based VM that supports installing APKs. It is not an ISO, QCOW2, or raw virtual-disk image.

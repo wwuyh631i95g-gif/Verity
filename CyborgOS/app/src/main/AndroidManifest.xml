@@ -9,7 +9,7 @@
     <application
         android:allowBackup="false"
         android:hardwareAccelerated="true"
-        android:label="CYBORG OS"
+        android:label="CYBORG VM"
         android:icon="@drawable/cyborg_icon"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">

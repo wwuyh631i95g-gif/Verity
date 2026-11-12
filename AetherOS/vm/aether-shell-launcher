@@ -1,4 +1,0 @@
-#!/bin/sh
-export DISPLAY=:0
-export XDG_RUNTIME_DIR=/run/podroid-pulse
-exec /usr/bin/python3 /usr/local/share/aether/aether-shell.py

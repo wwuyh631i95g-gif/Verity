@@ -1,1 +1,0 @@
-Aether OS 2.0.0 build trigger. Includes Android 17-inspired in-app bubbles/adaptive workspace and iOS 27-inspired glass styling/contextual local assistant patterns. The app remains a self-contained Android app shell, not a guest OS image.
