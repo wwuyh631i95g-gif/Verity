@@ -17,6 +17,8 @@ import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.provider.Settings
@@ -36,6 +38,7 @@ import android.widget.SeekBar
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -83,15 +86,63 @@ class MainActivity : Activity() {
     private val reqPickLabFile = 7105
 
     private val catalogue = listOf(
-        StoreItem("mykit", "MyKit Search", "⌕", "Search apps, settings and the web"),
-        StoreItem("shared_notes", "Shared Notes", "✎", "One notebook for both halves"),
-        StoreItem("weather", "Weather", "☀", "Open live weather in the browser"),
-        StoreItem("calendar", "Calendar", "▦", "Open the phone calendar"),
-        StoreItem("files", "Files", "▣", "Open the system document picker"),
-        StoreItem("camera", "Camera", "◉", "Open the camera app"),
-        StoreItem("pcdesk", "PC Desktop", "▤", "Desktop workspace and control strip"),
-        StoreItem("web", "Mini Browser", "🌐", "Open a safe in-app browser")
+        StoreItem("google", "Google", "G", "Поиск Google внутри CYBORG"),
+        StoreItem("youtube", "YouTube", "▶", "Видео внутри собственного окна CYBORG"),
+        StoreItem("calculator", "Калькулятор", "🧮", "Полноценный встроенный калькулятор"),
+        StoreItem("mykit", "Поиск CYBORG", "⌕", "Поиск приложений и настроек"),
+        StoreItem("shared_notes", "Заметки", "✎", "Общие заметки двух экранов"),
+        StoreItem("weather", "Погода", "☀", "Погодная страница внутри CYBORG"),
+        StoreItem("calendar", "Календарь", "▦", "Открыть календарь телефона"),
+        StoreItem("files", "Файлы", "▣", "Выбрать файл на телефоне"),
+        StoreItem("camera", "Камера", "◉", "Открыть камеру телефона"),
+        StoreItem("gamehub", "Игровой центр", "🎮", "Внутренние игры и веб-игры"),
+        StoreItem("pcdesk", "Рабочий стол ПК", "▤", "Клавиатура, мышь и панель ПК"),
+        StoreItem("web", "Встроенный браузер", "🌐", "Сайты открываются внутри CYBORG")
     )
+
+    private fun showBootScreen() {
+        val boot = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(24), dp(24), dp(24), dp(24))
+            setBackgroundColor(Color.rgb(7, 12, 24))
+        }
+        val logo = TextView(this).apply {
+            text = "C"
+            textSize = 58f
+            typeface = Typeface.create("sans-serif-black", Typeface.BOLD)
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(82, 130, 255), Color.rgb(177, 110, 221))).apply {
+                cornerRadius = dp(30).toFloat()
+            }
+        }
+        boot.addView(logo, LinearLayout.LayoutParams(dp(104), dp(104)))
+        boot.addView(TextView(this).apply {
+            text = "CYBORG OS"
+            textSize = 25f
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+        }, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(17) })
+        boot.addView(TextView(this).apply {
+            text = "ЗАПУСК ВИРТУАЛЬНОЙ СИСТЕМЫ"
+            textSize = 10f
+            setTextColor(Color.rgb(158, 183, 225))
+            gravity = Gravity.CENTER
+        }, LinearLayout.LayoutParams(-1, dp(28)))
+        val progress = ProgressBar(this).apply { isIndeterminate = true }
+        boot.addView(progress, LinearLayout.LayoutParams(dp(150), dp(5)).apply { topMargin = dp(18) })
+        boot.addView(TextView(this).apply {
+            text = "Подготовка двух рабочих пространств…"
+            textSize = 10f
+            setTextColor(Color.rgb(174, 190, 218))
+            gravity = Gravity.CENTER
+        }, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(12) })
+        root.removeAllViews()
+        root.addView(boot, FrameLayout.LayoutParams(-1, -1))
+    }
 
     private fun dp(n: Int) = (n * resources.displayMetrics.density).toInt()
     private fun rounded(color: Int, radius: Int, stroke: Int = 0) =
@@ -126,7 +177,10 @@ class MainActivity : Activity() {
         pointerLayer = PointerLayer(this)
         root.addView(pointerLayer, FrameLayout.LayoutParams(-1, -1))
         setContentView(root)
-        render()
+        showBootScreen()
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (!isFinishing && !isDestroyed) render()
+        }, 1250L)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -348,31 +402,32 @@ class MainActivity : Activity() {
     }
 
     private fun defaults() = listOf(
-        AppTile("phone", "Phone", "☎", "ios"),
-        AppTile("messages", "Messages", "▰", "ios"),
-        AppTile("photos", "Photos", "🌈", "ios"),
+        AppTile("phone", "Телефон", "☎", "ios"),
+        AppTile("messages", "Сообщения", "▰", "ios"),
+        AppTile("photos", "Фото", "🌈", "ios"),
         AppTile("safari", "Safari", "🧭", "ios"),
         AppTile("appstore", "App Store", "A", "ios"),
-        AppTile("iosmaps", "Maps", "🗺", "ios"),
-        AppTile("music", "Music", "♫", "ios"),
-        AppTile("notes", "Notes", "✎", "ios"),
-        AppTile("mykit", "MyKit Search", "⌕", "ios"),
-        AppTile("iossettings", "Settings", "⚙", "ios"),
-        AppTile("ipaarchive", "IPA Archive", "▣", "ios"),
+        AppTile("iosmaps", "Карты", "🗺", "ios"),
+        AppTile("music", "Музыка", "♫", "ios"),
+        AppTile("notes", "Заметки", "✎", "ios"),
+        AppTile("mykit", "Поиск", "⌕", "ios"),
+        AppTile("iossettings", "Настройки", "⚙", "ios"),
+        AppTile("ipaarchive", "Архив IPA", "▣", "ios"),
         AppTile("gamehub", "Game Center", "🎮", "ios"),
-        AppTile("playstore", "Play Store", "▶", "android"),
-        AppTile("chrome", "Chrome", "🌐", "android"),
-        AppTile("camera", "Camera", "📷", "android"),
-        AppTile("files", "Files", "📁", "android"),
+        AppTile("playstore", "Магазин CYBORG", "▶", "android"),
+        AppTile("google", "Google", "G", "android"),
+        AppTile("chrome", "Браузер", "🌐", "android"),
+        AppTile("camera", "Камера", "📷", "android"),
+        AppTile("files", "Файлы", "📁", "android"),
         AppTile("youtube", "YouTube", "▶", "android"),
-        AppTile("maps", "Maps", "📍", "android"),
-        AppTile("calculator", "Calculator", "🧮", "android"),
-        AppTile("clock", "Clock", "◷", "android"),
-        AppTile("androidsearch", "MyKit Search", "⌕", "android"),
-        AppTile("androidsettings", "Settings", "⚙", "android"),
-        AppTile("apkmanager", "APK Installer", "↓", "android"),
-        AppTile("securitylab", "Virus Lab", "🛡", "android"),
-        AppTile("androidgames", "Game Library", "🎮", "android")
+        AppTile("maps", "Карты", "📍", "android"),
+        AppTile("calculator", "Калькулятор", "🧮", "android"),
+        AppTile("clock", "Часы", "◷", "android"),
+        AppTile("androidsearch", "Поиск Google", "⌕", "android"),
+        AppTile("androidsettings", "Настройки Android", "⚙", "android"),
+        AppTile("apkmanager", "Установка APK", "↓", "android"),
+        AppTile("securitylab", "Лаборатория", "🛡", "android"),
+        AppTile("androidgames", "Игры", "🎮", "android")
     )
 
     private fun loadTiles() {
@@ -1480,6 +1535,13 @@ class MainActivity : Activity() {
         }
         when (tile.id) {
             "appstore", "playstore" -> setPage(tile.side, "store")
+            "google", "androidsearch" -> showCyborgWebApp("Google", "https://www.google.com/")
+            "youtube" -> showCyborgWebApp("YouTube", "https://m.youtube.com/")
+            "calculator" -> showCalculator()
+            "chrome", "safari", "web" -> showCyborgWebApp(
+                if (tile.side == "ios") "Safari" else "Браузер",
+                if (tile.side == "ios") "https://www.apple.com/" else "https://www.google.com/"
+            )
             "gamehub", "androidgames" -> setPage(tile.side, "games")
             "securitylab" -> setPage("android", "securitylab")
             "mykit", "androidsearch" -> setPage(tile.side, "search")
@@ -1492,14 +1554,12 @@ class MainActivity : Activity() {
                 .addCategory(Intent.CATEGORY_OPENABLE), "File picker unavailable")
             "safari", "chrome", "web" -> runIntent(
                 Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")), "Browser unavailable")
-            "iosmaps", "maps" -> runIntent(
-                Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=Berlin")), "Maps unavailable")
+            "iosmaps", "maps" -> showCyborgWebApp("Карты", "https://www.google.com/maps")
             "youtube" -> runIntent(
                 Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com")), "Browser unavailable")
             "clock" -> runIntent(Intent("android.intent.action.SHOW_ALARMS"), "Clock unavailable")
             "calculator" -> openCalculator()
-            "weather" -> runIntent(
-                Intent(Intent.ACTION_VIEW, Uri.parse("https://weather.com")), "Browser unavailable")
+            "weather" -> showCyborgWebApp("Погода", "https://weather.com")
             "calendar" -> runIntent(
                 Intent(Intent.ACTION_VIEW, Uri.parse("content://com.android.calendar/time/")), "Calendar unavailable")
             "pcdesk" -> showPcDesktop()
@@ -1747,7 +1807,7 @@ class MainActivity : Activity() {
     }
 
     private fun showCyborgAbout() {
-        AlertDialog.Builder(this).setTitle("CYBORG VM 1.5")
+        AlertDialog.Builder(this).setTitle("CYBORG OS 1.7")
             .setMessage(
                 "A virtual-device-style dual workspace with PC controls. The two screens recreate familiar mobile interface patterns; they are not separate bootable Apple or Google operating systems. Android remains the host."
             )
