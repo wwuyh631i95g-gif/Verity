@@ -1144,7 +1144,7 @@ class MainActivity : Activity() {
             addButton(body, "▦  Приложения на телефоне") { setPage("android", "apps") }
         }
 
-        body.addView(text(if (ios) "CYBORG APP SHELF" else "CYBORG MODULES",
+        body.addView(text(if (ios) "КАТАЛОГ ПРИЛОЖЕНИЙ CYBORG" else "ПРИЛОЖЕНИЯ CYBORG",
             9.5f, Color.WHITE, true))
         catalogue.forEach { item ->
             addActionRow(body, item.icon, item.title, item.info, "УСТАНОВИТЬ") {
@@ -1384,7 +1384,7 @@ class MainActivity : Activity() {
         toggles.forEach { item ->
             val enabled = prefs.getBoolean(item.first, false)
             addButton(body, (if (enabled) "●  " else "○  ") + item.second +
-                (if (enabled) "  ON" else "  OFF") + "   •   " + item.third) {
+                (if (enabled) "  ВКЛ" else "  ВЫКЛ") + "   •   " + item.third) {
                 toggleVirtualSetting(item.first, item.second, "android", "quick")
             }
         }
@@ -1444,7 +1444,7 @@ class MainActivity : Activity() {
         val games = tiles.filter { it.side == side && it.url.isNotBlank() }
         if (games.isEmpty()) body.addView(text("Пока нет установленных игр .capp.", 9f, Color.LTGRAY))
         games.forEach { game ->
-            addActionRow(body, game.icon, game.title, game.url, "PLAY") {
+            addActionRow(body, game.icon, game.title, game.url, "ИГРАТЬ") {
                 showCyborgWebApp(game.title, game.url)
             }
         }
@@ -1500,6 +1500,7 @@ class MainActivity : Activity() {
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             if (Build.VERSION.SDK_INT >= 26) safeBrowsingEnabled = true
         }
+        web.webChromeClient = android.webkit.WebChromeClient()
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val scheme = request?.url?.scheme ?: return true
@@ -1859,22 +1860,22 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(7), dp(16), dp(3))
         }
-        val name = EditText(this).apply { hint = "App name"; setSingleLine(true) }
-        val icon = EditText(this).apply { hint = "Icon / emoji"; setSingleLine(true); setText("✦") }
-        val url = EditText(this).apply { hint = "Optional web address"; setSingleLine(true) }
+        val name = EditText(this).apply { hint = "Название приложения"; setSingleLine(true) }
+        val icon = EditText(this).apply { hint = "Значок / эмодзи"; setSingleLine(true); setText("✦") }
+        val url = EditText(this).apply { hint = "Адрес сайта (необязательно)"; setSingleLine(true) }
         box.addView(name); box.addView(icon); box.addView(url)
-        AlertDialog.Builder(this).setTitle("Create a Cyborg app")
-            .setMessage("Save an app name, icon and optional web address.")
+        AlertDialog.Builder(this).setTitle("Создать приложение CYBORG")
+            .setMessage("Укажи название, значок и при необходимости адрес сайта.")
             .setView(box)
-            .setPositiveButton("CREATE") { _, _ ->
+            .setPositiveButton("СОЗДАТЬ") { _, _ ->
                 val title = name.text.toString().trim()
-                if (title.isBlank()) toast("Enter an app name")
+                if (title.isBlank()) toast("Введи название приложения")
                 else {
                     tiles.add(AppTile("custom:" + System.currentTimeMillis(), title,
                         icon.text.toString().ifBlank { "✦" }, side, "", url.text.toString().trim()))
                     saveTiles()
                     render()
-                    toast(title + " created")
+                    toast("Приложение " + title + " создано")
                 }
             }
             .setNegativeButton("CANCEL", null).show()
@@ -2137,15 +2138,15 @@ class MainActivity : Activity() {
     }
 
     private fun showKeyboardHelp() {
-        AlertDialog.Builder(this).setTitle("CYBORG PC keys")
+        AlertDialog.Builder(this).setTitle("Клавиши управления CYBORG")
             .setMessage(
-                "F1 Help • F2 Rename selected app • F3 Search • F4 Desktop\n" +
-                "F5 Refresh • F6 Switch workspace • F7 Keyboard • F8 Trackpad\n" +
-                "F9 Installed apps • F10 Android settings • F11 Full screen • F12 About\n\n" +
-                "Arrow keys move focus. TAB switches between the two workspaces. " +
-                "CTRL, ALT and SHIFT are one-shot modifiers for the next key."
+                "F1 Помощь • F2 Переименовать приложение • F3 Поиск • F4 Рабочий стол\n" +
+                "F5 Обновить • F6 Сменить экран • F7 Клавиатура • F8 Тачпад\n" +
+                "F9 Приложения • F10 Настройки Android • F11 Полный экран • F12 О системе\n\n" +
+                "Стрелки перемещают фокус. TAB переключает два рабочих пространства. " +
+                "CTRL, ALT и SHIFT применяются к следующей клавише."
             )
-            .setPositiveButton("OK", null).show()
+            .setPositiveButton("ПОНЯТНО", null).show()
     }
 
     @Suppress("DEPRECATION")
@@ -2164,9 +2165,9 @@ class MainActivity : Activity() {
     private fun showCyborgAbout() {
         AlertDialog.Builder(this).setTitle("CYBORG OS 1.7")
             .setMessage(
-                "A virtual-device-style dual workspace with PC controls. The two screens recreate familiar mobile interface patterns; they are not separate bootable Apple or Google operating systems. Android remains the host."
+                "Виртуальная система с двумя рабочими пространствами, собственным магазином CYBORG, встроенными Google и YouTube, калькулятором и панелью ПК. Это приложение внутри Android, а не отдельная загружаемая iOS или Android-машина."
             )
-            .setPositiveButton("OK", null).show()
+            .setPositiveButton("ПОНЯТНО", null).show()
     }
 
     private fun keyboardDialog() {
