@@ -217,6 +217,56 @@ class MainActivity : Activity() {
         root.addView(boot, FrameLayout.LayoutParams(-1, -1))
     }
 
+    private fun tr(value: String): String {
+        val translations = mapOf(
+            "VIRTUAL DEVICE  •  TOUCH + PC CONTROLS" to "ВИРТУАЛЬНАЯ СИСТЕМА • СЕНСОР И УПРАВЛЕНИЕ ПК",
+            "left workspace" to "левый экран",
+            "right workspace" to "правый экран",
+            "iPhone side" to "экран iPhone",
+            "Android side" to "экран Android",
+            "TRACKPAD  •  move finger to move the pointer" to "ТАЧПАД • веди пальцем для перемещения указателя",
+            "🖱 Mouse" to "🖱 Мышь",
+            "⌨ Keyboard" to "⌨ Клавиатура",
+            "⌖ Trackpad" to "⌖ Тачпад",
+            "▤ Desktop" to "▤ Рабочий стол",
+            "⌂ Home" to "⌂ Главная",
+            "F1 Help • F2 Rename selected app • F3 Search • F4 Desktop" to "F1 Помощь • F2 Переименовать • F3 Поиск • F4 Рабочий стол",
+            "F5 Refresh • F6 Switch workspace • F7 Keyboard • F8 Trackpad" to "F5 Обновить • F6 Сменить экран • F7 Клавиатура • F8 Тачпад",
+            "F9 Installed apps • F10 Android settings • F11 Full screen • F12 About" to "F9 Приложения • F10 Настройки Android • F11 Полный экран • F12 О системе",
+            "PC Keyboard" to "Клавиатура ПК",
+            "Type here with your phone keyboard" to "Печатай здесь с клавиатуры телефона",
+            "Keyboard bridge for the Cyborg desktop." to "Клавиатура для рабочего стола CYBORG.",
+            "DONE" to "ГОТОВО",
+            "CLOSE" to "ЗАКРЫТЬ",
+            "CANCEL" to "ОТМЕНА",
+            "SAVE" to "СОХРАНИТЬ",
+            "OK" to "ПОНЯТНО",
+            "ADD" to "ДОБАВИТЬ",
+            "PIN" to "ЗАКРЕПИТЬ",
+            "OPEN" to "ОТКРЫТЬ",
+            "PLAY" to "ИГРАТЬ",
+            "INFO" to "ИНФО",
+            "DETAILS" to "ПОДРОБНЕЕ",
+            "Installed apps" to "Установленные приложения",
+            "Apps installed on this phone" to "Приложения на телефоне",
+            "No launchable apps found." to "Не найдено запускаемых приложений.",
+            "No IPA files imported yet." to "Пока нет импортированных IPA-файлов.",
+            "Imported IPA packages" to "Импортированные IPA-файлы",
+            "Shared Notes" to "Общие заметки",
+            "One notebook for both system halves." to "Один блокнот для двух экранов.",
+            "Write something..." to "Напиши заметку…",
+            "SAVE NOTE" to "СОХРАНИТЬ ЗАМЕТКУ",
+            "Cyborg settings" to "Настройки CYBORG",
+            "Independent interfaces, one shared app shelf." to "Два интерфейса и общая библиотека приложений.",
+            "←  Back to iPhone" to "← На главный экран iPhone",
+            "←  Back to Android" to "← На главный экран Android",
+            "Search results" to "Результаты поиска",
+            "Type something first" to "Сначала введи запрос",
+            "No app found. Try Web Search." to "Приложение не найдено. Попробуй поиск в интернете."
+        )
+        return translations[value] ?: value
+    }
+
     private fun dp(n: Int) = (n * resources.displayMetrics.density).toInt()
     private fun rounded(color: Int, radius: Int, stroke: Int = 0) =
         GradientDrawable().apply {
@@ -227,7 +277,7 @@ class MainActivity : Activity() {
 
     private fun text(value: String, size: Float = 12f, color: Int = Color.WHITE, bold: Boolean = false) =
         TextView(this).apply {
-            text = value
+            text = tr(value)
             textSize = size
             setTextColor(color)
             gravity = Gravity.CENTER_VERTICAL
@@ -235,7 +285,7 @@ class MainActivity : Activity() {
             setPadding(dp(2), dp(3), dp(2), dp(3))
         }
 
-    private fun toast(value: String) = Toast.makeText(this, value, Toast.LENGTH_SHORT).show()
+    private fun toast(value: String) = Toast.makeText(this, tr(value), Toast.LENGTH_SHORT).show()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -523,7 +573,14 @@ class MainActivity : Activity() {
             }
             if (tiles.isEmpty()) tiles.addAll(defaults())
             else {
-                defaults().filter { fresh -> tiles.none { it.id == fresh.id } }.forEach { tiles.add(it) }
+                val freshDefaults = defaults()
+                freshDefaults.filter { fresh -> tiles.none { it.id == fresh.id } }.forEach { tiles.add(it) }
+                val byId = freshDefaults.associateBy { it.id }
+                for (index in tiles.indices) {
+                    val saved = tiles[index]
+                    val known = byId[saved.id]
+                    if (known != null) tiles[index] = saved.copy(title = known.title, icon = known.icon)
+                }
             }
             saveTiles()
         } catch (_: Exception) {
@@ -1397,7 +1454,7 @@ class MainActivity : Activity() {
         val web = WebView(this)
         fun toolbarButton(label: String, action: () -> Unit) {
             toolbar.addView(TextView(this).apply {
-                text = label
+                text = tr(label)
                 textSize = 10f
                 setTextColor(Color.WHITE)
                 gravity = Gravity.CENTER
@@ -1736,7 +1793,7 @@ class MainActivity : Activity() {
 
     private fun addButton(parent: LinearLayout, title: String, action: () -> Unit) {
         val button = TextView(this).apply {
-            text = title
+            text = tr(title)
             textSize = 10.5f
             setTextColor(Color.WHITE)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
@@ -1766,7 +1823,7 @@ class MainActivity : Activity() {
         details.addView(text(detail, 8f, Color.rgb(193, 207, 227)))
         row.addView(details, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(TextView(this).apply {
-            text = actionTitle; textSize = 8.5f; setTextColor(Color.WHITE)
+            text = tr(actionTitle); textSize = 8.5f; setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             background = rounded(Color.argb(150, 92, 119, 191), 8)
             setPadding(dp(8), dp(7), dp(8), dp(7))
@@ -1948,7 +2005,7 @@ class MainActivity : Activity() {
 
     private fun pcButton(parent: LinearLayout, title: String, action: () -> Unit) {
         parent.addView(TextView(this).apply {
-            text = title; textSize = 9.5f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
+            text = tr(title); textSize = 9.5f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
             background = rounded(Color.rgb(40, 54, 80), 10, Color.rgb(77, 96, 133))
             setPadding(dp(10), dp(8), dp(10), dp(8))
             setOnClickListener { action() }
