@@ -138,6 +138,7 @@ class MainActivity : Activity() {
     private lateinit var root: FrameLayout
     private lateinit var mainColumn: LinearLayout
     private lateinit var pointerLayer: PointerLayer
+    private var bootView: View? = null
     private var iosPage: String? = null
     private var androidPage: String? = null
     private var pointerEnabled = true
@@ -213,8 +214,23 @@ class MainActivity : Activity() {
             setTextColor(Color.rgb(174, 190, 218))
             gravity = Gravity.CENTER
         }, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(12) })
-        root.removeAllViews()
+        bootView?.let { root.removeView(it) }
+        bootView = boot
         root.addView(boot, FrameLayout.LayoutParams(-1, -1))
+    }
+
+    private fun restartVirtualSystem() {
+        showBootScreen()
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (!isFinishing && !isDestroyed) {
+                bootView?.let { root.removeView(it) }
+                bootView = null
+                iosPage = null
+                androidPage = null
+                render()
+                toast("CYBORG OS перезапущена")
+            }
+        }, 1250L)
     }
 
     private fun tr(value: String): String {
@@ -302,7 +318,11 @@ class MainActivity : Activity() {
         setContentView(root)
         showBootScreen()
         Handler(Looper.getMainLooper()).postDelayed({
-            if (!isFinishing && !isDestroyed) render()
+            if (!isFinishing && !isDestroyed) {
+                bootView?.let { root.removeView(it) }
+                bootView = null
+                render()
+            }
         }, 1250L)
     }
 
@@ -1306,23 +1326,21 @@ class MainActivity : Activity() {
     private fun toggleVirtualSetting(key: String, label: String, side: String, page: String) {
         val next = !prefs.getBoolean(key, false)
         prefs.edit().putBoolean(key, next).apply()
-        toast(label + if (next) " enabled in CYBORG" else " disabled in CYBORG")
+        toast(label + if (next) " включён в CYBORG" else " выключен в CYBORG")
         setPage(side, page)
     }
 
     private fun renderIosControlCenter(body: LinearLayout) {
         body.addView(text("ЦЕНТР УПРАВЛЕНИЯ", 18f, Color.WHITE, true))
         body.addView(text("IPHONE • ФОКУС • ДИНАМИЧЕСКИЕ АКТИВНОСТИ", 8f, Color.rgb(201, 216, 255), true))
-        addButton(body, (if (prefs.getBoolean("ios_focus", false)) "🌙  Focus: ON" else "🌙  Focus: OFF") +
-            "  •  toggle") {
-            toggleVirtualSetting("ios_focus", "Focus", "ios", "control")
+        addButton(body, (if (prefs.getBoolean("ios_focus", false)) "🌙  Фокус: ВКЛ" else "🌙  Фокус: ВЫКЛ")) {
+            toggleVirtualSetting("ios_focus", "Фокус", "ios", "control")
         }
-        addButton(body, (if (prefs.getBoolean("ios_silent", false)) "🔕  Silent mode: ON" else "🔔  Silent mode: OFF") +
-            "  •  toggle") {
-            toggleVirtualSetting("ios_silent", "Silent mode", "ios", "control")
+        addButton(body, (if (prefs.getBoolean("ios_silent", false)) "🔕  Беззвучный режим: ВКЛ" else "🔔  Беззвучный режим: ВЫКЛ")) {
+            toggleVirtualSetting("ios_silent", "Беззвучный режим", "ios", "control")
         }
         addButton(body, (if (prefs.getBoolean("ios_live", false)) "♫  Динамический остров: включён" else "♫  Включить Динамический остров")) {
-            toggleVirtualSetting("ios_live", "Live Island demo", "ios", "control")
+            toggleVirtualSetting("ios_live", "Динамический остров", "ios", "control")
         }
         addButton(body, "▣  Предпросмотр экрана блокировки") {
             AlertDialog.Builder(this).setTitle("Экран блокировки CYBORG")
@@ -1330,7 +1348,7 @@ class MainActivity : Activity() {
                     SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()) +
                     "\n" + SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date()) +
                     "\n\nПогода • Календарь • Режим Фокус\n\nЭто только предпросмотр. Настоящий экран блокировки Android не меняется."
-                ).setPositiveButton("DONE", null).show()
+                ).setPositiveButton("ГОТОВО", null).show()
         }
         body.addView(text("ЯРКОСТЬ ВИРТУАЛЬНОГО ЭКРАНА", 9f, Color.WHITE, true))
         val brightness = SeekBar(this).apply {
@@ -1342,7 +1360,7 @@ class MainActivity : Activity() {
                 }
                 override fun onStartTrackingTouch(seekBar: SeekBar?) {}
                 override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                    toast("Virtual screen brightness saved")
+                    toast("Яркость виртуального экрана сохранена")
                 }
             })
         }
@@ -1393,6 +1411,7 @@ class MainActivity : Activity() {
             runIntent(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")),
                 "Информация о приложении Android недоступна")
         }
+        addButton(body, "⏻  Перезапустить CYBORG OS") { restartVirtualSystem() }
     }
 
     private fun renderGameHub(body: LinearLayout, side: String) {
