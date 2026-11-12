@@ -1260,21 +1260,21 @@ class MainActivity : Activity() {
         val count = prefs.getInt("lab_demo_count", 0) + 1
         prefs.edit().putInt("lab_demo_count", count).apply()
         AlertDialog.Builder(this)
-            .setTitle("SAFE SIMULATION • TEST " + count)
+            .setTitle("БЕЗОПАСНАЯ СИМУЛЯЦИЯ • ТЕСТ " + count)
             .setMessage(
-                "This is a visual-only training simulation. No virus, APK, script or unknown code is launched.\n\n" +
-                "SIMULATED EVENTS\n" +
-                "• Unknown app requests access to files — BLOCKED in demo\n" +
-                "• Unknown app tries to persist — BLOCKED in demo\n" +
-                "• Unknown app attempts network access — BLOCKED in demo\n\n" +
-                "This does not test real malware or prove a file is clean."
+                "Это только визуальная учебная демонстрация. Никакие вирусы, APK, скрипты или неизвестный код не запускаются.\n\n" +
+                "СИМУЛИРУЕМЫЕ СОБЫТИЯ\n" +
+                "• Приложение запрашивает доступ к файлам — ЗАБЛОКИРОВАНО\n" +
+                "• Приложение пытается закрепиться в системе — ЗАБЛОКИРОВАНО\n" +
+                "• Приложение пытается выйти в сеть — ЗАБЛОКИРОВАНО\n\n" +
+                "Это не проверяет настоящий вирус и не подтверждает безопасность файла."
             )
-            .setPositiveButton("RESET DEMO") { _, _ ->
+            .setPositiveButton("СБРОСИТЬ ДЕМОНСТРАЦИЮ") { _, _ ->
                 prefs.edit().putInt("lab_demo_count", 0).apply()
-                toast("Demo state reset")
+                toast("Демонстрация сброшена")
                 setPage("android", "securitylab")
             }
-            .setNegativeButton("CLOSE", null)
+            .setNegativeButton("ЗАКРЫТЬ", null)
             .show()
     }
 
@@ -1718,22 +1718,22 @@ class MainActivity : Activity() {
             .sortedBy { it.loadLabel(packageManager).toString().lowercase(Locale.ROOT) }
 
     private fun renderInstalledApps(body: LinearLayout, side: String) {
-        body.addView(text("Apps installed on this phone", 15f, Color.WHITE, true))
-        body.addView(text("Pin one to either half. Its icon can then be dragged to the other side.", 9f, Color.LTGRAY))
+        body.addView(text("Приложения, установленные на телефоне", 15f, Color.WHITE, true))
+        body.addView(text("Закрепи приложение на любом экране. Значок можно перетащить на другую половину.", 9f, Color.LTGRAY))
         val pinned = tiles.map { it.packageName }.toSet()
         val apps = installedLaunchers()
-        if (apps.isEmpty()) body.addView(text("No launchable apps found.", 11f, Color.LTGRAY))
+        if (apps.isEmpty()) body.addView(text("Не найдено приложений, которые можно открыть.", 11f, Color.LTGRAY))
         apps.take(60).forEach { info ->
             val pkg = info.activityInfo.packageName
             val title = info.loadLabel(packageManager).toString()
-            addActionRow(body, "◈", title, pkg, if (pinned.contains(pkg)) "OPEN" else "PIN") {
+            addActionRow(body, "◈", title, pkg, if (pinned.contains(pkg)) "ОТКРЫТЬ" else "ЗАКРЕПИТЬ") {
                 if (pinned.contains(pkg)) {
                     val launch = packageManager.getLaunchIntentForPackage(pkg)
-                    if (launch != null) runIntent(launch, "Could not open " + title)
+                    if (launch != null) runIntent(launch, "Не удалось открыть " + title)
                 } else {
                     tiles.add(AppTile("pkg:" + pkg, title, "◈", side, pkg))
                     saveTiles()
-                    toast(title + " pinned")
+                    toast(title + " закреплено")
                     render()
                 }
             }
@@ -1769,10 +1769,10 @@ class MainActivity : Activity() {
     }
 
     private fun renderNotes(body: LinearLayout, accent: Int) {
-        body.addView(text("Shared Notes", 18f, Color.WHITE, true))
-        body.addView(text("One notebook for both system halves.", 9f, accent))
+        body.addView(text("Общие заметки", 18f, Color.WHITE, true))
+        body.addView(text("Один блокнот для обеих половин системы.", 9f, accent))
         val input = EditText(this).apply {
-            hint = "Write something..."
+            hint = "Напиши что-нибудь..."
             minLines = 5
             gravity = Gravity.TOP
             setTextColor(Color.WHITE)
@@ -1782,31 +1782,32 @@ class MainActivity : Activity() {
             setPadding(dp(10), dp(9), dp(10), dp(9))
         }
         body.addView(input, LinearLayout.LayoutParams(-1, dp(145)).apply { topMargin = dp(8) })
-        addButton(body, "SAVE NOTE") {
+        addButton(body, "СОХРАНИТЬ ЗАМЕТКУ") {
             prefs.edit().putString("notes", input.text.toString()).apply()
-            toast("Saved to shared Cyborg storage")
+            toast("Заметка сохранена в хранилище CYBORG")
         }
     }
 
     private fun renderSettings(body: LinearLayout, accent: Int) {
-        body.addView(text("Cyborg settings", 18f, Color.WHITE, true))
-        body.addView(text("Independent interfaces, one shared app shelf.", 9f, accent))
-        addButton(body, "↔  How to transfer an app") {
-            toast("Long-press an app tile, drag across the divider, then release")
+        body.addView(text("Настройки CYBORG", 18f, Color.WHITE, true))
+        body.addView(text("Два интерфейса, общая библиотека ярлыков.", 9f, accent))
+        addButton(body, "↔  Как перенести приложение") {
+            toast("Нажми и удерживай значок, затем перетащи его через разделитель")
         }
-        addButton(body, "⌖  Toggle PC pointer") {
+        addButton(body, "⌖  Включить или выключить указатель ПК") {
             pointerEnabled = !pointerEnabled
             pointerVisible = pointerEnabled
             pointerLayer.invalidate()
-            toast(if (pointerEnabled) "Pointer on" else "Pointer off")
+            toast(if (pointerEnabled) "Указатель включён" else "Указатель выключен")
         }
-        addButton(body, "⌂  Return to both home screens") {
+        addButton(body, "⌂  Вернуться на оба главных экрана") {
             iosPage = null; androidPage = null; render()
         }
-        addButton(body, "About CYBORG OS 1.0") {
+        addButton(body, "⏻  Перезапустить CYBORG OS") { restartVirtualSystem() }
+        addButton(body, "О системе CYBORG OS") {
             AlertDialog.Builder(this).setTitle("CYBORG OS")
-                .setMessage("A self-contained virtual-device workspace running inside Android. The host phone still provides the underlying operating system.")
-                .setPositiveButton("OK", null).show()
+                .setMessage("Виртуальная среда с двумя отдельными интерфейсами внутри Android. Основная система телефона остаётся Android.")
+                .setPositiveButton("ПОНЯТНО", null).show()
         }
     }
 
@@ -1947,7 +1948,7 @@ class MainActivity : Activity() {
         }
         if (trackpadVisible) {
             dock.addView(TextView(this).apply {
-                text = "TRACKPAD  •  move finger to move the pointer"
+                text = "ТАЧПАД • веди пальцем для перемещения указателя"
                 textSize = 8.5f; gravity = Gravity.CENTER
                 setTextColor(Color.rgb(214, 226, 245))
                 background = rounded(Color.rgb(33, 43, 64), 10, Color.rgb(88, 112, 158))
@@ -1972,30 +1973,30 @@ class MainActivity : Activity() {
 
         val mainScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
         val mainRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        pcButton(mainRow, "🖱 Mouse") {
+        pcButton(mainRow, "🖱 Мышь") {
             pointerEnabled = !pointerEnabled
             pointerVisible = pointerEnabled
             pointerLayer.invalidate()
-            toast(if (pointerEnabled) "PC pointer on" else "PC pointer off")
+            toast(if (pointerEnabled) "Указатель ПК включён" else "Указатель ПК выключен")
         }
-        pcButton(mainRow, "⌨ Keyboard") { keyboardDialog() }
+        pcButton(mainRow, "⌨ Клавиатура") { keyboardDialog() }
         pcButton(mainRow, if (ctrlLatched) "CTRL ✓" else "CTRL") {
-            ctrlLatched = !ctrlLatched; toast(if (ctrlLatched) "CTRL armed" else "CTRL off")
+            ctrlLatched = !ctrlLatched; toast(if (ctrlLatched) "CTRL включён" else "CTRL выключен")
         }
         pcButton(mainRow, if (altLatched) "ALT ✓" else "ALT") {
-            altLatched = !altLatched; toast(if (altLatched) "ALT armed" else "ALT off")
+            altLatched = !altLatched; toast(if (altLatched) "ALT включён" else "ALT выключен")
         }
         pcButton(mainRow, if (shiftLatched) "SHIFT ✓" else "SHIFT") {
-            shiftLatched = !shiftLatched; toast(if (shiftLatched) "SHIFT armed" else "SHIFT off")
+            shiftLatched = !shiftLatched; toast(if (shiftLatched) "SHIFT включён" else "SHIFT выключен")
         }
         pcButton(mainRow, "TAB") { sendVirtualKey(KeyEvent.KEYCODE_TAB) }
         pcButton(mainRow, "ESC") { sendVirtualKey(KeyEvent.KEYCODE_ESCAPE) }
         pcButton(mainRow, "ENTER") { sendVirtualKey(KeyEvent.KEYCODE_ENTER) }
         pcButton(mainRow, "⌫") { sendVirtualKey(KeyEvent.KEYCODE_DEL) }
         pcButton(mainRow, "DEL") { sendVirtualKey(KeyEvent.KEYCODE_FORWARD_DEL) }
-        pcButton(mainRow, "⌖ Trackpad") { trackpadVisible = !trackpadVisible; render() }
-        pcButton(mainRow, "▤ Desktop") { showPcDesktop() }
-        pcButton(mainRow, "⌂ Home") { iosPage = null; androidPage = null; render() }
+        pcButton(mainRow, "⌖ Тачпад") { trackpadVisible = !trackpadVisible; render() }
+        pcButton(mainRow, "▤ Рабочий стол") { showPcDesktop() }
+        pcButton(mainRow, "⌂ Главная") { iosPage = null; androidPage = null; render() }
         mainScroll.addView(mainRow)
         dock.addView(mainScroll, LinearLayout.LayoutParams(-1, dp(39)))
 
@@ -2070,7 +2071,7 @@ class MainActivity : Activity() {
             KeyEvent.KEYCODE_F2 -> renameSelectedTile()
             KeyEvent.KEYCODE_F3 -> setPage(activeSide, "search")
             KeyEvent.KEYCODE_F4 -> showPcDesktop()
-            KeyEvent.KEYCODE_F5 -> { render(); toast("CYBORG VM refreshed") }
+            KeyEvent.KEYCODE_F5 -> { render(); toast("CYBORG OS обновлена") }
             KeyEvent.KEYCODE_F6 -> cycleActiveSide()
             KeyEvent.KEYCODE_F7 -> keyboardDialog()
             KeyEvent.KEYCODE_F8 -> { trackpadVisible = !trackpadVisible; render() }
@@ -2084,7 +2085,7 @@ class MainActivity : Activity() {
     private fun cycleActiveSide() {
         activeSide = if (activeSide == "ios") "android" else "ios"
         render()
-        toast("Active workspace: " + if (activeSide == "ios") "iPhone side" else "Android side")
+        toast("Активный экран: " + if (activeSide == "ios") "iPhone" else "Android")
     }
 
     private fun moveFocus(keyCode: Int) {
@@ -2169,10 +2170,10 @@ class MainActivity : Activity() {
     }
 
     private fun keyboardDialog() {
-        val input = EditText(this).apply { hint = "Type here with your phone keyboard"; minLines = 2 }
-        val dialog = AlertDialog.Builder(this).setTitle("PC Keyboard")
-            .setMessage("Keyboard bridge for the Cyborg desktop.")
-            .setView(input).setPositiveButton("DONE", null).setNegativeButton("CLOSE", null).create()
+        val input = EditText(this).apply { hint = "Введи текст с клавиатуры телефона"; minLines = 2 }
+        val dialog = AlertDialog.Builder(this).setTitle("Клавиатура ПК")
+            .setMessage("Ввод текста для рабочего стола CYBORG.")
+            .setView(input).setPositiveButton("ГОТОВО", null).setNegativeButton("ЗАКРЫТЬ", null).create()
         dialog.setOnShowListener {
             input.requestFocus()
             input.post {
@@ -2191,25 +2192,25 @@ class MainActivity : Activity() {
             background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 intArrayOf(Color.rgb(20, 35, 65), Color.rgb(8, 19, 35)))
         }
-        desktop.addView(text("CYBORG DESKTOP", 21f, Color.WHITE, true))
-        desktop.addView(text("PC MODE  •  WINDOW WORKSPACE", 10f, Color.rgb(161, 196, 235), true))
-        desktop.addView(text("Mouse, keyboard and app windows in one workspace.", 11f, Color.rgb(205, 219, 239)))
-        desktopCard(desktop, "▣  File Explorer", "Open the document picker") { runIntent(
+        desktop.addView(text("РАБОЧИЙ СТОЛ CYBORG", 21f, Color.WHITE, true))
+        desktop.addView(text("РЕЖИМ ПК • ОКНА И ПРИЛОЖЕНИЯ", 10f, Color.rgb(161, 196, 235), true))
+        desktop.addView(text("Мышь, клавиатура и окна в одном пространстве.", 11f, Color.rgb(205, 219, 239)))
+        desktopCard(desktop, "▣  Проводник", "Открыть выбор файлов") { runIntent(
             Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE),
-            "File picker unavailable"); dialog.dismiss() }
-        desktopCard(desktop, "🌐  Web Browser", "Open a browser") {
-            runIntent(Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")), "Browser unavailable")
+            "Проводник недоступен"); dialog.dismiss() }
+        desktopCard(desktop, "🌐  Браузер CYBORG", "Открыть встроенный браузер") {
+            showCyborgWebApp("Браузер CYBORG", "https://www.google.com/")
             dialog.dismiss()
         }
-        desktopCard(desktop, "▦  App Manager", "Pin an installed app") {
+        desktopCard(desktop, "▦  Менеджер приложений", "Закрепить установленное приложение") {
             androidPage = "apps"; dialog.dismiss(); render()
         }
-        desktopCard(desktop, "⚙  Device Settings", "Open Android settings") {
-            runIntent(Intent(Settings.ACTION_SETTINGS), "Settings unavailable"); dialog.dismiss()
+        desktopCard(desktop, "⚙  Настройки Android", "Открыть настройки телефона") {
+            runIntent(Intent(Settings.ACTION_SETTINGS), "Настройки недоступны"); dialog.dismiss()
         }
-        desktopCard(desktop, "⌨  Keyboard", "Open keyboard bridge") { dialog.dismiss(); keyboardDialog() }
+        desktopCard(desktop, "⌨  Клавиатура", "Открыть клавиатуру ПК") { dialog.dismiss(); keyboardDialog() }
         desktop.addView(TextView(this).apply {
-            text = "CLOSE DESKTOP"; gravity = Gravity.CENTER; textSize = 12f; setTextColor(Color.WHITE)
+            text = "ЗАКРЫТЬ РАБОЧИЙ СТОЛ"; gravity = Gravity.CENTER; textSize = 12f; setTextColor(Color.WHITE)
             background = rounded(Color.rgb(71, 100, 160), 12)
             setPadding(dp(12), dp(13), dp(12), dp(13))
             setOnClickListener { dialog.dismiss() }
