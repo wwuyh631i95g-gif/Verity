@@ -70,6 +70,11 @@ jobs:
       - name: Configure Android NDK path
         run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
 
+      - name: Enable ARM64 emulation for guest rootfs image
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Build Linux kernel and boot initramfs
         working-directory: podroid-engine
         env:
