@@ -100,6 +100,7 @@ class MainActivity : Activity() {
         window.statusBarColor = Color.rgb(10, 16, 29)
         window.navigationBarColor = Color.rgb(8, 13, 24)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        applyImmersiveMode()
         loadTiles()
         root = FrameLayout(this).apply { setBackgroundColor(Color.rgb(7, 12, 23)) }
         mainColumn = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -108,6 +109,19 @@ class MainActivity : Activity() {
         root.addView(pointerLayer, FrameLayout.LayoutParams(-1, -1))
         setContentView(root)
         render()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && fullScreen) applyImmersiveMode()
+    }
+
+    private fun applyImmersiveMode() {
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility = (
+            View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        )
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -247,8 +261,8 @@ class MainActivity : Activity() {
             setPadding(dp(13), dp(6), dp(13), dp(5))
         }
         val titleBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        titleBox.addView(text("CYBORG OS", 19f, Color.WHITE, true))
-        titleBox.addView(text("ONE DEVICE  •  THREE WORLDS", 9f, Color.rgb(154, 176, 208), true))
+        titleBox.addView(text("CYBORG VM", 19f, Color.WHITE, true))
+        titleBox.addView(text("VIRTUAL DEVICE  •  TOUCH + PC CONTROLS", 8.5f, Color.rgb(154, 176, 208), true))
         bar.addView(titleBox, LinearLayout.LayoutParams(0, -2, 1f))
         val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
         val battery = try {
@@ -262,20 +276,20 @@ class MainActivity : Activity() {
 
     private fun buildPanel(side: String): View {
         val ios = side == "ios"
-        val accent = if (ios) Color.rgb(131, 157, 255) else Color.rgb(93, 224, 183)
-        val colors = if (ios) intArrayOf(Color.rgb(24, 34, 62), Color.rgb(15, 22, 43))
-                    else intArrayOf(Color.rgb(18, 47, 39), Color.rgb(10, 29, 29))
+        val accent = if (ios) Color.rgb(151, 181, 255) else Color.rgb(174, 164, 255)
+        val colors = if (ios) intArrayOf(Color.rgb(34, 63, 119), Color.rgb(16, 29, 65))
+                    else intArrayOf(Color.rgb(47, 47, 77), Color.rgb(24, 26, 48))
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(7), dp(7), dp(7), dp(7))
+            setPadding(dp(6), dp(5), dp(6), dp(6))
             background = GradientDrawable(GradientDrawable.Orientation.TL_BR, colors).apply {
-                cornerRadius = dp(20).toFloat()
-                setStroke(dp(1), if (ios) Color.rgb(83, 103, 171) else Color.rgb(55, 131, 105))
+                cornerRadius = dp(22).toFloat()
+                setStroke(dp(1), if (ios) Color.rgb(101, 139, 218) else Color.rgb(119, 111, 177))
             }
             setOnDragListener { _, e ->
                 when (e.action) {
                     DragEvent.ACTION_DRAG_STARTED -> e.localState is AppTile
-                    DragEvent.ACTION_DRAG_ENTERED -> { alpha = 0.82f; true }
+                    DragEvent.ACTION_DRAG_ENTERED -> { alpha = 0.84f; true }
                     DragEvent.ACTION_DRAG_EXITED -> { alpha = 1f; true }
                     DragEvent.ACTION_DROP -> {
                         alpha = 1f
@@ -285,7 +299,7 @@ class MainActivity : Activity() {
                             if (ix >= 0) {
                                 tiles[ix] = tiles[ix].copy(side = side)
                                 saveTiles()
-                                toast(moving.title + " moved to " + if (ios) "iPhone" else "Android")
+                                toast(moving.title + " moved to " + if (ios) "left workspace" else "right workspace")
                                 render()
                             }
                         }
@@ -296,75 +310,172 @@ class MainActivity : Activity() {
                 }
             }
         }
-        val heading = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-        }
+        panel.addView(buildStatusStrip(ios), LinearLayout.LayoutParams(-1, dp(22)))
         if (ios) {
-            heading.addView(TextView(this).apply {
-                text = "●  ●"; textSize = 8f; gravity = Gravity.CENTER
-                setTextColor(Color.rgb(180, 195, 230)); background = rounded(Color.BLACK, 30)
-            }, LinearLayout.LayoutParams(dp(66), dp(16)))
-            heading.addView(text("IPHONE  •  iOS 18", 11f, Color.WHITE, true))
-            heading.addView(text("Swipe • widgets • App Store", 8f, Color.rgb(173, 190, 226)))
+            val island = FrameLayout(this)
+            val pill = View(this).apply { background = rounded(Color.BLACK, 20) }
+            island.addView(pill, FrameLayout.LayoutParams(dp(50), dp(13), Gravity.CENTER))
+            panel.addView(island, LinearLayout.LayoutParams(-1, dp(17)))
+            panel.addView(text(
+                SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date()),
+                8.5f, Color.rgb(220, 231, 255), true
+            ))
+            panel.addView(text("9:41", 22f, Color.WHITE, true))
         } else {
-            heading.addView(text("ANDROID 14", 13f, Color.WHITE, true))
-            heading.addView(text("Material You • Play • Quick panel", 8f, Color.rgb(166, 219, 198)))
+            val search = TextView(this).apply {
+                text = "G     Search     ☷"
+                textSize = 10f
+                setTextColor(Color.rgb(40, 40, 58))
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(10), 0, dp(8), 0)
+                background = rounded(Color.rgb(227, 225, 246), 24)
+                setOnClickListener { setPage("android", "search") }
+            }
+            panel.addView(search, LinearLayout.LayoutParams(-1, dp(32)).apply {
+                topMargin = dp(7); bottomMargin = dp(5)
+            })
+            panel.addView(text(
+                SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date()),
+                9f, Color.rgb(220, 216, 255), true
+            ))
         }
-        panel.addView(heading, LinearLayout.LayoutParams(-1, dp(52)))
-        val scroll = ScrollView(this).apply { isFillViewport = true }
+        val scroll = ScrollView(this).apply { isFillViewport = false }
         val body = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(1), dp(6), dp(1), dp(6))
+            setPadding(dp(1), dp(5), dp(1), dp(5))
         }
         val page = if (ios) iosPage else androidPage
         if (page == null) renderHome(body, side, accent) else renderPage(body, side, page, accent)
         scroll.addView(body)
         panel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        panel.addView(buildOsDock(side), LinearLayout.LayoutParams(-1, dp(58)))
         return panel
     }
 
+    private fun buildStatusStrip(ios: Boolean): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(5), 0, dp(5), 0)
+        }
+        val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+        row.addView(text(time, 8.5f, Color.WHITE, true), LinearLayout.LayoutParams(0, -1, 1f))
+        row.addView(text(
+            if (ios) "●●●  Wi-Fi  ▰" else "▴  ●●●  Wi-Fi  ▰",
+            7.5f, Color.WHITE, true
+        ))
+        return row
+    }
+
+    private fun buildOsDock(side: String): View {
+        val ios = side == "ios"
+        val dock = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(3), dp(3), dp(3), dp(3))
+            background = rounded(
+                if (ios) Color.argb(125, 225, 235, 255) else Color.argb(135, 220, 218, 250),
+                17
+            )
+        }
+        val preferred = if (ios) listOf("phone", "messages", "safari", "music")
+                       else listOf("phone", "chrome", "camera", "photos")
+        val dockTiles = preferred.mapNotNull { id -> tiles.firstOrNull { it.id == id && it.side == side } }
+        dockTiles.take(4).forEach { tile ->
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                isFocusable = true
+                setOnClickListener { selectedTileId = tile.id; activeSide = side; openTile(tile) }
+            }
+            val icon = TextView(this).apply {
+                text = tile.icon
+                textSize = 18f
+                gravity = Gravity.CENTER
+                setTextColor(Color.WHITE)
+                background = iconBackground(tile, side)
+            }
+            item.addView(icon, LinearLayout.LayoutParams(dp(34), dp(34)))
+            dock.addView(item, LinearLayout.LayoutParams(0, -1, 1f))
+        }
+        return dock
+    }
+
     private fun renderHome(body: LinearLayout, side: String, accent: Int) {
-        body.addView(text(if (side == "ios") "Your iPhone space" else "Your Android space", 12f, Color.WHITE, true))
-        body.addView(text("Hold an app and drag it across the centre divider.", 8.5f, Color.rgb(183, 198, 222)))
-        val list = tiles.filter { it.side == side }
+        val ios = side == "ios"
+        body.addView(text(if (ios) "Favourites" else "Apps", 10f, Color.WHITE, true))
+        val dockIds = if (ios) listOf("phone", "messages", "safari", "music")
+                      else listOf("phone", "chrome", "camera", "photos")
+        val list = tiles.filter { it.side == side && it.id !in dockIds }
         var i = 0
         while (i < list.size) {
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             for (col in 0..1) {
                 val ix = i + col
                 if (ix < list.size) {
-                    row.addView(appTileView(list[ix], accent),
-                        LinearLayout.LayoutParams(0, dp(76), 1f).apply {
-                            setMargins(dp(2), dp(3), dp(2), dp(3))
+                    row.addView(appTileView(list[ix]),
+                        LinearLayout.LayoutParams(0, dp(70), 1f).apply {
+                            setMargins(dp(1), dp(2), dp(1), dp(2))
                         })
-                } else row.addView(View(this), LinearLayout.LayoutParams(0, dp(76), 1f))
+                } else row.addView(View(this), LinearLayout.LayoutParams(0, dp(70), 1f))
             }
             body.addView(row)
             i += 2
         }
-        body.addView(text("SYSTEM TOOLS", 9f, accent, true))
-        addButton(body, "＋  Create / add app") { makerDialog(side) }
-        addButton(body, "▦  All installed Android apps") { setPage(side, "apps") }
-        addButton(body, "⌕  MyKit Search") { setPage(side, "search") }
-        addButton(body, if (side == "ios") "A  Open App Store" else "▶  Open Play Store") { setPage(side, "store") }
+        body.addView(text(if (ios) "APP LIBRARY" else "ALL APPS", 8f, accent, true))
+        addButton(body, "＋  Add app") { makerDialog(side) }
+        addButton(body, "▦  All installed apps") { setPage(side, "apps") }
+        addButton(body, "⌕  Search") { setPage(side, "search") }
+        addButton(body, if (ios) "App Store" else "Play Store") { setPage(side, "store") }
         addButton(body, "▤  PC Desktop") { showPcDesktop() }
     }
 
-    private fun appTileView(tile: AppTile, accent: Int): View {
+    private fun iconBackground(tile: AppTile, side: String): GradientDrawable {
+        val palette = when (tile.id) {
+            "phone" -> intArrayOf(Color.rgb(65, 205, 129), Color.rgb(20, 142, 92))
+            "messages" -> intArrayOf(Color.rgb(90, 224, 139), Color.rgb(28, 160, 93))
+            "photos" -> intArrayOf(Color.rgb(255, 202, 99), Color.rgb(239, 112, 111))
+            "safari", "chrome", "web" -> intArrayOf(Color.rgb(92, 194, 255), Color.rgb(57, 106, 225))
+            "appstore", "playstore" -> intArrayOf(Color.rgb(103, 181, 255), Color.rgb(65, 102, 222))
+            "camera" -> intArrayOf(Color.rgb(115, 125, 143), Color.rgb(47, 56, 75))
+            "maps", "iosmaps" -> intArrayOf(Color.rgb(103, 207, 157), Color.rgb(65, 138, 117))
+            "music" -> intArrayOf(Color.rgb(255, 111, 145), Color.rgb(185, 61, 127))
+            "notes", "shared_notes" -> intArrayOf(Color.rgb(255, 225, 125), Color.rgb(210, 156, 65))
+            "iossettings", "androidsettings" -> intArrayOf(Color.rgb(164, 174, 190), Color.rgb(86, 99, 122))
+            else -> {
+                val seed = tile.id.hashCode()
+                intArrayOf(
+                    Color.rgb(75 + (seed ushr 16 and 0x7F), 75 + (seed ushr 8 and 0x7F), 95 + (seed and 0x7F)),
+                    Color.rgb(35 + (seed ushr 10 and 0x7F), 40 + (seed ushr 3 and 0x7F), 65 + (seed ushr 5 and 0x7F))
+                )
+            }
+        }
+        return GradientDrawable(GradientDrawable.Orientation.TL_BR, palette).apply {
+            cornerRadius = dp(if (side == "ios") 11 else 14).toFloat()
+        }
+    }
+
+    private fun appTileView(tile: AppTile): View {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(2), dp(4), dp(2), dp(3))
-            background = rounded(Color.argb(105, 255, 255, 255), 13, Color.argb(75, 255, 255, 255))
+            setPadding(dp(1), dp(2), dp(1), dp(2))
+            isFocusable = true
+            contentDescription = tile.title
         }
-        card.addView(text(tile.icon, 23f, if (tile.id.contains("store")) accent else Color.WHITE, true).apply {
+        val icon = TextView(this).apply {
+            text = tile.icon
+            textSize = 20f
+            setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
-        }, LinearLayout.LayoutParams(-1, dp(34)))
-        card.addView(text(tile.title, 9.5f, Color.WHITE, true).apply {
+            background = iconBackground(tile, tile.side)
+        }
+        card.addView(icon, LinearLayout.LayoutParams(dp(40), dp(40)))
+        card.addView(text(tile.title, 8.5f, Color.WHITE, true).apply {
             gravity = Gravity.CENTER
-            maxLines = 2
-        })
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }, LinearLayout.LayoutParams(-1, dp(22)))
         card.setOnClickListener { selectedTileId = tile.id; activeSide = tile.side; openTile(tile) }
         card.setOnLongClickListener {
             it.startDragAndDrop(ClipData.newPlainText("cyborg_app", tile.id),
@@ -374,7 +485,7 @@ class MainActivity : Activity() {
         return card
     }
 
-    private fun renderPage(body: LinearLayout, side: String, page: String, accent: Int) {
+    private fun renderPage(body: LinearLayout, side: String, page: String, accent: Int) {    private fun renderPage(body: LinearLayout, side: String, page: String, accent: Int) {
         addButton(body, "←  Back to " + if (side == "ios") "iPhone" else "Android") { setPage(side, null) }
         when (page) {
             "store" -> renderStore(body, side, accent)
@@ -501,7 +612,7 @@ class MainActivity : Activity() {
         }
         addButton(body, "About CYBORG OS 1.0") {
             AlertDialog.Builder(this).setTitle("CYBORG OS")
-                .setMessage("An original Android-hosted hybrid shell. Android remains the host operating system.")
+                .setMessage("A self-contained virtual-device workspace running inside Android. The host phone still provides the underlying operating system.")
                 .setPositiveButton("OK", null).show()
         }
     }
@@ -854,9 +965,7 @@ class MainActivity : Activity() {
     private fun showCyborgAbout() {
         AlertDialog.Builder(this).setTitle("CYBORG OS 1.1")
             .setMessage(
-                "Android-hosted dual-workspace shell with a PC control strip. " +
-                "The iPhone side is an interface workspace, not a bootable iOS system. " +
-                "Android remains the real host operating system."
+                "A virtual-device-style dual workspace with PC controls. The two screens recreate familiar mobile interface patterns; they are not separate bootable Apple or Google operating systems. Android remains the host."
             )
             .setPositiveButton("OK", null).show()
     }
