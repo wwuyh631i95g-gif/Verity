@@ -31,7 +31,6 @@ import com.google.ar.sceneform.Node;
 import com.google.ar.sceneform.Scene;
 import com.google.ar.sceneform.SceneView;
 import com.google.ar.sceneform.ArSceneView;
-import com.google.ar.sceneform.rendering.Color as SceneColor;
 import com.google.ar.sceneform.rendering.Material;
 import com.google.ar.sceneform.rendering.MaterialFactory;
 import com.google.ar.sceneform.rendering.ModelRenderable;
@@ -159,7 +158,7 @@ public class MainActivity extends FragmentActivity
     private void buildRenderables() {
         for (int i=0;i<BLOCK_COLORS.length;i++) {
             final int index=i;
-            MaterialFactory.makeOpaqueWithColor(this, new SceneColor(BLOCK_COLORS[i]))
+            MaterialFactory.makeOpaqueWithColor(this, new com.google.ar.sceneform.rendering.Color(BLOCK_COLORS[i]))
                 .thenAccept(material -> blockModels[index] =
                     ShapeFactory.makeCube(new Vector3(1f,1f,1f), Vector3.zero(), material))
                 .exceptionally(error -> { runOnUiThread(() -> hud.setStatus("Ошибка материалов")); return null; });
@@ -177,16 +176,6 @@ public class MainActivity extends FragmentActivity
         MaterialFactory.makeOpaqueWithColor(this, new SceneColor(0xff181818))
             .thenAccept(material -> eyeCube=ShapeFactory.makeCube(new Vector3(1f,1f,1f),Vector3.zero(),material));
 
-        TextView tag = new TextView(this);
-        tag.setText("Друг");
-        tag.setTextColor(Color.WHITE);
-        tag.setTextSize(14);
-        tag.setTypeface(Typeface.DEFAULT_BOLD);
-        tag.setGravity(Gravity.CENTER);
-        tag.setPadding(18,8,18,8);
-        tag.setBackgroundColor(0xdd17231b);
-        ViewRenderable.builder().setView(this, tag).build()
-            .thenAccept(renderable -> friendLabelRenderable=renderable);
     }
 
     @Override public void onSessionConfiguration(Session session, Config config) {
@@ -281,7 +270,6 @@ public class MainActivity extends FragmentActivity
         ModelRenderable body = mobCubes[type];
         ModelRenderable light = type==1 || type==8 || type==9 ? whiteCube : body;
         ModelRenderable dark = eyeCube;
-        ModelRenderable secondary = type==7 ? whiteCube : (type==8 ? whiteCube : (type==6 ? 0==1?body:light:body));
 
         if (type==4) {
             addPart(c,body,0f,0.15f,0f,0.48f,0.22f,0.38f);
@@ -315,17 +303,12 @@ public class MainActivity extends FragmentActivity
             }
             if(type==9) {
                 addPart(c,whiteCube,0f,height*0.34f,-depth*0.58f,0.10f,0.08f,0.08f);
-                addPart(c,0xffd94e4e==0?body:light,0f,height*1.10f,0f,0.08f,0.14f,0.08f);
+                addPart(c,mobCubes[6],0f,height*1.10f,0f,0.08f,0.14f,0.08f);
             }
             if(type==6 || type==7 || type==8) {
                 addPart(c,body,0f,height*0.79f,-depth*0.48f,width*0.26f,width*0.22f,0.09f);
             }
             addEyes(c);
-            if(type==3) {
-                addPart(c,body,0f,height*1.02f,0f,width*0.70f,width*0.55f,depth*0.60f);
-                addPart(c,eyeCube,-0.10f,height*0.88f,-depth*0.65f,0.055f,0.055f,0.025f);
-                addPart(c,eyeCube,0.10f,height*0.88f,-depth*0.65f,0.055f,0.055f,0.025f);
-            }
         }
         c.root.setOnTapListener((result,motion) -> damageMob(c));
     }
@@ -394,16 +377,30 @@ public class MainActivity extends FragmentActivity
             Toast.makeText(this,"Табличка загружается",Toast.LENGTH_SHORT).show();
             return;
         }
-        Anchor anchor=hit.createAnchor();
-        AnchorNode anchorNode=new AnchorNode(anchor);
-        anchorNode.setParent(arFragment.getArSceneView().getScene());
-        Node label=new Node();
-        label.setParent(anchorNode);
-        label.setRenderable(friendLabelRenderable);
-        label.setLocalPosition(new Vector3(0f,0.42f,0f));
-        label.setLocalScale(new Vector3(0.65f,0.65f,0.65f));
-        friendAnchors.add(anchorNode);
-        hud.setStatus("Метка «"+friendName+"» закреплена в пространстве");
+        TextView tag = new TextView(this);
+        tag.setText(friendName);
+        tag.setTextColor(Color.WHITE);
+        tag.setTextSize(14);
+        tag.setTypeface(Typeface.DEFAULT_BOLD);
+        tag.setGravity(Gravity.CENTER);
+        tag.setPadding(18,8,18,8);
+        tag.setBackgroundColor(0xdd17231b);
+        ViewRenderable.builder().setView(this, tag).build().thenAccept(renderable -> {
+            if (isFinishing() || arFragment==null || arFragment.getArSceneView()==null) return;
+            Anchor anchor=hit.createAnchor();
+            AnchorNode anchorNode=new AnchorNode(anchor);
+            anchorNode.setParent(arFragment.getArSceneView().getScene());
+            Node label=new Node();
+            label.setParent(anchorNode);
+            label.setRenderable(renderable);
+            label.setLocalPosition(new Vector3(0f,0.42f,0f));
+            label.setLocalScale(new Vector3(0.65f,0.65f,0.65f));
+            friendAnchors.add(anchorNode);
+            hud.setStatus("Метка «"+friendName+"» закреплена в пространстве");
+        }).exceptionally(error -> {
+            runOnUiThread(() -> Toast.makeText(this,"Не удалось создать метку",Toast.LENGTH_SHORT).show());
+            return null;
+        });
     }
 
     private void editFriendName() {
@@ -441,15 +438,11 @@ public class MainActivity extends FragmentActivity
 
     @Override protected void onResume() {
         super.onResume();
-        if (arFragment!=null) {
-            try { arFragment.onResume(); } catch(Exception ignored) {}
-        }
+        handler.removeCallbacks(gameLoop);
+        handler.post(gameLoop);
     }
     @Override protected void onPause() {
         handler.removeCallbacks(gameLoop);
-        if(arFragment!=null) {
-            try { arFragment.onPause(); } catch(Exception ignored) {}
-        }
         super.onPause();
     }
     @Override protected void onDestroy() {
