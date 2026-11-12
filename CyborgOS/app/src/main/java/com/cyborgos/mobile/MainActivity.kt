@@ -239,7 +239,6 @@ class MainActivity : Activity() {
 
     private fun render() {
         mainColumn.removeAllViews()
-        mainColumn.addView(buildTopBar(), LinearLayout.LayoutParams(-1, dp(68)))
         val halves = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(4), dp(2), dp(4), dp(3))
