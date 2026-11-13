@@ -285,7 +285,10 @@ public class MainActivity extends Activity {
             box.addView(button, params);
             button.setOnClickListener(v -> openUrl(url));
         }
-        addPanelToRoot(box);
+        LinearLayout.LayoutParams catalogParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        catalogParams.bottomMargin = dp(11);
+        catalog.addView(box, catalogParams);
     }
 
     private void addCard(String title, String message) {
@@ -310,11 +313,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         params.bottomMargin = dp(11);
-        if (catalog != null && box.getParent() == null && catalog.getParent() != null) {
-            catalog.addView(box, params);
-        } else {
-            root.addView(box, params);
-        }
+        root.addView(box, params);
     }
 
     private TextView addText(String value, int size, int color, boolean bold, int bottom) {
