@@ -1,0 +1,80 @@
+name: Build Verity Firmware Center APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "FirmwareCenter/**"
+      - ".github/workflows/build-firmware-center.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-34 build-tools;34.0.0"
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Create Gradle wrapper
+        working-directory: FirmwareCenter
+        run: gradle wrapper --gradle-version 8.7
+
+      - name: Build debug APK
+        working-directory: FirmwareCenter
+        run: ./gradlew --no-daemon --stacktrace clean assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Verity-Firmware-Center-1.0.0-Android-APK
+          path: FirmwareCenter/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Android 14 launch smoke test
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim
+          script: |
+            APK="FirmwareCenter/app/build/outputs/apk/debug/app-debug.apk"
+            test -s "$APK"
+            adb install -r "$APK"
+            adb logcat -c
+            adb shell am start -W -n com.verity.firmwarecenter/.MainActivity
+            sleep 6
+            if ! adb shell pidof com.verity.firmwarecenter >/dev/null; then
+              adb logcat -d -t 3000
+              echo "Firmware Center exited after launch"
+              exit 1
+            fi
+            adb logcat -d -t 3000 > /tmp/firmware-center-logcat.txt
+            if grep -E "FATAL EXCEPTION|Process: com.verity.firmwarecenter" /tmp/firmware-center-logcat.txt; then
+              cat /tmp/firmware-center-logcat.txt
+              exit 1
+            fi
+            echo "Firmware Center Android 14 launch smoke test passed"
