@@ -292,6 +292,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         private boolean sensorRegistered = false;
         private long lastStepCounter = -1;
         private long lastStepSave = 0;
+        private long lastAccelStep = 0;
+        private float accelMagnitudeAverage = 9.8f;
         private long lastFrame = 0;
         private long lastHunger = System.currentTimeMillis();
 
@@ -351,10 +353,14 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
         void startSensors() {
             if (sensorRegistered || sensorManager == null) return;
+            Sensor a = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
             if (rotationSensor != null) {
                 sensorManager.registerListener(this, rotationSensor, SensorManager.SENSOR_DELAY_GAME);
+                // If the manufacturer does not expose a step sensor, use acceleration as a fallback.
+                if (stepDetector == null && stepCounter == null && a != null) {
+                    sensorManager.registerListener(this, a, SensorManager.SENSOR_DELAY_GAME);
+                }
             } else {
-                Sensor a = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
                 Sensor m = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
                 if (a != null) sensorManager.registerListener(this, a, SensorManager.SENSOR_DELAY_GAME);
                 if (m != null) sensorManager.registerListener(this, m, SensorManager.SENSOR_DELAY_GAME);
@@ -382,7 +388,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             } else if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
                 System.arraycopy(event.values, 0, accelerometerValues, 0, 3);
                 hasAccelerometer = true;
-                updateFallbackAngles();
+                if (rotationSensor == null) updateFallbackAngles();
+                if (stepDetector == null && stepCounter == null) detectFallbackStep(event.values);
             } else if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
                 System.arraycopy(event.values, 0, magneticValues, 0, 3);
                 hasMagnetic = true;
@@ -430,6 +437,18 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             while (angle > Math.PI) angle -= (float) (Math.PI * 2.0);
             while (angle < -Math.PI) angle += (float) (Math.PI * 2.0);
             return angle;
+        }
+
+        private void detectFallbackStep(float[] values) {
+            if (values == null || values.length < 3) return;
+            float magnitude = (float)Math.sqrt(values[0]*values[0] + values[1]*values[1] + values[2]*values[2]);
+            float delta = Math.abs(magnitude - accelMagnitudeAverage);
+            accelMagnitudeAverage = accelMagnitudeAverage * 0.88f + magnitude * 0.12f;
+            long now = System.currentTimeMillis();
+            if (delta > 1.45f && now - lastAccelStep > 430L) {
+                lastAccelStep = now;
+                movePlayerOneStep();
+            }
         }
 
         private void movePlayerOneStep() {
