@@ -54,6 +54,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BlockWorld-AR-v3-Source
-          path: /tmp/BlockWorld-AR-V1-Source.zip
+          path: /tmp/BlockWorld-AR-V3-Source.zip
           if-no-files-found: error
           retention-days: 14
