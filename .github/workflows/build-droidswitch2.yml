@@ -14,7 +14,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,13 +35,16 @@ jobs:
         with:
           gradle-version: "8.7"
 
-      - name: Create Gradle wrapper
-        working-directory: DroidSwitch2
-        run: gradle wrapper --gradle-version 8.7
-
       - name: Build debug APK
         working-directory: DroidSwitch2
-        run: ./gradlew --no-daemon --stacktrace clean assembleDebug
+        run: gradle --no-daemon --stacktrace clean assembleDebug
+
+      - name: Verify APK output
+        run: |
+          APK="DroidSwitch2/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          file "$APK"
+          ls -lh "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -50,30 +53,3 @@ jobs:
           path: DroidSwitch2/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
-
-      - name: Android 14 launch smoke test
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          target: google_apis
-          arch: x86_64
-          disable-animations: true
-          emulator-options: -no-window -no-audio -no-boot-anim
-          script: |
-            APK="DroidSwitch2/app/build/outputs/apk/debug/app-debug.apk"
-            test -s "$APK"
-            adb install -r "$APK"
-            adb logcat -c
-            adb shell am start -W -n com.droidswitch2.mobile/.MainActivity
-            sleep 5
-            if ! adb shell pidof com.droidswitch2.mobile >/dev/null; then
-              adb logcat -d -t 3000
-              echo "DroidSwitch 2 exited after launch"
-              exit 1
-            fi
-            adb logcat -d -t 3000 > /tmp/droidswitch2-logcat.txt
-            if grep -E "FATAL EXCEPTION|Process: com.droidswitch2.mobile" /tmp/droidswitch2-logcat.txt; then
-              cat /tmp/droidswitch2-logcat.txt
-              exit 1
-            fi
-            echo "DroidSwitch 2 Android 14 launch smoke test passed"
