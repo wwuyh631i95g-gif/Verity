@@ -4,12 +4,15 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.StatFs;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
@@ -19,14 +22,16 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.io.File;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends Activity {
+    private static final String DSU_PACKAGE = "com.android.dynsystem";
+    private static final String ACTION_START_DSU_LOADER =
+            "android.settings.development.START_DSU_LOADER";
+    private static final long RECOMMENDED_SPACE = 10L * 1024L * 1024L * 1024L;
+
     private final int bg = Color.rgb(8, 14, 26);
     private final int card = Color.rgb(20, 31, 50);
     private final int text = Color.rgb(241, 246, 255);
@@ -34,11 +39,12 @@ public class MainActivity extends Activity {
     private final int blue = Color.rgb(92, 163, 255);
     private final int green = Color.rgb(119, 220, 164);
     private final int amber = Color.rgb(255, 199, 112);
+
     private LinearLayout content;
-    private TextView lockState;
-    private TextView trebleState;
-    private TextView summaryState;
-    private Map<String, String> lastReport = new LinkedHashMap<>();
+    private TextView deviceState;
+    private TextView dsuState;
+    private TextView storageState;
+    private TextView overallState;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -46,12 +52,19 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(bg);
         getWindow().setNavigationBarColor(bg);
         buildScreen();
-        refreshDiagnostics();
+        refreshStatus();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (dsuState != null) refreshStatus();
     }
 
     private void buildScreen() {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
+
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(18), dp(22), dp(18), dp(34));
@@ -59,252 +72,176 @@ public class MainActivity extends Activity {
         scroll.addView(content);
         setContentView(scroll);
 
-        addText("DROIDSWITCH 2.1  /  GSI READINESS", 11, blue, true, 5);
-        addText("Проверка перед перепрошивкой", 27, text, true, 7);
-        addText("Диагностика HONOR X8b и проверка условий для постоянной установки другой Android-системы.", 
+        addText("DROIDSWITCH 2.2  /  DSU COMPANION", 11, blue, true, 5);
+        addText("Вторая Android-система", 28, text, true, 7);
+        addText("Помощник для штатного Android DSU Loader на HONOR X8b (LLY-LX1). Он открывает настоящий системный экран установки, если HONOR оставил эту функцию доступной.",
                 14, muted, false, 16);
 
-        addCard("Важно перед началом",
-                "Эта версия проверяет реальные системные признаки: состояние загрузчика, поддержку OEM-разблокировки, Treble, архитектуру и разметку разделов. Она не выдаёт предположение за успешную прошивку и не записывает системные разделы без подтверждённой совместимости.");
+        addCard("Что получится, если HONOR поддерживает DSU",
+                "MagicOS останется основной системой. DSU может добавить гостевую Android-систему на отдельное динамическое хранилище. После установки появится системное уведомление с действиями для запуска гостевой системы, возврата к MagicOS или удаления DSU.");
 
-        addText("РЕЗУЛЬТАТ ПРОВЕРКИ", 11, blue, true, 7);
-        summaryState = addText("Проверяю свойства Android…", 14, amber, false, 8);
-        lockState = addText("Загрузчик: проверка…", 14, muted, true, 6);
-        trebleState = addText("Project Treble: проверка…", 14, muted, true, 14);
+        addText("ПРОВЕРКА ЭТОГО ТЕЛЕФОНА", 11, blue, true, 7);
+        overallState = addText("Проверяю устройство…", 14, amber, true, 8);
+        deviceState = addText("Модель: проверка…", 13, muted, false, 5);
+        dsuState = addText("Компонент DSU: проверка…", 13, muted, false, 5);
+        storageState = addText("Свободное место: проверка…", 13, muted, false, 14);
+        addButton("Обновить проверку", v -> refreshStatus());
 
-        addButton("Проверить ещё раз", v -> refreshDiagnostics());
-        addButton("Показать полный отчёт", v -> showReport());
-        addButton("Поделиться отчётом", v -> shareReport());
-
-        addText("ПРОВЕРИТЬ В НАСТРОЙКАХ", 11, blue, true, 7);
+        addText("ЗАПУСК УСТАНОВКИ", 11, blue, true, 7);
+        addButton("Открыть системный DSU Loader", v -> openDsuLoader());
         addButton("Открыть параметры разработчика", v -> openDeveloperOptions());
-        addButton("Как проверить, разблокирован ли загрузчик", v -> showBootloaderHelp());
 
-        addCard("Что означает OEM-разблокировка",
-                "Переключатель «Разблокировка OEM» в параметрах разработчика — это только разрешение на попытку разблокировки. Он НЕ означает, что загрузчик уже разблокирован. Фактическое состояние показывается отдельно загрузчиком или системным свойством, если производитель его публикует.");
+        addCard("Как добавить вторую систему",
+                "1. Нажми «Открыть системный DSU Loader».\n"
+                + "2. Если HONOR предоставляет DSU Loader, Android покажет список образов, которые предлагает прошивка именно этому устройству.\n"
+                + "3. Устанавливай только образ, который отображается в системном DSU Loader. Прочитай условия и дождись штатного уведомления об окончании.\n"
+                + "4. Когда появится уведомление DSU, нажми «Restart», чтобы загрузить гостевую систему.\n"
+                + "5. Чтобы вернуться, используй действие возврата/перезагрузки в исходную систему в уведомлении DSU.\n\n"
+                + "DroidSwitch не подменяет системный список образов и не скачивает случайные прошивки.");
 
-        addCard("Почему приложение пока не прошивает",
-                "Обычное Android-приложение не получает доступ к fastboot и защищённым разделам только потому, что установлено на телефоне. Для постоянной установки GSI нужны разблокированный загрузчик, полная совместимость Project Treble, подходящий образ именно для разметки и архитектуры устройства, а также рабочий способ восстановления заводской прошивки. Универсального безопасного способа записи разделов для всех телефонов нет.");
+        addCard("Сколько места нужно",
+                "Для DSU Android рекомендует иметь около 10 ГБ свободного пространства: образ системы занимает примерно 1–1,5 ГБ, а гостевые пользовательские данные могут резервировать около 8 ГБ. Фактический размер зависит от пакета и прошивки. Перед установкой проверь свободное место.");
 
-        addCard("Предупреждение о данных и совместимости",
-                "Разблокировка загрузчика обычно стирает все пользовательские данные. Несовместимый GSI может привести к тому, что телефон перестанет загружаться. До подтверждения поддержки именно HONOR X8b не скачивай случайные образы и не запускай команды прошивки. Сначала сохрани резервную копию и найди официальный способ восстановления.");
+        addCard("Какие разрешения нужны",
+                "DroidSwitch 2.2 не запрашивает разрешений: нет root, USB, ADB, файлового доступа, специальных возможностей или администратора устройства. Загрузку и установку выполняет системный DSU Loader в настройках Android. Системное окно само покажет нужные подтверждения, если функция доступна.");
 
-        addButton("Официально: требования Android GSI", v ->
-                openUrl("https://developer.android.com/topic/generic-system-image"));
-        addButton("Официально: блокировка загрузчика Android", v ->
-                openUrl("https://source.android.com/docs/core/architecture/bootloader/locking_unlocking"));
+        addCard("Почему DSU может не появиться",
+                "DSU — функция производителя, а не обязательная возможность каждого телефона с Android 14. Наличие динамических разделов и компонента com.android.dynsystem не доказывает, что HONOR включил DSU Loader или опубликовал совместимые образы для LLY-LX1. Если системный экран не открывается или список пуст, обычное приложение не может безопасно включить эту функцию.");
 
-        addText("Нет root, ADB, USB, Accessibility или доступа к личным файлам. Все проверки только для чтения. Приложение не разблокирует и не перепрошивает телефон.", 
+        addCard("Как долго останется вторая система",
+                "Это не таймер на несколько минут. DSU может оставаться установленной между несколькими перезагрузками, если на устройстве включён режим сохранения (sticky). В системном уведомлении есть управление гостевой системой. Гостевая система исчезнет, если выбрать «Discard/Удалить», очистить DSU средствами системы или если прошивка производителя сбросит временное окружение. При режиме одного запуска следующий запуск может вернуться в MagicOS. Сам по себе обычный возврат в MagicOS не обязательно удаляет гостевую систему.");
+
+        addCard("Ограничения именно для HONOR X8b",
+                "Твой отчёт подтверждает Android 14, ARM64, Treble и динамические разделы, но не подтверждает наличие DSU Loader. HONOR может скрыть или отключить его в этой региональной прошивке. Поэтому DroidSwitch сначала открывает штатный интерфейс и ничего не меняет без системного подтверждения. Постоянная прошивка MagicOS на другую ОС этой программой не выполняется.");
+
+        addButton("Официальная инструкция Google по DSU", v ->
+                openUrl("https://developer.android.com/topic/dsu"));
+        addButton("Требования и место для DSU (Android)", v ->
+                openUrl("https://source.android.com/docs/core/ota/dynamic-system-updates"));
+
+        addText("Версия 2.2.0 · режим безопасного запуска штатного DSU · без root и без специальных разрешений",
                 12, muted, false, 10);
     }
 
-    private void refreshDiagnostics() {
-        summaryState.setText("Читаю системные свойства…");
-        summaryState.setTextColor(amber);
-        lockState.setText("Загрузчик: проверка…");
-        trebleState.setText("Project Treble: проверка…");
+    private void refreshStatus() {
+        String model = safe(Build.MODEL);
+        String device = safe(Build.DEVICE);
+        boolean targetModel = "LLY-LX1".equalsIgnoreCase(model)
+                || "HNLLY-Q".equalsIgnoreCase(device);
 
-        new Thread(() -> {
-            Map<String, String> report = collectReport();
-            runOnUiThread(() -> {
-                lastReport = report;
-                String lock = report.get("ro.boot.flash.locked");
-                String deviceState = report.get("ro.boot.vbmeta.device_state");
-                String treble = report.get("ro.treble.enabled");
-                String oemSupport = report.get("ro.oem_unlock_supported");
+        deviceState.setText("Устройство: " + safe(Build.MANUFACTURER) + " " + model
+                + " · " + safe(Build.VERSION.RELEASE) + " · " + safe(Build.DEVICE));
+        deviceState.setTextColor(targetModel ? green : amber);
 
-                String resolved = resolveLockState(lock, deviceState);
-                if ("Разблокирован".equals(resolved)) {
-                    lockState.setText("Загрузчик: разблокирован (по системному свойству)");
-                    lockState.setTextColor(green);
-                } else if ("Заблокирован".equals(resolved)) {
-                    lockState.setText("Загрузчик: заблокирован (по системному свойству)");
-                    lockState.setTextColor(amber);
-                } else {
-                    lockState.setText("Загрузчик: Android не сообщил точное состояние");
-                    lockState.setTextColor(amber);
-                }
+        boolean componentFound = false;
+        boolean componentEnabled = false;
+        String version = "";
 
-                if ("true".equalsIgnoreCase(treble)) {
-                    trebleState.setText("Project Treble: включён — это только базовая проверка");
-                    trebleState.setTextColor(green);
-                } else if ("false".equalsIgnoreCase(treble)) {
-                    trebleState.setText("Project Treble: не обнаружен");
-                    trebleState.setTextColor(amber);
-                } else {
-                    trebleState.setText("Project Treble: неизвестно");
-                    trebleState.setTextColor(amber);
-                }
-
-                boolean unlocked = "Разблокирован".equals(resolved);
-                boolean trebleYes = "true".equalsIgnoreCase(treble);
-                boolean oemYes = "1".equals(oemSupport) || "true".equalsIgnoreCase(oemSupport);
-
-                if (unlocked && trebleYes) {
-                    summaryState.setText("Найдены два важных признака. Это ещё НЕ подтверждение готовности к прошивке: нужно проверить разметку, VNDK и наличие подходящего образа.");
-                    summaryState.setTextColor(green);
-                } else if ("0".equals(oemSupport) && !unlocked) {
-                    summaryState.setText("Система сообщает, что OEM-разблокировка не поддерживается. Постоянная установка сторонней системы может быть недоступна.");
-                    summaryState.setTextColor(amber);
-                } else if (unlocked) {
-                    summaryState.setText("Загрузчик, похоже, разблокирован, но совместимость GSI пока не подтверждена.");
-                    summaryState.setTextColor(amber);
-                } else if (oemYes) {
-                    summaryState.setText("Телефон сообщает о поддержке OEM-разблокировки, но это не означает, что загрузчик уже разблокирован.");
-                    summaryState.setTextColor(amber);
-                } else {
-                    summaryState.setText("Пока нет подтверждения, что телефон готов к установке GSI. Открой полный отчёт.");
-                    summaryState.setTextColor(amber);
-                }
-            });
-        }).start();
-    }
-
-    private Map<String, String> collectReport() {
-        Map<String, String> values = new LinkedHashMap<>();
-        String[] keys = {
-                "ro.boot.flash.locked",
-                "ro.boot.vbmeta.device_state",
-                "ro.boot.verifiedbootstate",
-                "ro.oem_unlock_supported",
-                "ro.treble.enabled",
-                "ro.vndk.version",
-                "ro.vndk.lite",
-                "ro.product.cpu.abi",
-                "ro.product.cpu.abilist",
-                "ro.boot.slot_suffix",
-                "ro.boot.dynamic_partitions",
-                "ro.boot.super_partition",
-                "ro.build.version.release",
-                "ro.build.version.sdk",
-                "ro.build.version.security_patch",
-                "ro.product.manufacturer",
-                "ro.product.model",
-                "ro.product.device",
-                "ro.build.display.id"
-        };
-        for (String key : keys) {
-            values.put(key, readProperty(key));
-        }
-
-        values.put("OEM toggle (oem_unlock_enabled)",
-                readGlobalSetting("oem_unlock_enabled"));
-        values.put("Build.MANUFACTURER", safe(Build.MANUFACTURER));
-        values.put("Build.MODEL", safe(Build.MODEL));
-        values.put("Build.DEVICE", safe(Build.DEVICE));
-        values.put("Build.PRODUCT", safe(Build.PRODUCT));
-        values.put("Build.VERSION.RELEASE", safe(Build.VERSION.RELEASE));
-        values.put("Build.VERSION.SDK_INT", String.valueOf(Build.VERSION.SDK_INT));
-        values.put("Build.SUPPORTED_ABIS", join(Build.SUPPORTED_ABIS));
-        return values;
-    }
-
-    private String readProperty(String key) {
-        Process process = null;
         try {
-            process = new ProcessBuilder("/system/bin/getprop", key)
-                    .redirectErrorStream(true).start();
-            StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (output.length() > 0) output.append('\n');
-                    output.append(line);
-                }
+            PackageInfo info;
+            if (Build.VERSION.SDK_INT >= 33) {
+                info = getPackageManager().getPackageInfo(
+                        DSU_PACKAGE, PackageManager.PackageInfoFlags.of(0));
+            } else {
+                info = getPackageManager().getPackageInfo(DSU_PACKAGE, 0);
             }
-            process.waitFor(2, TimeUnit.SECONDS);
-            String value = output.toString().trim();
-            return value.isEmpty() ? "(не опубликовано)" : value;
-        } catch (Exception error) {
-            if (process != null) process.destroy();
-            return "(недоступно для обычного приложения)";
+            componentFound = true;
+            int enabledState = getPackageManager().getApplicationEnabledSetting(DSU_PACKAGE);
+            componentEnabled = enabledState != PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                    && enabledState != PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER;
+            if (info.versionName != null) version = " · " + info.versionName;
+        } catch (PackageManager.NameNotFoundException ignored) {
+            componentFound = false;
+        } catch (Exception ignored) {
+            componentFound = false;
+        }
+
+        if (componentFound && componentEnabled) {
+            dsuState.setText("com.android.dynsystem найден и не отключён" + version
+                    + " · это не подтверждает доступность DSU Loader");
+            dsuState.setTextColor(green);
+        } else if (componentFound) {
+            dsuState.setText("Компонент DSU найден, но отключён или недоступен");
+            dsuState.setTextColor(amber);
+        } else {
+            dsuState.setText("Системный компонент DSU не обнаружен обычным приложением");
+            dsuState.setTextColor(amber);
+        }
+
+        long free = getFreeBytes();
+        storageState.setText("Свободно во внутреннем хранилище: " + formatBytes(free)
+                + " · рекомендация для DSU: около 10 ГБ");
+        storageState.setTextColor(free >= RECOMMENDED_SPACE ? green : amber);
+
+        if (targetModel && componentFound && componentEnabled && free >= RECOMMENDED_SPACE) {
+            overallState.setText("Модель совпадает; предварительные условия выглядят лучше. Наличие DSU Loader проверяется только открытием системного экрана.");
+            overallState.setTextColor(green);
+        } else if (targetModel) {
+            overallState.setText("Обнаружен целевой HONOR X8b. Поддержка DSU на этой прошивке пока не доказана — проверь системный загрузчик.");
+            overallState.setTextColor(amber);
+        } else {
+            overallState.setText("Эта сборка рассчитана на HONOR X8b; обнаружена другая модель. Не используй неподходящие образы.");
+            overallState.setTextColor(amber);
         }
     }
 
-    private String readGlobalSetting(String name) {
+    private long getFreeBytes() {
         try {
-            int value = Settings.Global.getInt(getContentResolver(), name, -1);
-            if (value == 1) return "включён (разрешение на попытку разблокировки)";
-            if (value == 0) return "выключен";
-            return "(не опубликовано / неизвестно)";
+            File data = getFilesDir();
+            StatFs stat = new StatFs(data.getAbsolutePath());
+            return stat.getAvailableBytes();
         } catch (Exception error) {
-            return "(не удалось прочитать)";
+            return -1L;
         }
     }
 
-    private String resolveLockState(String flashLocked, String deviceState) {
-        if ("0".equals(flashLocked) || "unlocked".equalsIgnoreCase(deviceState)) {
-            return "Разблокирован";
-        }
-        if ("1".equals(flashLocked) || "locked".equalsIgnoreCase(deviceState)) {
-            return "Заблокирован";
-        }
-        return "Неизвестно";
+    private String formatBytes(long value) {
+        if (value < 0) return "не удалось определить";
+        double gib = value / (1024.0 * 1024.0 * 1024.0);
+        return String.format(Locale.US, "%.1f ГБ", gib);
     }
 
-    private void showReport() {
-        if (lastReport.isEmpty()) {
-            Toast.makeText(this, "Сначала дождись завершения проверки.", Toast.LENGTH_SHORT).show();
-            return;
+    private void openDsuLoader() {
+        Intent intent = new Intent(ACTION_START_DSU_LOADER);
+        intent.addCategory(Intent.CATEGORY_DEFAULT);
+        try {
+            startActivity(intent);
+            Toast.makeText(this,
+                    "Открыт запрос системному DSU Loader. Дальнейшие действия и совместимость определяет HONOR/Android.",
+                    Toast.LENGTH_LONG).show();
+        } catch (ActivityNotFoundException | SecurityException error) {
+            showLoaderUnavailable();
+        } catch (Exception error) {
+            showLoaderUnavailable();
         }
-        StringBuilder out = new StringBuilder();
-        out.append("DroidSwitch 2.1 — отчёт диагностики\n");
-        out.append("Устройство: ").append(safe(Build.MANUFACTURER)).append(" ")
-                .append(safe(Build.MODEL)).append("\n\n");
-        for (Map.Entry<String, String> entry : lastReport.entrySet()) {
-            out.append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
-        }
-        out.append("\nОтчёт не подтверждает возможность прошивки. Не содержит IMEI или серийного номера.");
+    }
+
+    private void showLoaderUnavailable() {
         new AlertDialog.Builder(this)
-                .setTitle("Диагностика")
-                .setMessage(out.toString())
-                .setPositiveButton("Закрыть", null)
-                .setNeutralButton("Поделиться", (dialog, which) -> shareText(out.toString()))
+                .setTitle("DSU Loader не открыт")
+                .setMessage("На этой прошивке HONOR прямой экран DSU Loader не предоставлен приложению. Проверь «Для разработчиков». Если пункта DSU Loader там тоже нет, DroidSwitch не может включить его самостоятельно.")
+                .setPositiveButton("Открыть параметры разработчика",
+                        (dialog, which) -> openDeveloperOptions())
+                .setNegativeButton("Закрыть", null)
                 .show();
-    }
-
-    private void shareReport() {
-        if (lastReport.isEmpty()) {
-            Toast.makeText(this, "Сначала дождись завершения проверки.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        StringBuilder out = new StringBuilder("DroidSwitch 2.1 — отчёт диагностики\n");
-        for (Map.Entry<String, String> entry : lastReport.entrySet()) {
-            out.append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
-        }
-        shareText(out.toString());
-    }
-
-    private void shareText(String value) {
-        Intent send = new Intent(Intent.ACTION_SEND);
-        send.setType("text/plain");
-        send.putExtra(Intent.EXTRA_TEXT, value);
-        try {
-            startActivity(Intent.createChooser(send, "Отправить диагностический отчёт"));
-        } catch (Exception error) {
-            Toast.makeText(this, "Не удалось открыть меню отправки.", Toast.LENGTH_SHORT).show();
-        }
     }
 
     private void openDeveloperOptions() {
         try {
             startActivity(new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS));
-        } catch (ActivityNotFoundException error) {
+        } catch (Exception error) {
             startActivity(new Intent(Settings.ACTION_SETTINGS));
         }
     }
 
-    private void showBootloaderHelp() {
-        String message =
-                "1. Открой «Параметры разработчика» и найди «Разблокировка OEM».\n"
-                + "2. Запиши, доступен ли переключатель и включён ли он. Само включение НЕ разблокирует загрузчик.\n"
-                + "3. Посмотри строку «Загрузчик» в отчёте DroidSwitch. Если там «неизвестно», приложение не может достоверно прочитать состояние из Android.\n"
-                + "4. Не выполняй команды разблокировки и не устанавливай образы, пока не подтверждена официальная процедура именно для HONOR X8b LLY-LX1.\n\n"
-                + "Важно: реальная разблокировка обычно приводит к полному сбросу телефона и удалению данных. Не начинай её без резервной копии и подтверждённого способа восстановления.";
+    private void showDeveloperOptionsHelp() {
         new AlertDialog.Builder(this)
-                .setTitle("Проверка загрузчика")
-                .setMessage(message)
+                .setTitle("Как найти DSU Loader")
+                .setMessage("1. Открой Настройки → О телефоне.\n"
+                        + "2. Нажми «Номер сборки» семь раз, чтобы включить параметры разработчика (если они ещё не включены).\n"
+                        + "3. Открой Система и обновления → Для разработчиков.\n"
+                        + "4. Найди DSU Loader.\n\n"
+                        + "Не включай OEM-разблокировку и USB-отладку ради DSU. Если DSU Loader отсутствует, не пытайся принудительно включать скрытые системные флаги.")
                 .setPositiveButton("Открыть параметры", (dialog, which) -> openDeveloperOptions())
                 .setNegativeButton("Закрыть", null)
                 .show();
@@ -375,16 +312,6 @@ public class MainActivity extends Activity {
 
     private int dp(float value) {
         return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
-    }
-
-    private String join(String[] values) {
-        if (values == null || values.length == 0) return "неизвестно";
-        StringBuilder out = new StringBuilder();
-        for (int i = 0; i < values.length; i++) {
-            if (i > 0) out.append(", ");
-            out.append(values[i]);
-        }
-        return out.toString();
     }
 
     private String safe(String value) {
