@@ -1,0 +1,33 @@
+{
+  "catalog_version": 1,
+  "updated": "2026-11-13",
+  "device": "HONOR X8b",
+  "model_codes": ["LLY-LX1", "LLY-LX2", "LLY-LX3"],
+  "notice": "This catalog lists verified information sources. It does not provide unsigned firmware or claim that a custom ROM is supported.",
+  "entries": [
+    {
+      "title": "Official HONOR X8b software update",
+      "category": "OFFICIAL OTA",
+      "status": "Supported official route",
+      "description": "The phone checks for updates signed and offered for its exact region and current build. No universal full firmware package is published on this support page.",
+      "button": "Open HONOR support",
+      "url": "https://www.honor.com/eurasia/support/phones/honor-x8b/"
+    },
+    {
+      "title": "How HONOR online system updates work",
+      "category": "OFFICIAL GUIDE",
+      "status": "Official instructions",
+      "description": "HONOR documents checking for updates in Settings > System & updates > Software update. Availability varies by model, region and rollout.",
+      "button": "Read update instructions",
+      "url": "https://www.honor.com/my/support/content/en-us15852973/"
+    },
+    {
+      "title": "Custom ROM compatibility tracker",
+      "category": "COMMUNITY CATALOG",
+      "status": "LLY-LX1 build not verified here",
+      "description": "Search by the exact model code. Do not install a ROM for another HONOR model or another X8b regional variant. A listing alone is not proof that a build is safe or installable.",
+      "button": "Open device catalog",
+      "url": "https://thecustomrom.com/"
+    }
+  ]
+}
