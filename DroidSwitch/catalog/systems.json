@@ -1,0 +1,29 @@
+{
+  "catalog_version": 1,
+  "updated": "2026-11-13",
+  "device_family": "HONOR X8b",
+  "entries": [
+    {
+      "title": "HONOR official OTA",
+      "kind": "SAFE OFFICIAL UPDATE",
+      "compatibility": "Exact model and region are checked by the phone itself",
+      "details": "The supported path to update MagicOS. The phone verifies the signed package before installing it. This does not replace MagicOS with a custom ROM.",
+      "url": "https://www.honor.com/eurasia/support/phones/honor-x8b/"
+    },
+    {
+      "title": "Android Dynamic System Updates (DSU)",
+      "kind": "TEMPORARY SYSTEM TRIAL",
+      "compatibility": "Only if HONOR exposes DSU Loader and accepts a compatible trusted image",
+      "details": "DSU can boot a guest Android system image while keeping the original system available. Device-manufacturer support is required. This is not a confirmed X8b feature.",
+      "url": "https://developer.android.com/topic/dsu"
+    },
+    {
+      "title": "Google Generic System Images (GSI)",
+      "kind": "ANDROID TEST IMAGE",
+      "compatibility": "Not confirmed for HONOR X8b; standard GSI requirements include Treble compliance and an unlocked bootloader",
+      "details": "A GSI is a clean Android system baseline, not a fully device-customized ROM. Hardware functions can be missing. Do not install unless the exact device configuration is verified.",
+      "url": "https://developer.android.com/topic/generic-system-image"
+    }
+  ],
+  "notice": "No custom ROM is currently verified as installable on the user's specific HONOR X8b variant. Do not cross-flash images for another model, region, or board."
+}
