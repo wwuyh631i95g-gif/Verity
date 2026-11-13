@@ -423,8 +423,15 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             float horizontal = (float) Math.sqrt(forwardEast * forwardEast + forwardNorth * forwardNorth);
             float newYaw = (float) Math.atan2(forwardEast, forwardNorth);
             float newPitch = (float) Math.atan2(forwardUp, Math.max(0.001f, horizontal));
-            yaw = smoothAngle(yaw, newYaw, 0.22f);
-            pitch = pitch * 0.78f + newPitch * 0.22f;
+            // Follow quick turns almost immediately, but keep small sensor noise filtered.
+            float yawDelta = normalizeAngle(newYaw - yaw);
+            float yawAmount = Math.abs(yawDelta) > 0.18f ? 0.94f :
+                    (Math.abs(yawDelta) > 0.055f ? 0.84f : 0.64f);
+            yaw = normalizeAngle(yaw + yawDelta * yawAmount);
+
+            float pitchDelta = newPitch - pitch;
+            float pitchAmount = Math.abs(pitchDelta) > 0.16f ? 0.80f : 0.58f;
+            pitch += pitchDelta * pitchAmount;
             invalidate();
         }
 
@@ -568,11 +575,17 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 float dx = playerX - mob.x;
                 float dz = playerZ - mob.z;
                 float distance = (float)Math.sqrt(dx*dx + dz*dz);
-                if (distance > 0.01f && distance > 0.72f) {
-                    float speed = mob.type == 3 ? 0.72f : (mob.type == 4 ? 0.38f : 0.52f);
+
+                // Hostile mobs approach only while nearby. Their speed stays below walking
+                // speed, so when the player backs away the world-space distance really grows.
+                // Passive animals stay where they were spawned.
+                if (mob.type <= 5 && distance > 0.82f && distance < 5.5f) {
+                    float speed = mob.type == 3 ? 0.46f : (mob.type == 4 ? 0.32f : 0.34f);
                     mob.x += dx / distance * speed * dt;
                     mob.z += dz / distance * speed * dt;
-                } else if (distance <= 1.15f && mob.type <= 5 && now - mob.lastAttack > 2300L) {
+                }
+
+                if (distance <= 1.15f && mob.type <= 5 && now - mob.lastAttack > 2300L) {
                     mob.lastAttack = now;
                     health = Math.max(0, health - 1);
                     setStatus("⚔ " + MOBS[mob.type] + " рядом: −1 сердце");
@@ -600,6 +613,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             List<WorldMob> orderedMobs = new ArrayList<>(mobs);
             Collections.sort(orderedMobs, (a,b) -> Float.compare(distanceToPlayer(b.x,b.z), distanceToPlayer(a.x,a.z)));
             for (WorldMob mob : orderedMobs) {
+                mob.screenVisible = false;
                 ScreenPoint base = project(mob.x, 0f, mob.z, w);
                 if (!base.visible || base.distance > MAX_DISTANCE) continue;
                 float ppm = clamp(focalY / Math.max(0.50f, base.distance), 22*density, 430*density);
@@ -610,6 +624,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 mob.lastScreenBaseY = base.y;
                 mob.lastScreenHeight = pxHeight;
                 mob.lastScreenWidth = (mob.type == 4 ? 1.1f : 0.72f) * ppm;
+                mob.screenVisible = true;
                 drawMob3D(c, mob, base.x, base.y, ppm);
                 drawLabel(c, MOBS[mob.type] + "  " + mob.hp + "/5",
                         base.x, base.y - pxHeight - 14*density, 8*density,
@@ -652,7 +667,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             p.setColor(0xdd101913);
             c.drawRoundRect(10*density, 8*density, w-10*density, 72*density,
                     14*density, 14*density, p);
-            drawText(c, "BLOCKWORLD AR  •  V3", 21*density, 25*density,
+            drawText(c, "BLOCKWORLD AR  •  V4", 21*density, 25*density,
                     10*density, 0xffd4ead5, false);
             String status = statusMessage.length() > 38 ? statusMessage.substring(0, 37) + "…" : statusMessage;
             drawText(c, status, 21*density, 43*density,
@@ -935,6 +950,12 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             float wy=CAMERA_HEIGHT+(float)Math.tan(elevation)*dist;
             wy=clamp(wy,0.04f,4.5f);
 
+            if (mode != 2 && punchMobAt(x, y)) {
+                saveWorld();
+                invalidate();
+                return;
+            }
+
             if(mode==0) {
                 WorldBlock hit=findBlockAt(x,y);
                 if(hit!=null) {
@@ -946,15 +967,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                     setStatus(BLOCKS[selectedBlock]+" поставлен на расстоянии "+distanceMeters+" м");
                 } else setStatus("Достигнут лимит блоков");
             } else if(mode==1) {
-                WorldMob hit=findMobAt(x,y);
-                if(hit!=null) {
-                    hit.hp--;
-                    if(hit.hp<=0) {
-                        mobs.remove(hit);
-                        xp+=3;
-                        setStatus(MOBS[hit.type]+" побеждён  +3 XP");
-                    } else setStatus(MOBS[hit.type]+"  HP "+hit.hp+"/5");
-                } else if(mobs.size()<30) {
+                if(mobs.size()<30) {
                     mobs.add(new WorldMob(selectedMob,wx,wz));
                     setStatus(MOBS[selectedMob]+" появился и идёт к тебе");
                 } else setStatus("Слишком много мобов рядом");
@@ -978,18 +991,42 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
 
         private WorldMob findMobAt(float x,float y) {
-            WorldMob best=null;float bestDist=Float.MAX_VALUE;
+            WorldMob best=null;
+            float bestDist=Float.MAX_VALUE;
             for(WorldMob m:mobs) {
-                float halfW=Math.max(22*density,m.lastScreenWidth*0.7f);
-                float top=m.lastScreenBaseY-m.lastScreenHeight;
+                if (!m.screenVisible) continue;
+
+                // Give small/distant mobs a comfortable finger-sized hit area without
+                // making the visual character itself larger or moving its world position.
+                float halfW=Math.max(38*density,m.lastScreenWidth*0.82f);
+                float hitHeight=Math.max(78*density,m.lastScreenHeight);
+                float top=m.lastScreenBaseY-hitHeight-7*density;
+                float bottom=m.lastScreenBaseY+12*density;
                 if(x>=m.lastScreenX-halfW && x<=m.lastScreenX+halfW &&
-                        y>=top && y<=m.lastScreenBaseY) {
-                    float d2=(x-m.lastScreenX)*(x-m.lastScreenX)+
-                            (y-(top+m.lastScreenBaseY)*0.5f)*(y-(top+m.lastScreenBaseY)*0.5f);
-                    if(d2<bestDist){best=m;bestDist=d2;}
+                        y>=top && y<=bottom) {
+                    float nx=(x-m.lastScreenX)/Math.max(1f,halfW);
+                    float ny=(y-(top+bottom)*0.5f)/Math.max(1f,(bottom-top)*0.5f);
+                    float score=nx*nx+ny*ny;
+                    if(score<bestDist){best=m;bestDist=score;}
                 }
             }
             return best;
+        }
+
+        private boolean punchMobAt(float x,float y) {
+            WorldMob hit=findMobAt(x,y);
+            if(hit==null) return false;
+
+            hit.lastHitAt=System.currentTimeMillis();
+            hit.hp--;
+            if(hit.hp<=0) {
+                mobs.remove(hit);
+                xp+=3;
+                setStatus("✊ " + MOBS[hit.type] + " побеждён  +3 XP");
+            } else {
+                setStatus("✊ УДАР! " + MOBS[hit.type] + " — HP " + hit.hp + "/5");
+            }
+            return true;
         }
 
         @Override public boolean onTouchEvent(android.view.MotionEvent e) {
@@ -1099,6 +1136,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         static final class WorldMob {
             final int type; float x,z; int hp=5; long lastAttack=0;
             float lastScreenX,lastScreenBaseY,lastScreenHeight,lastScreenWidth;
+            long lastHitAt=0;
+            boolean screenVisible=false;
             WorldMob(int t,float px,float pz){type=t;x=px;z=pz;}
         }
         static final class FriendTag {

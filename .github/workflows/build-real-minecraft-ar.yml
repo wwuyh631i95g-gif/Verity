@@ -1,4 +1,4 @@
-name: Build BlockWorld AR V3 APK
+name: Build BlockWorld AR V4 APK
 
 on:
   workflow_dispatch:
@@ -27,7 +27,7 @@ jobs:
           java-version: "17"
 
       - name: Install Android SDK 35
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
@@ -40,12 +40,12 @@ jobs:
         run: gradle --no-daemon --stacktrace -p RealMinecraftAR :app:assembleDebug
 
       - name: Package standalone source
-        run: zip -qr /tmp/BlockWorld-AR-V3-Source.zip RealMinecraftAR -x "RealMinecraftAR/.gradle/*" "RealMinecraftAR/app/build/*"
+        run: zip -qr /tmp/BlockWorld-AR-V4-Source.zip RealMinecraftAR -x "RealMinecraftAR/.gradle/*" "RealMinecraftAR/app/build/*"
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: BlockWorld-AR-v3-APK
+          name: BlockWorld-AR-v4-APK
           path: RealMinecraftAR/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
@@ -53,7 +53,7 @@ jobs:
       - name: Upload source project
         uses: actions/upload-artifact@v4
         with:
-          name: BlockWorld-AR-v3-Source
-          path: /tmp/BlockWorld-AR-V3-Source.zip
+          name: BlockWorld-AR-v4-Source
+          path: /tmp/BlockWorld-AR-V4-Source.zip
           if-no-files-found: error
           retention-days: 14
