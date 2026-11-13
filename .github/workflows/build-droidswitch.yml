@@ -1,0 +1,79 @@
+name: Build DroidSwitch APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "DroidSwitch/**"
+      - ".github/workflows/build-droidswitch.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-34 build-tools;34.0.0"
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Create Gradle wrapper
+        working-directory: DroidSwitch
+        run: gradle wrapper --gradle-version 8.7
+
+      - name: Build debug APK
+        working-directory: DroidSwitch
+        run: ./gradlew --no-daemon --stacktrace clean assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DroidSwitch-1.0.0-Android-APK
+          path: DroidSwitch/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Android 14 launch smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim
+          script: |
+            APK="DroidSwitch/app/build/outputs/apk/debug/app-debug.apk"
+            test -s "$APK"
+            adb install -r "$APK"
+            adb logcat -c
+            adb shell am start -W -n com.droidswitch.mobile/.MainActivity
+            sleep 6
+            if ! adb shell pidof com.droidswitch.mobile >/dev/null; then
+              adb logcat -d -t 3000
+              echo "DroidSwitch exited after launch"
+              exit 1
+            fi
+            adb logcat -d -t 3000 > /tmp/droidswitch-logcat.txt
+            if grep -E "FATAL EXCEPTION|Process: com.droidswitch.mobile" /tmp/droidswitch-logcat.txt; then
+              cat /tmp/droidswitch-logcat.txt
+              exit 1
+            fi
+            echo "DroidSwitch Android 14 launch smoke test passed"
