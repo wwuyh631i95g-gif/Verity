@@ -635,8 +635,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                     14*density, 14*density, p);
             drawText(c, "BLOCKWORLD AR  •  V3", 21*density, 25*density,
                     10*density, 0xffd4ead5, false);
-            drawText(c, "Шаги двигают тебя по миру  •  Дистанция: " + distanceMeters + " м",
-                    21*density, 43*density, 7.8f*density, 0xffd7e2d9, false);
+            String status = statusMessage.length() > 38 ? statusMessage.substring(0, 37) + "…" : statusMessage;
+            drawText(c, status, 21*density, 43*density,
+                    7.8f*density, 0xffd7e2d9, false);
+            drawText(c, distanceMeters + " м", w-20*density, 43*density,
+                    8*density, 0xffffe2a0, true);
 
             p.setTextSize(17*density);
             p.setColor(0xffff5656);
