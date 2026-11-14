@@ -1,54 +1,80 @@
-# TwinFold OS 0.4.0 — two-phone split-session prototype
+# TwinFold OS 0.5.0 — paired two-phone workspace and split-view prototype
 
-TwinFold OS is an Android app that pairs two phones into a shared launcher/workspace. The first target device is HONOR X8b / Android 14. Install the same APK on both phones and pair them over the same local Wi-Fi network.
+TwinFold OS is an Android app installed on both phones. After pairing the two devices over the same local Wi-Fi network, it provides a shared launcher-style workspace plus an optional companion split-view session for an app running on one phone. The first target is HONOR X8b / Android 14.
 
-## New in 0.4.0: choose normal launch or two-phone split session
+## 0.5.0 — split-mode input improvements
 
-When you tap an app icon in TwinFold, you can choose:
-- **Normal launch** — open the app locally on the phone that owns that icon.
-- **On two phones** — launch the app on the owning phone, start a consent-based screen capture, and automatically open a fullscreen companion view on the partner phone. The partner receives the selected half of the source display. If the owner enables TwinFold Control in Android Accessibility settings, taps and one-finger swipes on the partner view are sent back to the running app on the source phone.
+When an app icon is tapped, choose Normal launch or On two phones. In the second mode, one phone launches the selected app and captures its display; the partner automatically opens a fullscreen view of the chosen left/right/top/bottom crop.
 
-The split side is selectable (left, right, top, or bottom) using the existing remote-side setting. The partner view hides system bars and stretches the selected crop to fill its display. The session stops when the user returns to TwinFold on the source phone, or when the partner exits the viewer.
+New in 0.5.0:
+- The companion viewer records multiple simultaneous pointer contacts, not just a single finger.
+- It groups the finger paths from one complete touch sequence and sends them as one multi-stroke gesture.
+- The source phone maps each pointer path into the chosen half of its own display and dispatches the simultaneous strokes through Android's Accessibility gesture API.
+- This enables grouped multi-finger taps, two-finger gestures, and button combinations to be represented in one dispatched gesture.
+- The stream is tuned for a target of roughly 13 FPS, with crops scaled up to 960 pixels on the long edge and JPEG quality 54. Actual rate depends on Wi-Fi, phone load, thermal state and Android screen-capture behavior.
+- The remote viewer stays fullscreen; a user can touch the partner display without having to switch back and forth to the TwinFold interface.
+- TwinFold Control is opt-in in Android Accessibility settings. It does not request window-content access or read screen text.
 
-## Important: what this split mode does and does not do
+### Important limits of touch forwarding
 
-This is the closest practical split-session that an ordinary Android APK can provide without system privileges:
-- the source phone still runs and displays the original app in the foreground;
-- the second phone receives a live cropped copy of the selected half;
-- partner touch gestures are mapped back into the corresponding half of the source phone's display through the user-enabled accessibility service;
-- pairing, app-library page changes, ownership and notes remain synchronized through TwinFold.
+This is still an APK-level companion view, not a real extended Android display. Android's public AccessibilityService dispatchGesture() API dispatches finite gestures, and the Android documentation states that dispatching a new gesture cancels gestures already in progress, including user gestures. Therefore 0.5.0 sends a completed multi-finger touch sequence after the fingers are lifted. It is not a continuous low-latency stream of live touch-down/move/up events. Held virtual joysticks, simultaneous live local-plus-remote touches, rapid game controls, pressure/analog input, and some games may not behave like a native tablet. The source phone continues to render the original application on its own screen; the second phone receives a cropped image stream.
 
-It is **not** a true extended Android display or a single wider tablet canvas. Android continues to render the third-party app on the source phone's own display. The app is not being asked to render a native 2-screen-wide layout, and the source phone is not physically clipped to show only its half. This means some games may not feel seamless: aspect ratio, frame rate, latency, secure windows, multi-touch controls, DRM video, and apps that pause when they lose focus can limit the experience. The remote gesture bridge supports one-finger tap/swipe paths; it is not a full multi-touch or game-controller emulator.
+A true one-canvas tablet mode with live independent multi-touch from both screens needs privileged OS/vendor-level input and multi-display integration. An ordinary Android APK cannot safely or reliably inject arbitrary simultaneous live touchscreen streams into every third-party app.
 
-A genuine native app spanning two phone displays would require OS/vendor-level multi-display support or privileged system integration on both phones. An ordinary APK cannot turn two independent Android displays into one system-wide display.
+The normal-launch mode remains available without enabling TwinFold Control. Screen capture requires the Android MediaProjection approval prompt on the source phone. The second phone needs the same TwinFold version and a live paired connection.
 
-## TwinFold Control permission
+## Previous versions and retained features
 
-For interactive split sessions, enable **TwinFold Control** in Android Settings → Accessibility on the source phone. It declares gesture-injection capability but does not request window-content access or read screen text. Android requires the user to enable this service manually. If it is not enabled, the split session still works as a view-only companion stream.
+### 0.2.x — paired workspace foundation
+- Pair two phones over the same local Wi-Fi network using the first phone's IP address and six-digit room code.
+- Maintain a TCP connection for messages and frame transfer.
+- Give each phone a persistent local device ID.
+- Show a package/app catalogue exposed by Android, with search and paged app grid.
+- Choose physical device arrangement: left-to-right, right-to-left, top-to-bottom or bottom-to-top.
+- Show local and partner device panels and allow drag-and-drop of an app tile to the partner.
+- Ask the receiving user to approve a move.
+- If the app already exists on the receiving phone, move only its TwinFold desktop ownership; do not uninstall the original copy.
+- If the app is missing on the receiving phone, offer to send its base APK and split APK files over the local Wi-Fi connection.
+- Request permission to install unknown apps when Android requires it, then use Android PackageInstaller and require its confirmation.
+- Launch an app on the phone that owns its TwinFold icon.
+- Share simple text notes between the two devices.
+- Share a cropped screen using Android MediaProjection, a visible foreground-service notification, a selectable crop and a fullscreen receiving view.
+- Explicitly disconnect the paired devices.
 
-The normal launch option does not require this accessibility service.
+### 0.3.0 — shared app ownership and transfer
+- Exchange installed-app catalogues when phones connect.
+- Create a shared ownership map so each app icon is assigned to one phone and is not duplicated across the two TwinFold home spaces.
+- Keep the ownership map on both phones for reconnection.
+- Synchronize icon ownership after a recipient approves a move.
+- Transfer app base/split APKs when the receiving device does not have the app, then move the shared icon after Android reports a successful install.
+- Keep the app installed on its original phone when only its shared desktop icon is moved.
+- Synchronize app-library page changes.
+- Retain the earlier screen crop stream and shared notes.
 
-## Existing features retained
+### 0.4.0 — selectable two-phone split session
+- Ask on each app launch whether to open it normally or use the two-phone split session.
+- In split mode, ask Android for MediaProjection permission and launch the app on the source phone.
+- Tell the partner to open a fullscreen companion viewer.
+- Select which half is sent: left, right, top or bottom.
+- Hide system bars in the companion viewer and display the incoming crop edge-to-edge.
+- Provide an optional TwinFold Control Accessibility service to send gestures back to the source phone.
+- End the companion view when the partner exits or the source returns to TwinFold.
 
-- Local Wi-Fi pairing with IP and six-digit room code.
-- Shared launcher catalogue and ownership map so each app icon appears on one side.
-- Move app icons between sides, with recipient approval.
-- Optional APK and split-APK transfer using Android PackageInstaller confirmation.
-- Synchronized app-library page changes.
-- Left/right and top/bottom physical layout selector.
-- Legacy screen crop stream and fullscreen receiver.
-- Shared text notes and explicit disconnect.
+### 0.5.0 — multi-touch sequence forwarding
+- Track up to ten pointer contacts in one remote touch sequence.
+- Preserve each finger's start delay, duration and sampled path.
+- Dispatch multiple strokes together through AccessibilityService.
+- Raise the capture crop scale and stream refresh target for a clearer, smoother companion view.
 
-## Package transfer limits
+## APK and transfer limitations
+- Android may hide or protect some installed packages. Not every listed system package has a launchable activity.
+- Some apps cannot be transferred because their APKs are unreadable, split sets are incomplete, signatures differ, or the destination device is incompatible.
+- APK installation always uses Android's own installer confirmation. TwinFold does not bypass signatures or system restrictions.
+- Secure/DRM app surfaces can appear black or blank in MediaProjection captures.
+- Network speed and phone performance affect the stream's quality and delay.
 
-Some protected system packages cannot be read by a normal app. Some installations require device-specific APK splits, matching signatures, architecture compatibility or manufacturer permissions. TwinFold never bypasses Android signature or installation checks.
-
-## Build
-
-- Java 17
-- Android Gradle Plugin 8.6.1
-- Compile SDK 34, target SDK 34, minimum SDK 26
-- Gradle 8.7
-- GitHub Actions validates the APK and performs an Android 14 emulator launch smoke test.
-
-Application ID: `com.twinfold.duolink`
+## Build configuration
+- Application ID: com.twinfold.duolink
+- Java 17; Android Gradle Plugin 8.6.1; Gradle 8.7
+- Compile SDK 34; target SDK 34; minimum SDK 26
+- GitHub Actions builds and checks the APK archive and package metadata, then attempts an Android 14 emulator launch smoke test.
