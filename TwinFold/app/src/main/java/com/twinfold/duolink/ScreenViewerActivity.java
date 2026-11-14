@@ -41,7 +41,9 @@ public class ScreenViewerActivity extends Activity {
         root.setBackgroundColor(Color.BLACK);
         image = new ImageView(this);
         image.setScaleType(ImageView.ScaleType.FIT_XY);
-        root.addView(image, new FrameLayout.LayoutParams(-1, -1));
+        FrameLayout.LayoutParams imageLp = new FrameLayout.LayoutParams(-1, -1);
+        imageLp.topMargin = dp(44);
+        root.addView(image, imageLp);
 
         TextView label = new TextView(this);
         label.setText(controlEnabled
@@ -65,19 +67,18 @@ public class ScreenViewerActivity extends Activity {
     private boolean handleTouch(MotionEvent event) {
         if (!controlEnabled) return false;
         float width = Math.max(1f, image.getWidth());
-        float headerHeight = dp(44);
-        float height = Math.max(1f, image.getHeight() - headerHeight);
+        float height = Math.max(1f, image.getHeight());
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 downX = clamp(event.getX() / width);
-                downY = clamp((event.getY() - headerHeight) / height);
+                downY = clamp(event.getY() / height);
                 downAt = event.getEventTime();
                 return true;
             case MotionEvent.ACTION_MOVE:
                 return true;
             case MotionEvent.ACTION_UP:
                 float x = clamp(event.getX() / width);
-                float y = clamp((event.getY() - headerHeight) / height);
+                float y = clamp(event.getY() / height);
                 long duration = Math.max(50L, Math.min(1200L, event.getEventTime() - downAt));
                 MainActivity.sendSplitGesture(downX, downY, x, y, duration);
                 return true;
