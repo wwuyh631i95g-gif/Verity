@@ -20,6 +20,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".AssistantActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:configChanges="keyboardHidden|orientation|screenSize" />
         <service
             android:name=".IslandOverlayService"
             android:exported="false"
