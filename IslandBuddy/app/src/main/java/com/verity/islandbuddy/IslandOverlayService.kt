@@ -7,12 +7,20 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.IBinder
+import android.os.Bundle
+import android.Manifest
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.speech.tts.TextToSpeech
+import java.util.Locale
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -39,9 +47,18 @@ class IslandOverlayService : Service() {
     private var savedAnimationMode = 0
     private var savedAccessory = 0
 
+    private var speechRecognizer: SpeechRecognizer? = null
+    private var isListening = false
+    private var isThinking = false
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
+    private var pendingSpeech: String? = null
+    private val chatHistory = mutableListOf<Pair<String, String>>()
+
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        initTts()
         createNotificationChannel()
         startAsForeground()
     }
@@ -61,7 +78,9 @@ class IslandOverlayService : Service() {
             .setContentIntent(pending)
             .build()
         if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            val types = ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            startForeground(NOTIFICATION_ID, notification, types)
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
@@ -161,17 +180,122 @@ class IslandOverlayService : Service() {
         }
     }
 
+    // Голос распознаётся прямо внутри overlay-сервиса: пользователь остаётся в текущем приложении.
     private fun openAssistant() {
-        val intent = Intent(this, AssistantActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        if (isListening) {
+            try { speechRecognizer?.stopListening() } catch (_: Exception) {}
+            isListening = false
+            showReplyBubble("Бадди: Остановил прослушивание.")
+            return
         }
-        // Показываем мгновенную реакцию даже пока экран голосового помощника открывается.
-        showReplyBubble("Бадди: О, привет! Я слушаю тебя…")
+        if (isThinking) {
+            showReplyBubble("Бадди: Я уже думаю над твоим вопросом. Секундочку!")
+            return
+        }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            showReplyBubble("Бадди: Открой Island Buddy и разреши микрофон, тогда я смогу слушать тебя поверх приложений.")
+            return
+        }
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            showReplyBubble("Бадди: Не нашёл голосовой сервис на телефоне. Проверь голосовой ввод Google.")
+            return
+        }
         try {
-            startActivity(intent)
+            if (speechRecognizer == null) {
+                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+                speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) { isListening = true; showReplyBubble("Бадди: Слушаю тебя! Говори…") }
+                    override fun onBeginningOfSpeech() { showReplyBubble("Бадди: Ага, слышу тебя!") }
+                    override fun onRmsChanged(rmsdB: Float) {}
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+                    override fun onEndOfSpeech() { isListening = false; showReplyBubble("Бадди: Сейчас подумаю…") }
+                    override fun onError(error: Int) {
+                        isListening = false
+                        val msg = when (error) {
+                            SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Бадди: Не расслышал. Нажми на меня и попробуй ещё раз."
+                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Бадди: Мне нужен доступ к микрофону. Разреши его в настройках."
+                            else -> "Бадди: Голосовой ввод прервался. Нажми на меня, чтобы повторить."
+                        }
+                        showReplyBubble(msg)
+                    }
+                    override fun onResults(results: Bundle?) {
+                        isListening = false
+                        val question = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim().orEmpty()
+                        if (question.isBlank()) showReplyBubble("Бадди: Не расслышал вопрос. Давай ещё раз!")
+                        else answerQuestion(question)
+                    }
+                    override fun onPartialResults(partialResults: Bundle?) {}
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+                })
+            }
+            val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ru-RU")
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "ru-RU")
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+            }
+            isListening = true
+            showReplyBubble("Бадди: Слушаю тебя! Говори…")
+            speechRecognizer?.startListening(speechIntent)
         } catch (_: Exception) {
-            showReplyBubble("Бадди: Не получилось открыть голосовой экран. Запусти Island Buddy из списка приложений.")
+            isListening = false
+            showReplyBubble("Бадди: Не удалось включить микрофон. Проверь разрешения и голосовой сервис.")
         }
+    }
+
+    private fun answerQuestion(question: String) {
+        isThinking = true
+        chatHistory.add("user" to question)
+        showReplyBubble("Бадди: Хм… дай-ка подумать.")
+        val key = SecretBox.load(this)
+        if (key.isBlank()) {
+            val local = AssistantLogic.localReply(question)
+            chatHistory.add("assistant" to local)
+            finishAnswer(local)
+            return
+        }
+        val prefs = getSharedPreferences("island_buddy_settings", MODE_PRIVATE)
+        val endpoint = prefs.getString("endpoint", "https://openrouter.ai/api/v1/chat/completions") ?: "https://openrouter.ai/api/v1/chat/completions"
+        val model = prefs.getString("model", "openrouter/auto") ?: "openrouter/auto"
+        AiClient.ask(endpoint, model, key, chatHistory.toList()) { answer, error ->
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                if (answer != null) {
+                    chatHistory.add("assistant" to answer)
+                    finishAnswer(answer)
+                } else finishAnswer("Упс, не получилось получить ответ. Проверь интернет и настройки ИИ. " + (error ?: ""))
+            }
+        }
+    }
+
+    private fun finishAnswer(answer: String) {
+        isThinking = false
+        showReplyBubble("Бадди: " + answer)
+        speak(answer)
+    }
+
+    private fun initTts() {
+        try {
+            tts = TextToSpeech(this) { status ->
+                ttsReady = status == TextToSpeech.SUCCESS
+                if (ttsReady) {
+                    val lang = tts?.setLanguage(Locale("ru", "RU")) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                    ttsReady = lang >= TextToSpeech.LANG_AVAILABLE
+                    tts?.setSpeechRate(1.02f)
+                    tts?.setPitch(1.08f)
+                    val pending = pendingSpeech
+                    pendingSpeech = null
+                    if (ttsReady && !pending.isNullOrBlank()) tts?.speak(pending, TextToSpeech.QUEUE_FLUSH, null, "buddy-answer")
+                }
+            }
+        } catch (_: Exception) { ttsReady = false }
+    }
+
+    private fun speak(text: String) {
+        if (tts == null) initTts()
+        if (ttsReady) tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "buddy-answer")
+        else pendingSpeech = text
     }
 
     private fun showReplyBubble(message: String) {
@@ -244,6 +368,10 @@ class IslandOverlayService : Service() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     override fun onDestroy() {
+        try { speechRecognizer?.cancel(); speechRecognizer?.destroy() } catch (_: Exception) {}
+        speechRecognizer = null
+        try { tts?.stop(); tts?.shutdown() } catch (_: Exception) {}
+        tts = null
         removeReplyBubble()
         islandView?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
         islandView = null
