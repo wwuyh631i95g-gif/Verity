@@ -777,7 +777,7 @@ public class MainActivity extends Activity {
     private void saveOwnerMap() {
         StringBuilder out = new StringBuilder();
         for (Map.Entry<String,String> entry : appOwners.entrySet()) {
-            out.append(entry.getKey()).append("\\t").append(entry.getValue()).append("\\n");
+            out.append(entry.getKey()).append("\t").append(entry.getValue()).append("\n");
         }
         prefs.edit().putString("app_owners", out.toString()).apply();
     }
@@ -785,7 +785,7 @@ public class MainActivity extends Activity {
     private String serializeOwnerMap() {
         StringBuilder out = new StringBuilder();
         for (Map.Entry<String,String> entry : appOwners.entrySet()) {
-            out.append(entry.getKey()).append("\\t").append(entry.getValue()).append("\\n");
+            out.append(entry.getKey()).append("\t").append(entry.getValue()).append("\n");
         }
         return out.toString();
     }
@@ -823,8 +823,8 @@ public class MainActivity extends Activity {
         StringBuilder data = new StringBuilder();
         for (ApplicationInfo info : allApps) {
             String label = String.valueOf(getPackageManager().getApplicationLabel(info))
-                    .replace("\\n", " ").replace("\\r", " ").replace("\\t", " ");
-            data.append(info.packageName).append("\\t").append(label).append("\\n");
+                    .replace("\n", " ").replace("\r", " ").replace("\t", " ");
+            data.append(info.packageName).append("\t").append(label).append("\n");
         }
         sendRaw("CATALOG|" + enc(data.toString()));
     }
