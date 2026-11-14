@@ -638,7 +638,7 @@ public class MainActivity extends Activity {
                 Toast.makeText(this,"У этого системного пакета нет отдельного ярлыка запуска.",Toast.LENGTH_SHORT).show();
                 return;
             }
-            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            launch.setFlags(launch.getFlags() & ~(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED));
             startActivity(launch);
         } catch(Exception e) {
             Toast.makeText(this,"Не удалось открыть это приложение на данном телефоне.",Toast.LENGTH_SHORT).show();
@@ -930,7 +930,7 @@ public class MainActivity extends Activity {
             String mapData = dec(payload);
             main.post(() -> applyOwnerMap(mapData));
         } else if(type.equals("OWNER")) {
-            String[] p = payload.split("\\\\|",2);
+            String[] p = payload.split("\\|",2);
             if (p.length == 2) {
                 String pkg = dec(p[0]), owner = dec(p[1]);
                 main.post(() -> { appOwners.put(pkg, owner); saveOwnerMap(); filterApps(); renderApps(); });
