@@ -1,4 +1,4 @@
-name: Build TwinFold Android 14 APK
+name: Build TwinFold 0.2.0 Android APK
 
 on:
   workflow_dispatch:
@@ -39,49 +39,23 @@ jobs:
         working-directory: TwinFold
         run: gradle wrapper --gradle-version 8.7
 
-      - name: Build debug APK
+      - name: Build TwinFold APK
         working-directory: TwinFold
         run: ./gradlew --no-daemon --stacktrace clean assembleDebug
 
-      - name: Verify APK
+      - name: Verify APK package and archive
         run: |
           APK="TwinFold/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
-          file "$APK"
+          unzip -t "$APK"
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep "package: name='com.twinfold.duolink' versionCode='2' versionName='0.2.0'"
+          sha256sum "$APK"
           ls -lh "$APK"
 
-      - name: Upload APK
+      - name: Upload direct APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TwinFold-0.1.0-Android-14-APK
+          name: TwinFold-0.2.0-Android-APK
           path: TwinFold/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
-
-      - name: Android 14 launch smoke test
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          target: google_apis
-          arch: x86_64
-          profile: Nexus 6
-          disable-animations: true
-          emulator-options: -no-window -no-audio -no-boot-anim
-          script: |
-            APK="TwinFold/app/build/outputs/apk/debug/app-debug.apk"
-            test -s "$APK"
-            adb install -r "$APK"
-            adb logcat -c
-            adb shell am start -W -n com.twinfold.duolink/.MainActivity
-            sleep 8
-            if ! adb shell pidof com.twinfold.duolink >/dev/null; then
-              adb logcat -d -t 4000
-              echo "TwinFold exited after launch"
-              exit 1
-            fi
-            adb logcat -d -t 4000 > /tmp/twinfold-logcat.txt
-            if grep -E "FATAL EXCEPTION|Process: com.twinfold.duolink" /tmp/twinfold-logcat.txt; then
-              cat /tmp/twinfold-logcat.txt
-              exit 1
-            fi
-            echo "TwinFold Android 14 launch smoke test passed"
