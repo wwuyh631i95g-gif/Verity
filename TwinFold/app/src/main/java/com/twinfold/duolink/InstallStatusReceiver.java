@@ -21,9 +21,10 @@ public class InstallStatusReceiver extends BroadcastReceiver {
             return;
         }
         boolean success = status == PackageInstaller.STATUS_SUCCESS;
-        if (success && pkg != null && !pkg.isEmpty()) {
+        if (pkg != null && !pkg.isEmpty()) {
             SharedPreferences prefs = context.getSharedPreferences("twinfold", Context.MODE_PRIVATE);
-            prefs.edit().putString("installed_move_pending", pkg).apply();
+            if (success) prefs.edit().putString("installed_move_pending", pkg).apply();
+            else prefs.edit().remove("pending_move_package").remove("installed_move_pending").apply();
         }
         Intent complete = new Intent("com.twinfold.duolink.INSTALL_COMPLETE");
         complete.setPackage(context.getPackageName());
