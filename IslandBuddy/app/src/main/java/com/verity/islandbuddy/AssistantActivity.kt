@@ -96,7 +96,7 @@ class AssistantActivity : Activity() {
             setPadding(dp(8), dp(26), dp(8), dp(26))
             text = "Слушаю тебя…"
         }
-        page.addView(statusView, LinearLayout.LayoutParams(-1, 0, 1f))
+        page.addView(statusView!!, LinearLayout.LayoutParams(-1, 0, 1f))
 
         input = EditText(this).apply {
             hint = "Или напиши сообщение…"
@@ -109,12 +109,12 @@ class AssistantActivity : Activity() {
             setSingleLine(false)
             setOnEditorActionListener { _, actionId, _ ->
                 if (actionId == EditorInfo.IME_ACTION_SEND) {
-                    sendQuestion(text?.toString().orEmpty())
+                    sendQuestion(input?.text?.toString().orEmpty())
                     true
                 } else false
             }
         }
-        page.addView(input, LinearLayout.LayoutParams(-1, dp(54)))
+        page.addView(input!!, LinearLayout.LayoutParams(-1, dp(54)))
 
         val buttons = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -135,7 +135,7 @@ class AssistantActivity : Activity() {
             setOnClickListener { sendQuestion(input?.text?.toString().orEmpty()) }
         }
         buttons.addView(voice, LinearLayout.LayoutParams(0, dp(52), 1f).apply { marginEnd = dp(5) })
-        buttons.addView(sendButton, LinearLayout.LayoutParams(0, dp(52), 1f).apply { marginStart = dp(5) })
+        buttons.addView(sendButton!!, LinearLayout.LayoutParams(0, dp(52), 1f).apply { marginStart = dp(5) })
         page.addView(buttons)
 
         page.addView(TextView(this).apply {
