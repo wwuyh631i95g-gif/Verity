@@ -1,4 +1,4 @@
-name: Build TwinFold OS 0.3.0 Android APK
+name: Build TwinFold OS 0.4.0 Android APK
 
 on:
   workflow_dispatch:
@@ -48,14 +48,14 @@ jobs:
           APK="TwinFold/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           unzip -t "$APK"
-          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep "package: name='com.twinfold.duolink' versionCode='3' versionName='0.3.0'"
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep "package: name='com.twinfold.duolink' versionCode='4' versionName='0.4.0'"
           sha256sum "$APK"
           ls -lh "$APK"
 
       - name: Upload direct APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TwinFold-0.3.0-Android-APK
+          name: TwinFold-0.4.0-Android-APK
           path: TwinFold/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
