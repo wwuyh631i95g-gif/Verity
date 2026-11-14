@@ -1,33 +1,46 @@
-# TwinFold 0.2.0 — Android 14 dual-device prototype
+# TwinFold OS 0.3.0 — shared two-phone desktop prototype
 
-TwinFold is an app-level companion workspace for two Android phones. Pair devices only with the knowledge and consent of both owners. The first target is HONOR X8b / Android 14; other Android 8.0+ devices may work, subject to OEM limits.
+TwinFold OS is an Android app that provides a paired launcher-style workspace for two phones. It is designed for use by the owners of both phones with explicit consent. The first target is HONOR X8b / Android 14; other Android devices may work subject to their firmware and manufacturer restrictions.
 
-## Included in 0.2.0
+## New in 0.3.0: one shared app desktop
 
-- Local Wi-Fi pairing with a six-digit room code.
-- App library built from installed application packages, with search, icons and multiple pages. The manifest requests QUERY_ALL_PACKAGES so sideloaded builds can enumerate packages; some applications still have no launcher activity.
-- Local app launch: tapping a tile launches the app on the phone whose TwinFold screen was tapped. Android system apps such as Google Play open on that same phone.
-- Synchronized app-library page changes between paired devices.
-- Drag an app tile to the other-device panel to request transfer of its APK package.
-- APK transfer includes base APK and split APK files. The receiving owner must accept the transfer; TwinFold then uses Android PackageInstaller. Android shows the install confirmation and the receiving owner must approve it. The receiving phone may ask the user to allow TwinFold as an install source.
-- Live screen capture through Android MediaProjection. The user starts the capture and approves Android's screen-sharing prompt. TwinFold runs a visible foreground service and sends one selected crop (left, right, top or bottom half) to the paired phone. Tap the preview to open a full-screen viewer.
-- Layout selector for left/right or top/bottom device placement.
-- Shared text notes and an explicit disconnect control.
+- Each phone gets a persistent device ID.
+- After pairing on the same Wi-Fi network, both phones exchange their installed-package catalogues.
+- When the same package is installed on both phones, the host randomly assigns its single TwinFold desktop icon to one of the two sides. Apps installed on only one phone stay assigned to that phone.
+- The owner map is saved on both devices and reused when reconnecting to the same partner.
+- Each side displays only the app icons assigned to that side while paired. The app remains installed on the original phone; moving its TwinFold icon does not uninstall it.
+- Drag an app tile across to the partner panel. The destination owner approves the move. If the package is already installed there, only the shared desktop ownership changes and the icon disappears from one side and appears on the other.
+- If it is not installed on the receiving phone, TwinFold can ask the source to transfer its base APK and split APK files. The receiver accepts the transfer, enables installation from TwinFold if Android requests it, and confirms the installation in Android's own installer. Only after successful installation is the icon moved.
+- Tapping an icon launches the app on the phone that owns that desktop icon. The launch is started from TwinFold's activity task so Back is intended to return to the TwinFold desktop, rather than require the user to find the app again.
+- Google Play and other system apps launch locally on the phone where their icon is assigned, where the package has a launchable activity.
 
-## Important platform boundaries
+## Retained from 0.2
 
-This is not a merged Android operating system and it does not create a true extended Android display. In this version, the source phone continues showing its app normally, while the partner phone receives a live cropped view of the selected half. Android does not offer ordinary apps a way to force arbitrary third-party apps and games to render across two independent physical displays as one native tablet canvas. This build does not inject touches from one phone into arbitrary apps on the other.
+- Pairing over a local Wi-Fi network with IP address and a six-digit code.
+- Search and paged library of packages returned by Android's installed-application query, including system packages where Android exposes them.
+- Layout selector for left/right and top/bottom physical phone arrangement.
+- Screen capture with the Android MediaProjection consent screen, visible foreground-service notification, and selectable left/right/top/bottom crop.
+- Fullscreen viewer for the half-screen stream received from the paired phone.
+- Shared text notes and explicit disconnect.
 
-APK transfer is a real file transfer and install flow, not a shortcut icon. Some packages cannot be exported by an ordinary app, some OEM/system applications are protected, and some APKs depend on device-specific splits, architecture or signatures. An APK may be rejected by Android if it is incompatible or its signing identity does not match an installed update. TwinFold never bypasses Android's package installer or signature checks.
+## Important platform boundary: this is not a true extended Android display
 
-Screen capture is visible and consent-based. Protected/secure apps may appear black or refuse capture. The stream is transmitted over the local Wi-Fi connection without an internet relay; use a trusted private network. Both devices must stay paired while transferring APKs or frames.
+A normal third-party Android app cannot merge two independent phones into one system-wide display or make an arbitrary third-party app such as YouTube or a game render one continuous native tablet canvas across both physical screens. TwinFold 0.3 does not claim to do that.
+
+The screen-share mode remains a consent-based cropped live copy: the source phone keeps showing its app, while the partner receives the selected half of the captured screen. The receiving phone can show that crop fullscreen. This is useful as a companion pane, but it is not the same as the app drawing its left half on one phone and its right half on the other, and touch input is not forwarded into arbitrary apps.
+
+A genuinely extended canvas for arbitrary apps would require operating-system/vendor support or a privileged system-level implementation on both devices. TwinFold cannot obtain that capability through an ordinary APK or accessibility permission.
+
+## Package transfer limits
+
+APK transfer is real file transfer through the local Wi-Fi connection and Android PackageInstaller, not a copied shortcut. Some protected system packages cannot be read by a normal app. Some installations require device-specific APK splits, matching signatures, architecture compatibility or manufacturer permissions. TwinFold never bypasses Android's signature or installation checks. Apps which have no launchable activity can be listed but will not open from a normal home-screen icon.
 
 ## Build
 
 - Java 17
 - Android Gradle Plugin 8.6.1
 - Compile SDK 34, target SDK 34, minimum SDK 26
-- Create Gradle wrapper with 8.7, then run clean assembleDebug.
-- GitHub Actions builds the APK and verifies its package metadata and ZIP structure.
+- Gradle 8.7 wrapper
+- GitHub Actions verifies APK metadata and archive structure, then performs an Android 14 emulator launch smoke test.
 
 Application ID: com.twinfold.duolink
