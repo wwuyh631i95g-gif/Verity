@@ -106,6 +106,7 @@ public class MainActivity extends Activity {
     private boolean isHost = false;
     private String pendingSplitLaunchPackage = "";
     private boolean splitExternalRunning = false;
+    private boolean waitingAccessibilitySettings = false;
     private int activeSplitSide = 0;
     private String pendingOfferPackage = "";
     private String approvedPackage = "";
@@ -667,16 +668,22 @@ public class MainActivity extends Activity {
                     .setPositiveButton("Понятно", null).show();
             return;
         }
+        pendingSplitLaunchPackage = pkg;
         if (!TwinFoldAccessibilityService.isEnabled(this)) {
             new AlertDialog.Builder(this)
                     .setTitle("Включить управление со второго телефона?")
                     .setMessage("Чтобы касания и свайпы со второго телефона передавались в игру, Android требует отдельно включить службу TwinFold Control в специальных возможностях. Служба только отправляет жесты в открытое приложение и не читает текст с экрана. Можно продолжить и без неё — тогда на втором телефоне будет только изображение.")
                     .setPositiveButton("Настроить управление", (d, w) -> {
+                        waitingAccessibilitySettings = true;
                         try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); }
-                        catch (Exception e) { Toast.makeText(this, "Не удалось открыть настройки специальных возможностей.", Toast.LENGTH_LONG).show(); }
+                        catch (Exception e) {
+                            waitingAccessibilitySettings = false;
+                            pendingSplitLaunchPackage = "";
+                            Toast.makeText(this, "Не удалось открыть настройки специальных возможностей.", Toast.LENGTH_LONG).show();
+                        }
                     })
                     .setNegativeButton("Только изображение", (d, w) -> requestSplitCapture(pkg))
-                    .setNeutralButton("Отмена", null)
+                    .setNeutralButton("Отмена", (d, w) -> pendingSplitLaunchPackage = "")
                     .show();
             return;
         }
@@ -1356,6 +1363,16 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        if (waitingAccessibilitySettings) {
+            waitingAccessibilitySettings = false;
+            if (TwinFoldAccessibilityService.isEnabled(this) && !pendingSplitLaunchPackage.isEmpty()) {
+                requestSplitCapture(pendingSplitLaunchPackage);
+            } else {
+                pendingSplitLaunchPackage = "";
+                Toast.makeText(this, "TwinFold Control не включена. Можно выбрать режим только с изображением или включить службу позже.", Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
         if (splitExternalRunning) {
             splitExternalRunning = false;
             sendRaw("SPLIT_END");
