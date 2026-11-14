@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.res.Configuration
 import android.content.pm.ServiceInfo
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -26,6 +27,7 @@ import java.util.Locale
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
@@ -122,8 +124,15 @@ class IslandOverlayService : Service() {
 
     private fun showOrUpdateIsland() {
         val density = resources.displayMetrics.density
-        val widthPx = (savedWidth * density).toInt()
-        val heightPx = (savedHeight * density).toInt()
+        val widthPx = (savedWidth * density).toInt().coerceAtLeast(1)
+        val heightPx = (savedHeight * density).toInt().coerceAtLeast(1)
+        val display = resources.displayMetrics
+        val maxX = ((display.widthPixels - widthPx) / 2).coerceAtLeast(0)
+        val maxY = (display.heightPixels - heightPx).coerceAtLeast(0)
+        // Старое смещение из альбомного режима может оказаться за краем
+        // портретного экрана. Ограничиваем окно видимой областью.
+        val safeX = (savedX * density).toInt().coerceIn(-maxX, maxX)
+        val safeY = (savedY * density).toInt().coerceIn(0, maxY)
 
         if (islandView == null) {
             val view = IslandFaceView(this).apply {
@@ -143,8 +152,8 @@ class IslandOverlayService : Service() {
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                x = (savedX * density).toInt()
-                y = (savedY * density).toInt()
+                x = safeX
+                y = safeY
                 if (Build.VERSION.SDK_INT >= 28) {
                     layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
                 }
@@ -152,10 +161,13 @@ class IslandOverlayService : Service() {
             }
             view.onOpenAssistant = { openAssistant() }
             view.onMoved = { dx, dy ->
-                lp.x += dx
-                lp.y += dy
-                savedX = (lp.x / density).toInt()
-                savedY = (lp.y / density).toInt().coerceAtLeast(0)
+                val currentDisplay = resources.displayMetrics
+                val currentMaxX = ((currentDisplay.widthPixels - lp.width) / 2).coerceAtLeast(0)
+                val currentMaxY = (currentDisplay.heightPixels - lp.height).coerceAtLeast(0)
+                lp.x = (lp.x + dx).coerceIn(-currentMaxX, currentMaxX)
+                lp.y = (lp.y + dy).coerceIn(0, currentMaxY)
+                savedX = (lp.x / resources.displayMetrics.density).toInt()
+                savedY = (lp.y / resources.displayMetrics.density).toInt().coerceAtLeast(0)
                 try { windowManager.updateViewLayout(view, lp) } catch (_: Exception) {}
             }
             islandView = view
@@ -172,8 +184,8 @@ class IslandOverlayService : Service() {
             val lp = islandParams ?: return
             lp.width = widthPx
             lp.height = heightPx
-            lp.x = (savedX * density).toInt()
-            lp.y = (savedY * density).toInt()
+            lp.x = safeX
+            lp.y = safeY
             view.style = savedStyle
             view.eyeColor = savedEyeColor
             view.animationsEnabled = savedAnimations
@@ -386,6 +398,14 @@ class IslandOverlayService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    // Пересчитываем окно островка при переходе между портретным и альбомным режимом.
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        mainHandler.postDelayed({
+            if (!serviceDestroyed && islandView != null) showOrUpdateIsland()
+        }, 120)
+    }
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= 26) {
             val channel = NotificationChannel(CHANNEL, "Island Buddy", NotificationManager.IMPORTANCE_LOW)
@@ -406,8 +426,18 @@ class IslandOverlayService : Service() {
         private var moved = false
         private var lastRawX = 0f
         private var lastRawY = 0f
+        // 7 физических пикселей слишком мало: дрожание пальца превращало
+        // обычный тап в перетаскивание. Минимум 12 dp плюс системный touch slop.
+        private val touchSlop = maxOf(
+            ViewConfiguration.get(context).scaledTouchSlop,
+            (12f * context.resources.displayMetrics.density).toInt()
+        )
 
-        init { setLayerType(View.LAYER_TYPE_SOFTWARE, null) }
+        init {
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+            isClickable = true
+            contentDescription = "Island Buddy — нажми, чтобы поговорить"
+        }
 
         override fun onDraw(canvas: android.graphics.Canvas) {
             super.onDraw(canvas)
@@ -429,18 +459,36 @@ class IslandOverlayService : Service() {
                     return true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    if (abs(event.rawX - downRawX) > 7f || abs(event.rawY - downRawY) > 7f) moved = true
-                    if (moved) {
-                        val dx = (event.rawX - lastRawX).toInt()
-                        val dy = (event.rawY - lastRawY).toInt()
-                        onMoved?.invoke(dx, dy)
-                        lastRawX = event.rawX
-                        lastRawY = event.rawY
+                    val currentX = event.rawX
+                    val currentY = event.rawY
+                    if (!moved) {
+                        val totalX = currentX - downRawX
+                        val totalY = currentY - downRawY
+                        if (totalX * totalX + totalY * totalY > touchSlop * touchSlop) {
+                            moved = true
+                            onMoved?.invoke(totalX.toInt(), totalY.toInt())
+                        }
+                    } else {
+                        onMoved?.invoke(
+                            (currentX - lastRawX).toInt(),
+                            (currentY - lastRawY).toInt()
+                        )
                     }
+                    lastRawX = currentX
+                    lastRawY = currentY
                     return true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!moved) performClick()
+                    val totalX = event.rawX - downRawX
+                    val totalY = event.rawY - downRawY
+                    if (!moved && totalX * totalX + totalY * totalY <= touchSlop * touchSlop) {
+                        performClick()
+                    }
+                    moved = false
+                    return true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    moved = false
                     return true
                 }
             }
