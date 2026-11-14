@@ -67,6 +67,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -94,6 +97,11 @@ public class MainActivity extends Activity {
     private volatile boolean allowRemoteLaunch = false;
 
     private String pairingPin = "";
+    private String localDeviceId = "";
+    private String remoteDeviceId = "";
+    private String pendingMovePackage = "";
+    private boolean pendingMoveInstall = false;
+    private boolean isHost = false;
     private String pendingOfferPackage = "";
     private String approvedPackage = "";
     private String pendingInstallPackage = "";
@@ -127,14 +135,20 @@ public class MainActivity extends Activity {
     private SharedPreferences prefs;
     private final List<ApplicationInfo> allApps = new ArrayList<>();
     private final List<ApplicationInfo> filteredApps = new ArrayList<>();
+    private final Set<String> remotePackages = new HashSet<>();
+    private final Map<String, String> remoteLabels = new HashMap<>();
+    private final Map<String, String> appOwners = new HashMap<>();
 
     private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             byte[] jpeg = intent.getByteArrayExtra(ScreenShareService.EXTRA_FRAME);
             if (jpeg == null || jpeg.length == 0) return;
-            if (paired) {
+            if (paired && frameBusy.compareAndSet(false, true)) {
                 final String encoded = Base64.encodeToString(jpeg, Base64.NO_WRAP);
-                io.execute(() -> sendRaw("FRAME|" + encoded));
+                io.execute(() -> {
+                    try { sendRaw("FRAME|" + encoded); }
+                    finally { frameBusy.set(false); }
+                });
             }
         }
     };
@@ -144,6 +158,12 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         prefs = getSharedPreferences("twinfold", MODE_PRIVATE);
+        localDeviceId = prefs.getString("device_id", "");
+        if (localDeviceId.isEmpty()) {
+            localDeviceId = UUID.randomUUID().toString();
+            prefs.edit().putString("device_id", localDeviceId).apply();
+        }
+        loadOwnerMap();
         allowRemoteLaunch = prefs.getBoolean("remote_launch", false);
         buildInterface();
         loadAllApps();
@@ -152,6 +172,14 @@ public class MainActivity extends Activity {
             registerReceiver(screenReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
         } else {
             registerReceiver(screenReceiver, filter);
+        }
+        IntentFilter installFilter = new IntentFilter("com.twinfold.duolink.INSTALL_COMPLETE");
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(installReceiver, installFilter, Context.RECEIVER_NOT_EXPORTED);
+        else registerReceiver(installReceiver, installFilter);
+        String completedMove = prefs.getString("installed_move_pending", "");
+        if (!completedMove.isEmpty()) {
+            setOwner(completedMove, localDeviceId);
+            prefs.edit().remove("installed_move_pending").apply();
         }
     }
 
@@ -168,7 +196,7 @@ public class MainActivity extends Activity {
         TextView brand = text("TWINFOLD", 28, TEXT, true);
         brand.setLetterSpacing(0.13f);
         page.addView(brand);
-        TextView sub = text("DUAL DEVICE WORKSPACE  •  0.2", 10, ACCENT, true);
+        TextView sub = text("DUAL DEVICE OPERATING SPACE  •  0.3", 10, ACCENT, true);
         sub.setLetterSpacing(0.1f);
         LinearLayout.LayoutParams subLp = params(-2, -2);
         subLp.topMargin = dp(4);
@@ -179,7 +207,7 @@ public class MainActivity extends Activity {
         statusLp.topMargin = dp(14);
         page.addView(statusText, statusLp);
 
-        TextView intro = text("Два Android-телефона соединяются в общее пространство TwinFold. Можно переносить APK с подтверждением установки и передавать живую часть экрана второго устройства.", 13, TEXT, false);
+        TextView intro = text("TwinFold OS объединяет два телефона в общий домашний экран: один ярлык принадлежит только одной стороне, приложения можно передавать, а выбранная часть экрана показывается на втором устройстве.", 13, TEXT, false);
         intro.setLineSpacing(dp(3), 1f);
         LinearLayout.LayoutParams introLp = params(-1, -2);
         introLp.topMargin = dp(8);
@@ -318,8 +346,8 @@ public class MainActivity extends Activity {
 
         LinearLayout appsCard = card();
         addTop(page, appsCard, 12);
-        appsCard.addView(text("5  •  ПОЛКА ВСЕХ ПРИЛОЖЕНИЙ", 12, ACCENT, true));
-        TextView appHelp = text("Показываются все найденные установленные пакеты, включая системные. Нажмите значок — откроется приложение на этом телефоне. Зажмите и перетащите на карточку второго телефона — отправится APK-пакет на установку.", 12, MUTED, false);
+        appsCard.addView(text("5  •  ЕДИНЫЙ ДОМАШНИЙ ЭКРАН", 12, ACCENT, true));
+        TextView appHelp = text("Здесь собраны найденные приложения обоих телефонов. При соединении каждый значок закрепляется только за одной стороной. Зажмите и перетащите значок на панель партнёра: если приложение уже есть у него, переместится только ярлык; если нет — можно передать APK и установить.", 12, MUTED, false);
         appHelp.setLineSpacing(dp(2), 1f);
         LinearLayout.LayoutParams ah = params(-1, -2);
         ah.topMargin = dp(6);
@@ -401,7 +429,7 @@ public class MainActivity extends Activity {
         nt.topMargin = dp(7);
         notesCard.addView(sharedNoteText, nt);
 
-        TextView foot = text("TWINFOLD 0.2  •  ANDROID 14 / HONOR FRIENDLY", 10, MUTED, false);
+        TextView foot = text("TWINFOLD OS 0.3  •  ANDROID 14 / HONOR X8b TARGET", 10, MUTED, false);
         foot.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams fl = params(-1, -2);
         fl.topMargin = dp(18);
@@ -437,7 +465,7 @@ public class MainActivity extends Activity {
                 if (e.getAction() == android.view.DragEvent.ACTION_DROP) {
                     panel.setBackground(round(Color.rgb(26,47,69),15));
                     CharSequence pkg = e.getClipData().getItemAt(0).getText();
-                    if (pkg != null) offerAppTransfer(pkg.toString());
+                    if (pkg != null) requestMoveToPeer(pkg.toString());
                 }
                 return true;
             });
@@ -523,6 +551,7 @@ public class MainActivity extends Activity {
                 for (ApplicationInfo info : list) if (!info.packageName.equals(getPackageName())) allApps.add(info);
                 filterApps();
                 renderApps();
+                if (paired) sendLocalCatalog();
             });
         });
     }
@@ -531,13 +560,14 @@ public class MainActivity extends Activity {
         filteredApps.clear();
         String query = searchInput == null ? "" : searchInput.getText().toString().trim().toLowerCase(Locale.ROOT);
         for (ApplicationInfo info : allApps) {
+            if (!isOwnedByMe(info.packageName)) continue;
             String label = String.valueOf(getPackageManager().getApplicationLabel(info));
             if (query.isEmpty() || label.toLowerCase(Locale.ROOT).contains(query) || info.packageName.toLowerCase(Locale.ROOT).contains(query))
                 filteredApps.add(info);
         }
         int max = Math.max(1, (filteredApps.size() + 14) / 15);
         pageNumber = Math.max(0, Math.min(pageNumber, max - 1));
-        if (appCountText != null) appCountText.setText("Найдено приложений: " + filteredApps.size() + " • всего установлено: " + allApps.size());
+        if (appCountText != null) appCountText.setText("На этой стороне: " + filteredApps.size() + " • установлено здесь: " + allApps.size() + (paired ? " • у партнёра: " + remotePackages.size() : " • подключите второй телефон для объединения"));
     }
 
     private void renderApps() {
@@ -573,7 +603,7 @@ public class MainActivity extends Activity {
             tile.setOnLongClickListener(v -> {
                 ClipData data = ClipData.newPlainText("TwinFold package",pkg);
                 tile.startDragAndDrop(data,new View.DragShadowBuilder(tile),null,0);
-                Toast.makeText(this,"Перетащите значок на сторону второго телефона для передачи APK",Toast.LENGTH_SHORT).show();
+                Toast.makeText(this,"Перетащите значок на сторону второго телефона, чтобы переместить его в общее пространство",Toast.LENGTH_SHORT).show();
                 return true;
             });
             LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(0,dp(76),1f);
