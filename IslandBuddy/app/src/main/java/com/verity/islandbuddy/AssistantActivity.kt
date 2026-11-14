@@ -253,8 +253,8 @@ class AssistantActivity : Activity() {
     private fun finishAnswer(answer: String) {
         listening = false
         sendButton?.isEnabled = true
-        status("Бадди: $$answer")
-        showBubble("Бадди: $$answer")
+        status("Бадди: $answer")
+        showBubble("Бадди: $answer")
         speak(answer)
     }
 
