@@ -10,7 +10,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.view.Gravity;
 import android.view.Surface;
-import android.view.SurfaceTexture;
+import android.graphics.SurfaceTexture;
 import android.view.TextureView;
 import android.view.View;
 import android.view.MotionEvent;
