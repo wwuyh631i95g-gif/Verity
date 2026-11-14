@@ -161,7 +161,11 @@ public class MainActivity extends Activity {
             if (success) {
                 setOwner(pkg, localDeviceId);
                 prefs.edit().remove("installed_move_pending").apply();
-                if (paired) sendRaw("MOVE_DONE|" + enc(pkg));
+                if (paired && pkg.equals(pendingMovePackage)) {
+                    sendRaw("MOVE_DONE|" + enc(pkg));
+                    prefs.edit().remove("pending_move_package").apply();
+                    pendingMovePackage = "";
+                }
                 loadAllApps();
                 Toast.makeText(MainActivity.this, "Приложение теперь находится на этой стороне TwinFold.", Toast.LENGTH_LONG).show();
             } else {
@@ -182,6 +186,7 @@ public class MainActivity extends Activity {
             prefs.edit().putString("device_id", localDeviceId).apply();
         }
         loadOwnerMap();
+        pendingMovePackage = prefs.getString("pending_move_package", "");
         allowRemoteLaunch = prefs.getBoolean("remote_launch", false);
         buildInterface();
         loadAllApps();
@@ -197,6 +202,7 @@ public class MainActivity extends Activity {
         String completedMove = prefs.getString("installed_move_pending", "");
         if (!completedMove.isEmpty()) {
             setOwner(completedMove, localDeviceId);
+            pendingMovePackage = prefs.getString("pending_move_package", completedMove);
             prefs.edit().remove("installed_move_pending").apply();
         }
     }
@@ -211,7 +217,7 @@ public class MainActivity extends Activity {
         scroll.addView(page);
         setContentView(scroll);
 
-        TextView brand = text("TWINFOLD", 28, TEXT, true);
+        TextView brand = text("TWINFOLD OS", 28, TEXT, true);
         brand.setLetterSpacing(0.13f);
         page.addView(brand);
         TextView sub = text("DUAL DEVICE OPERATING SPACE  •  0.3", 10, ACCENT, true);
@@ -320,7 +326,7 @@ public class MainActivity extends Activity {
         LinearLayout screenCard = card();
         addTop(page, screenCard, 12);
         screenCard.addView(text("4  •  ЖИВОЙ РАЗДЕЛЁННЫЙ ЭКРАН", 12, ACCENT, true));
-        TextView screenHelp = text("Разрешите захват экрана Android. TwinFold передаст второму телефону выбранную половину текущего изображения. Откройте нужную игру или приложение после запуска трансляции.", 12, MUTED, false);
+        TextView screenHelp = text("Разрешите захват экрана Android. TwinFold передаст на второй телефон выбранную половину текущего изображения, например часть видео. Это потоковая копия половины экрана, а не настоящее расширение дисплея для любой сторонней игры или приложения.", 12, MUTED, false);
         screenHelp.setLineSpacing(dp(2), 1f);
         LinearLayout.LayoutParams sh = params(-1, -2);
         sh.topMargin = dp(6);
@@ -747,6 +753,13 @@ public class MainActivity extends Activity {
             connectionInfo.setText("Соединено с " + other + "\nОбщий каталог синхронизируется. Ярлыки распределяются между сторонами.");
             filterApps(); renderApps();
             sendLocalCatalog();
+            String completedMove = prefs.getString("pending_move_package", "");
+            if (!completedMove.isEmpty()) {
+                setOwner(completedMove, localDeviceId);
+                sendRaw("MOVE_DONE|" + enc(completedMove));
+                prefs.edit().remove("pending_move_package").apply();
+                pendingMovePackage = "";
+            }
         });
         io.execute(()->{
             try {
@@ -1231,6 +1244,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onDestroy() {
         try{unregisterReceiver(screenReceiver);}catch(Exception ignored){}
+        try{unregisterReceiver(installReceiver);}catch(Exception ignored){}
         disconnectPeer();
         try { stopService(new Intent(this, ScreenShareService.class)); } catch(Exception ignored) {}
         io.shutdownNow();
