@@ -115,7 +115,7 @@ public class ScreenShareService extends Service {
         Bitmap crop = null;
         try {
             long now = System.currentTimeMillis();
-            if (now - lastFrameAt < 360) {
+            if (now - lastFrameAt < 180) {
                 image = reader.acquireLatestImage();
                 if (image != null) image.close();
                 return;
@@ -143,8 +143,8 @@ public class ScreenShareService extends Service {
 
             crop = Bitmap.createBitmap(full, cropX, cropY, cropW, cropH);
             int maxSide = Math.max(crop.getWidth(), crop.getHeight());
-            if (maxSide > 640) {
-                float factor = 640f / maxSide;
+            if (maxSide > 800) {
+                float factor = 800f / maxSide;
                 Bitmap scaled = Bitmap.createScaledBitmap(
                         crop,
                         Math.max(1, Math.round(crop.getWidth() * factor)),
@@ -158,7 +158,7 @@ public class ScreenShareService extends Service {
             }
 
             ByteArrayOutputStream out = new ByteArrayOutputStream(48 * 1024);
-            crop.compress(Bitmap.CompressFormat.JPEG, 48, out);
+            crop.compress(Bitmap.CompressFormat.JPEG, 52, out);
             byte[] jpeg = out.toByteArray();
             if (jpeg.length > 0 && !stopped) {
                 Intent frame = new Intent(ACTION_FRAME);
