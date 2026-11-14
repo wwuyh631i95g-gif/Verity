@@ -9,8 +9,8 @@ android {
         applicationId = "com.verity.islandbuddy"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "2.3"
+        versionCode = 5
+        versionName = "2.4"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
