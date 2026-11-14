@@ -181,7 +181,7 @@ class IslandOverlayService : Service() {
             typeface = Typeface.create("sans-serif", Typeface.NORMAL)
         }
         val close = Button(this).apply {
-            text = "×"
+            this.text = "×"
             textSize = 22f
             isAllCaps = false
             setTextColor(Color.rgb(40, 50, 65))
