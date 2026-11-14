@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="twinfold_accessibility_label">TwinFold Control</string>
+    <string name="twinfold_accessibility_description">Sends one-finger taps and swipes from the paired phone into the app running on this device. It does not read screen text or window content.</string>
+</resources>
