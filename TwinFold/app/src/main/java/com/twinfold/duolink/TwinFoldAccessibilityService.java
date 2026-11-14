@@ -84,6 +84,9 @@ public class TwinFoldAccessibilityService extends AccessibilityService {
 
         Path path = new Path();
         path.moveTo(startX, startY);
+        if (Math.abs(endX - startX) < 1f && Math.abs(endY - startY) < 1f) {
+            endX = Math.min(width - 2f, startX + 1f);
+        }
         path.lineTo(endX, endY);
         long duration = Math.max(50L, Math.min(1200L, durationMs));
         GestureDescription.StrokeDescription stroke =
