@@ -763,12 +763,185 @@ public class MainActivity extends Activity {
         });
     }
 
+
+    private void loadOwnerMap() {
+        appOwners.clear();
+        String saved = prefs.getString("app_owners", "");
+        if (saved == null || saved.isEmpty()) return;
+        for (String line : saved.split("\\n")) {
+            String[] pair = line.split("\\t", 2);
+            if (pair.length == 2 && !pair[0].isEmpty() && !pair[1].isEmpty()) appOwners.put(pair[0], pair[1]);
+        }
+    }
+
+    private void saveOwnerMap() {
+        StringBuilder out = new StringBuilder();
+        for (Map.Entry<String,String> entry : appOwners.entrySet()) {
+            out.append(entry.getKey()).append("\\t").append(entry.getValue()).append("\\n");
+        }
+        prefs.edit().putString("app_owners", out.toString()).apply();
+    }
+
+    private String serializeOwnerMap() {
+        StringBuilder out = new StringBuilder();
+        for (Map.Entry<String,String> entry : appOwners.entrySet()) {
+            out.append(entry.getKey()).append("\\t").append(entry.getValue()).append("\\n");
+        }
+        return out.toString();
+    }
+
+    private void applyOwnerMap(String data) {
+        appOwners.clear();
+        if (data != null && !data.isEmpty()) {
+            for (String line : data.split("\\n")) {
+                String[] pair = line.split("\\t", 2);
+                if (pair.length == 2 && !pair[0].isEmpty() && !pair[1].isEmpty()) appOwners.put(pair[0], pair[1]);
+            }
+        }
+        saveOwnerMap();
+        filterApps();
+        renderApps();
+    }
+
+    private void setOwner(String pkg, String ownerId) {
+        if (pkg == null || pkg.isEmpty() || ownerId == null || ownerId.isEmpty()) return;
+        appOwners.put(pkg, ownerId);
+        saveOwnerMap();
+        filterApps();
+        renderApps();
+        sendRaw("OWNER|" + enc(pkg) + "|" + enc(ownerId));
+    }
+
+    private boolean isOwnedByMe(String pkg) {
+        if (!paired) return true;
+        String owner = appOwners.get(pkg);
+        return owner == null || owner.equals(localDeviceId);
+    }
+
+    private void sendLocalCatalog() {
+        if (!paired) return;
+        StringBuilder data = new StringBuilder();
+        for (ApplicationInfo info : allApps) {
+            String label = String.valueOf(getPackageManager().getApplicationLabel(info))
+                    .replace("\\n", " ").replace("\\r", " ").replace("\\t", " ");
+            data.append(info.packageName).append("\\t").append(label).append("\\n");
+        }
+        sendRaw("CATALOG|" + enc(data.toString()));
+    }
+
+    private void receiveCatalog(String encoded) {
+        String data = dec(encoded);
+        remotePackages.clear();
+        remoteLabels.clear();
+        for (String line : data.split("\\n")) {
+            String[] pair = line.split("\\t", 2);
+            if (pair.length == 2 && !pair[0].isEmpty()) {
+                remotePackages.add(pair[0]);
+                remoteLabels.put(pair[0], pair[1]);
+            }
+        }
+        main.post(() -> {
+            if (appCountText != null) filterApps();
+            if (isHost) buildInitialOwnerMap();
+        });
+    }
+
+    private void buildInitialOwnerMap() {
+        if (!paired || !isHost || remoteDeviceId.isEmpty()) return;
+        Set<String> localPackages = new HashSet<>();
+        for (ApplicationInfo info : allApps) localPackages.add(info.packageName);
+        Set<String> combined = new HashSet<>(localPackages);
+        combined.addAll(remotePackages);
+        SecureRandom random = new SecureRandom();
+        for (String pkg : combined) {
+            boolean here = localPackages.contains(pkg);
+            boolean there = remotePackages.contains(pkg);
+            String old = appOwners.get(pkg);
+            if (old != null && ((old.equals(localDeviceId) && here) || (old.equals(remoteDeviceId) && there))) continue;
+            if (here && there) appOwners.put(pkg, random.nextBoolean() ? localDeviceId : remoteDeviceId);
+            else if (here) appOwners.put(pkg, localDeviceId);
+            else if (there) appOwners.put(pkg, remoteDeviceId);
+        }
+        saveOwnerMap();
+        sendRaw("OWNERS|" + enc(serializeOwnerMap()));
+        filterApps();
+        renderApps();
+    }
+
+    private void requestMoveToPeer(String pkg) {
+        if (!paired || remoteDeviceId.isEmpty()) {
+            Toast.makeText(this, "Сначала соедините оба телефона.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        sendRaw("MOVE_REQ|" + enc(pkg));
+        Toast.makeText(this, "Запрос на перенос ярлыка отправлен. На втором телефоне нужно принять его.", Toast.LENGTH_LONG).show();
+    }
+
+    private void handleMoveRequest(String pkg, String sender) {
+        if (pkg == null || pkg.isEmpty()) return;
+        boolean installedHere = false;
+        try {
+            getPackageManager().getApplicationInfo(pkg, 0);
+            installedHere = true;
+        } catch (Exception ignored) {}
+        if (installedHere) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Переместить ярлык сюда?")
+                    .setMessage("Приложение уже установлено на этом телефоне. Его ярлык появится на этой стороне TwinFold, а на стороне отправителя исчезнет. Само приложение на исходном телефоне останется установленным.")
+                    .setNegativeButton("Отклонить", null)
+                    .setPositiveButton("Переместить", (d,w) -> completeMoveHere(pkg))
+                    .show();
+        } else {
+            String label = remoteLabels.containsKey(pkg) ? remoteLabels.get(pkg) : pkg;
+            new AlertDialog.Builder(this)
+                    .setTitle("Получить приложение?")
+                    .setMessage("«" + label + "» не установлено на этом телефоне. Получить APK от " + sender + " и передать его системному установщику? Установка потребует отдельного подтверждения Android.")
+                    .setNegativeButton("Отмена", null)
+                    .setPositiveButton("Получить APK", (d,w) -> {
+                        approvedPackage = pkg;
+                        pendingMovePackage = pkg;
+                        pendingMoveInstall = true;
+                        prefs.edit().putString("pending_move_package", pkg).apply();
+                        sendRaw("APP_ACCEPT|" + enc(pkg));
+                        Toast.makeText(this, "Запрошен APK-пакет. Ожидайте передачу.", Toast.LENGTH_LONG).show();
+                    })
+                    .show();
+        }
+    }
+
+    private void completeMoveHere(String pkg) {
+        setOwner(pkg, localDeviceId);
+        sendRaw("MOVE_DONE|" + enc(pkg));
+        Toast.makeText(this, "Ярлык перемещён на эту сторону. Исходная установка сохранена.", Toast.LENGTH_LONG).show();
+    }
+
+    private void completeMoveToPeer(String pkg) {
+        setOwner(pkg, remoteDeviceId);
+        Toast.makeText(this, "Ярлык перемещён на сторону второго телефона.", Toast.LENGTH_LONG).show();
+    }
+
     private void handleMessage(String line,String sender) {
         String[] head=line.split("\\|",2);
         if(head.length<1)return;
         String type=head[0], payload=head.length>1?head[1]:"";
         if(type.equals("NOTE")) main.post(()->sharedNoteText.setText("От "+sender+":\n"+dec(payload)));
-        else if(type.equals("PAGE")) {
+        else if(type.equals("CATALOG")) receiveCatalog(payload);
+        else if(type.equals("OWNERS")) {
+            String mapData = dec(payload);
+            main.post(() -> applyOwnerMap(mapData));
+        } else if(type.equals("OWNER")) {
+            String[] p = payload.split("\\\\|",2);
+            if (p.length == 2) {
+                String pkg = dec(p[0]), owner = dec(p[1]);
+                main.post(() -> { appOwners.put(pkg, owner); saveOwnerMap(); filterApps(); renderApps(); });
+            }
+        } else if(type.equals("MOVE_REQ")) {
+            String pkg = dec(payload);
+            main.post(() -> handleMoveRequest(pkg, sender));
+        } else if(type.equals("MOVE_DONE")) {
+            String pkg = dec(payload);
+            main.post(() -> completeMoveToPeer(pkg));
+        } else if(type.equals("PAGE")) {
             try { int p=Integer.parseInt(payload); main.post(()->{pageNumber=p;filterApps();renderApps();}); } catch(Exception ignored) {}
         } else if(type.equals("OPEN")) {
             String pkg=dec(payload); main.post(()->receiveLaunchRequest(pkg,sender));
