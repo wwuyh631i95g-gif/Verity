@@ -16,7 +16,7 @@ import android.speech.tts.TextToSpeech
 import android.provider.Settings
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.PasswordTransformationMethod
+import android.text.method.PasswordTransformationMethod
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
