@@ -792,7 +792,8 @@ public class MainActivity extends Activity {
                 byte[] buffer=new byte[24576];
                 for(int i=0;i<files.size();i++) {
                     File file=files.get(i);
-                    String name=i==0?"base.apk":"split_"+i+".apk";
+                    String splitName = (pi.splitNames != null && i-1 < pi.splitNames.length) ? pi.splitNames[i-1] : String.valueOf(i);
+                    String name=i==0?"base.apk":"split_"+splitName+".apk";
                     w.println("APK_FILE|"+enc(name)+"|"+file.length());
                     try(InputStream in=new FileInputStream(file)) {
                         int n;
