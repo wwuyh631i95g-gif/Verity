@@ -78,11 +78,12 @@ public class ScreenRecorderService extends Service {
             else recorder.setOutputFile(outputFile.getAbsolutePath());
             recorder.prepare();
 
-            display=projection.createVirtualDisplay("SketchForgeRecorder",width,height,metrics.densityDpi,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,recorder.getSurface(),null,null);
+            // Android 14 requires registering the callback before creating a VirtualDisplay.
             projection.registerCallback(new MediaProjection.Callback(){
                 @Override public void onStop(){stopRecording(true);stopSelf();}
             },new Handler(Looper.getMainLooper()));
+            display=projection.createVirtualDisplay("SketchForgeRecorder",width,height,metrics.densityDpi,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,recorder.getSurface(),null,null);
             recorder.start();
             ((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).notify(NOTIFICATION_ID,notification("Идёт запись MP4 · "+width+"×"+height));
         }catch(Exception e){
