@@ -48,7 +48,6 @@ class IslandOverlayService : Service() {
 
     private fun startAsForeground() {
         val open = Intent(this, MainActivity::class.java).apply {
-            action = MainActivity.ACTION_ASSIST
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val pending = PendingIntent.getActivity(
@@ -57,7 +56,7 @@ class IslandOverlayService : Service() {
         val notification = Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("Island Buddy включён")
-            .setContentText("Нажми на островок, чтобы поговорить с помощником")
+            .setContentText("Нажми на персонажа, чтобы поговорить с Бадди")
             .setOngoing(true)
             .setContentIntent(pending)
             .build()
@@ -163,11 +162,14 @@ class IslandOverlayService : Service() {
     }
 
     private fun openAssistant() {
-        val intent = Intent(this, MainActivity::class.java).apply {
-            action = MainActivity.ACTION_ASSIST
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        val intent = Intent(this, AssistantActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-        startActivity(intent)
+        try {
+            startActivity(intent)
+        } catch (_: Exception) {
+            showReplyBubble("Бадди: Не получилось открыться. Запусти Island Buddy из списка приложений.")
+        }
     }
 
     private fun showReplyBubble(message: String) {
@@ -176,13 +178,13 @@ class IslandOverlayService : Service() {
             this.text = message.take(520)
             setTextColor(Color.rgb(25, 31, 41))
             textSize = 14f
-            maxLines = 6
-            setPadding(dp(15), dp(12), dp(7), dp(12))
+            maxLines = 5
+            setPadding(dp(14), dp(11), dp(5), dp(11))
             typeface = Typeface.create("sans-serif", Typeface.NORMAL)
         }
         val close = Button(this).apply {
             this.text = "×"
-            textSize = 22f
+            textSize = 21f
             isAllCaps = false
             setTextColor(Color.rgb(40, 50, 65))
             background = transparentRounded(Color.rgb(235, 240, 247), dp(18))
@@ -195,11 +197,12 @@ class IslandOverlayService : Service() {
             background = rounded(Color.WHITE, dp(20))
             elevation = dp(12).toFloat()
             addView(text, LinearLayout.LayoutParams(0, WindowManager.LayoutParams.WRAP_CONTENT, 1f))
-            addView(close, LinearLayout.LayoutParams(dp(43), dp(43)))
+            addView(close, LinearLayout.LayoutParams(dp(39), dp(39)))
         }
         val screenWidth = resources.displayMetrics.widthPixels
+        val bubbleWidth = (screenWidth - dp(24)).coerceAtMost(dp(324)).coerceAtLeast(dp(220))
         val lp = WindowManager.LayoutParams(
-            (screenWidth - dp(28)).coerceAtLeast(dp(220)),
+            bubbleWidth,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -208,8 +211,8 @@ class IslandOverlayService : Service() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            y = dp(92)
-            setTitle("Island Buddy — ответ")
+            y = dp(88)
+            setTitle("Island Buddy — сообщение Бадди")
         }
         try {
             windowManager.addView(row, lp)
