@@ -237,6 +237,66 @@ public class MainActivity extends Activity {
         introLp.topMargin = dp(8);
         page.addView(intro, introLp);
 
+        LinearLayout appsCard = card();
+        addTop(page, appsCard, 12);
+        appsCard.addView(text("МОИ ПРИЛОЖЕНИЯ  •  ЕДИНЫЙ ДОМАШНИЙ ЭКРАН", 12, ACCENT, true));
+        TextView appHelp = text("Здесь собраны найденные приложения обоих телефонов. При соединении каждый значок закрепляется только за одной стороной. Зажмите и перетащите значок на панель партнёра: если приложение уже есть у него, переместится только ярлык; если нет — можно передать APK и установить.", 12, MUTED, false);
+        appHelp.setLineSpacing(dp(2), 1f);
+        LinearLayout.LayoutParams ah = params(-1, -2);
+        ah.topMargin = dp(6);
+        appsCard.addView(appHelp, ah);
+        searchInput = new EditText(this);
+        searchInput.setSingleLine(true);
+        searchInput.setTextSize(13);
+        searchInput.setTextColor(TEXT);
+        searchInput.setHintTextColor(MUTED);
+        searchInput.setHint("Поиск приложения или пакета");
+        searchInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        searchInput.setPadding(dp(10), dp(7), dp(10), dp(7));
+        searchInput.setBackground(round(CARD_2, 11));
+        LinearLayout.LayoutParams searchLp = params(-1, dp(42));
+        searchLp.topMargin = dp(9);
+        appsCard.addView(searchInput, searchLp);
+        appCountText = text("Загрузка списка…", 11, MUTED, false);
+        LinearLayout.LayoutParams cnt = params(-1, -2);
+        cnt.topMargin = dp(8);
+        appsCard.addView(appCountText, cnt);
+        appGrid = new LinearLayout(this);
+        appGrid.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams gridLp = params(-1, -2);
+        gridLp.topMargin = dp(8);
+        appsCard.addView(appGrid, gridLp);
+        pageText = text("Страница 1", 11, MUTED, false);
+        pageText.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams pg = params(-1, -2);
+        pg.topMargin = dp(7);
+        appsCard.addView(pageText, pg);
+        Button refreshApps = button("Обновить список приложений", CARD_2, TEXT);
+        LinearLayout.LayoutParams ra = params(-1, dp(39));
+        ra.topMargin = dp(7);
+        appsCard.addView(refreshApps, ra);
+        refreshApps.setOnClickListener(v -> loadAllApps());
+        searchInput.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s,int st,int c,int a) {}
+            @Override public void onTextChanged(CharSequence s,int start,int before,int count) { pageNumber=0; filterApps(); renderApps(); }
+            @Override public void afterTextChanged(Editable e) {}
+        });
+        appGrid.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) { downX = event.getX(); return true; }
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                float delta = event.getX() - downX;
+                if (Math.abs(delta) > dp(45)) {
+                    int pages = Math.max(1, (filteredApps.size() + 15) / 16);
+                    pageNumber = Math.max(0, Math.min(pages - 1, pageNumber + (delta < 0 ? 1 : -1)));
+                    renderApps();
+                    sendRaw("PAGE|" + pageNumber);
+                }
+                return true;
+            }
+            return true;
+        });
+
+
         LinearLayout connectCard = card();
         addTop(page, connectCard, 14);
         connectCard.addView(text("1  •  СОЕДИНЕНИЕ", 12, ACCENT, true));
@@ -367,65 +427,6 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams tv = params(-1, -2);
         tv.topMargin = dp(5);
         screenCard.addView(tapView, tv);
-
-        LinearLayout appsCard = card();
-        addTop(page, appsCard, 12);
-        appsCard.addView(text("5  •  ЕДИНЫЙ ДОМАШНИЙ ЭКРАН", 12, ACCENT, true));
-        TextView appHelp = text("Здесь собраны найденные приложения обоих телефонов. При соединении каждый значок закрепляется только за одной стороной. Зажмите и перетащите значок на панель партнёра: если приложение уже есть у него, переместится только ярлык; если нет — можно передать APK и установить.", 12, MUTED, false);
-        appHelp.setLineSpacing(dp(2), 1f);
-        LinearLayout.LayoutParams ah = params(-1, -2);
-        ah.topMargin = dp(6);
-        appsCard.addView(appHelp, ah);
-        searchInput = new EditText(this);
-        searchInput.setSingleLine(true);
-        searchInput.setTextSize(13);
-        searchInput.setTextColor(TEXT);
-        searchInput.setHintTextColor(MUTED);
-        searchInput.setHint("Поиск приложения или пакета");
-        searchInput.setInputType(InputType.TYPE_CLASS_TEXT);
-        searchInput.setPadding(dp(10), dp(7), dp(10), dp(7));
-        searchInput.setBackground(round(CARD_2, 11));
-        LinearLayout.LayoutParams searchLp = params(-1, dp(42));
-        searchLp.topMargin = dp(9);
-        appsCard.addView(searchInput, searchLp);
-        appCountText = text("Загрузка списка…", 11, MUTED, false);
-        LinearLayout.LayoutParams cnt = params(-1, -2);
-        cnt.topMargin = dp(8);
-        appsCard.addView(appCountText, cnt);
-        appGrid = new LinearLayout(this);
-        appGrid.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams gridLp = params(-1, -2);
-        gridLp.topMargin = dp(8);
-        appsCard.addView(appGrid, gridLp);
-        pageText = text("Страница 1", 11, MUTED, false);
-        pageText.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams pg = params(-1, -2);
-        pg.topMargin = dp(7);
-        appsCard.addView(pageText, pg);
-        Button refreshApps = button("Обновить список приложений", CARD_2, TEXT);
-        LinearLayout.LayoutParams ra = params(-1, dp(39));
-        ra.topMargin = dp(7);
-        appsCard.addView(refreshApps, ra);
-        refreshApps.setOnClickListener(v -> loadAllApps());
-        searchInput.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s,int st,int c,int a) {}
-            @Override public void onTextChanged(CharSequence s,int start,int before,int count) { pageNumber=0; filterApps(); renderApps(); }
-            @Override public void afterTextChanged(Editable e) {}
-        });
-        appGrid.setOnTouchListener((v, event) -> {
-            if (event.getAction() == MotionEvent.ACTION_DOWN) { downX = event.getX(); return true; }
-            if (event.getAction() == MotionEvent.ACTION_UP) {
-                float delta = event.getX() - downX;
-                if (Math.abs(delta) > dp(45)) {
-                    int pages = Math.max(1, (filteredApps.size() + 14) / 15);
-                    pageNumber = Math.max(0, Math.min(pages - 1, pageNumber + (delta < 0 ? 1 : -1)));
-                    renderApps();
-                    sendRaw("PAGE|" + pageNumber);
-                }
-                return true;
-            }
-            return true;
-        });
 
         LinearLayout notesCard = card();
         addTop(page, notesCard, 12);
@@ -589,7 +590,7 @@ public class MainActivity extends Activity {
             if (query.isEmpty() || label.toLowerCase(Locale.ROOT).contains(query) || info.packageName.toLowerCase(Locale.ROOT).contains(query))
                 filteredApps.add(info);
         }
-        int max = Math.max(1, (filteredApps.size() + 14) / 15);
+        int max = Math.max(1, (filteredApps.size() + 15) / 16);
         pageNumber = Math.max(0, Math.min(pageNumber, max - 1));
         if (appCountText != null) appCountText.setText("На этой стороне: " + filteredApps.size() + " • установлено здесь: " + allApps.size() + (paired ? " • у партнёра: " + remotePackages.size() : " • подключите второй телефон для объединения"));
     }
@@ -597,12 +598,12 @@ public class MainActivity extends Activity {
     private void renderApps() {
         if (appGrid == null) return;
         appGrid.removeAllViews();
-        int pages = Math.max(1, (filteredApps.size() + 14) / 15);
-        int start = pageNumber * 15;
-        int end = Math.min(filteredApps.size(), start + 15);
+        int pages = Math.max(1, (filteredApps.size() + 15) / 16);
+        int start = pageNumber * 16;
+        int end = Math.min(filteredApps.size(), start + 16);
         LinearLayout row = null;
         for (int i=start; i<end; i++) {
-            if ((i-start) % 3 == 0) {
+            if ((i-start) % 4 == 0) {
                 row = new LinearLayout(this);
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 LinearLayout.LayoutParams rp = params(-1,-2);
