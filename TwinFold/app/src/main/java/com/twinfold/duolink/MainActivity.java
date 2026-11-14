@@ -1055,6 +1055,9 @@ public class MainActivity extends Activity {
                 stopScreenCapture();
                 Toast.makeText(this, "Второй телефон завершил общий просмотр. Игра продолжает работать здесь.", Toast.LENGTH_LONG).show();
             });
+        } else if(type.equals("SPLIT_GESTURE")) {
+            final String gestureData = dec(payload);
+            main.post(() -> TwinFoldAccessibilityService.dispatchRemoteGestureBatch(this, gestureData, activeSplitSide));
         } else if(type.equals("SPLIT_TOUCH")) {
             String[] g = payload.split("\\|", 5);
             if (g.length == 5) {
@@ -1359,6 +1362,12 @@ public class MainActivity extends Activity {
     public static void leaveSplitViewer() {
         MainActivity activity = activeInstance;
         if (activity != null) activity.sendRaw("SPLIT_LEAVE");
+    }
+
+    public static void sendSplitGestureBatch(String gestureData) {
+        MainActivity activity = activeInstance;
+        if (activity == null || gestureData == null || gestureData.isEmpty()) return;
+        activity.sendRaw("SPLIT_GESTURE|" + activity.enc(gestureData));
     }
 
     @Override protected void onResume() {
