@@ -32,7 +32,6 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import kotlin.math.abs
 
 class IslandOverlayService : Service() {
     private lateinit var windowManager: WindowManager
