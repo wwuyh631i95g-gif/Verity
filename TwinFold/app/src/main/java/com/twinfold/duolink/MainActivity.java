@@ -77,6 +77,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MainActivity extends Activity {
     private static final int PORT = 38471;
     private static final int RC_CAPTURE = 4101;
+    private static final int RC_SPLIT_CAPTURE = 4103;
+    private static MainActivity activeInstance;
     private static final int RC_INSTALL_PERMISSION = 4102;
     private static final int BG = Color.rgb(8, 14, 27);
     private static final int CARD = Color.rgb(19, 29, 49);
@@ -102,6 +104,9 @@ public class MainActivity extends Activity {
     private String pendingMovePackage = "";
     private boolean pendingMoveInstall = false;
     private boolean isHost = false;
+    private String pendingSplitLaunchPackage = "";
+    private boolean splitExternalRunning = false;
+    private int activeSplitSide = 0;
     private String pendingOfferPackage = "";
     private String approvedPackage = "";
     private String pendingInstallPackage = "";
@@ -177,6 +182,7 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        activeInstance = this;
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         prefs = getSharedPreferences("twinfold", MODE_PRIVATE);
@@ -220,7 +226,7 @@ public class MainActivity extends Activity {
         TextView brand = text("TWINFOLD OS", 28, TEXT, true);
         brand.setLetterSpacing(0.13f);
         page.addView(brand);
-        TextView sub = text("DUAL DEVICE OPERATING SPACE  •  0.3", 10, ACCENT, true);
+        TextView sub = text("DUAL DEVICE OPERATING SPACE  •  0.4", 10, ACCENT, true);
         sub.setLetterSpacing(0.1f);
         LinearLayout.LayoutParams subLp = params(-2, -2);
         subLp.topMargin = dp(4);
@@ -386,7 +392,7 @@ public class MainActivity extends Activity {
         LinearLayout screenCard = card();
         addTop(page, screenCard, 12);
         screenCard.addView(text("4  •  ЖИВОЙ РАЗДЕЛЁННЫЙ ЭКРАН", 12, ACCENT, true));
-        TextView screenHelp = text("Разрешите захват экрана Android. TwinFold передаст на второй телефон выбранную половину текущего изображения, например часть видео. Это потоковая копия половины экрана, а не настоящее расширение дисплея для любой сторонней игры или приложения.", 12, MUTED, false);
+        TextView screenHelp = text("Теперь при нажатии на значок приложения можно выбрать обычный запуск или режим на двух телефонах. В режиме на двух телефонах первый аппарат запускает игру/приложение, второй показывает выбранную половину изображения и отправляет касания обратно. Для управления на первом телефоне можно включить службу TwinFold Control в настройках специальных возможностей. Android всё равно рисует исходное приложение на первом экране целиком — это не системный расширенный дисплей.", 12, MUTED, false);
         screenHelp.setLineSpacing(dp(2), 1f);
         LinearLayout.LayoutParams sh = params(-1, -2);
         sh.topMargin = dp(6);
@@ -454,7 +460,7 @@ public class MainActivity extends Activity {
         nt.topMargin = dp(7);
         notesCard.addView(sharedNoteText, nt);
 
-        TextView foot = text("TWINFOLD OS 0.3  •  ANDROID 14 / HONOR X8b TARGET", 10, MUTED, false);
+        TextView foot = text("TWINFOLD OS 0.4  •  ANDROID 14 / HONOR X8b TARGET", 10, MUTED, false);
         foot.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams fl = params(-1, -2);
         fl.topMargin = dp(18);
@@ -624,7 +630,7 @@ public class MainActivity extends Activity {
             LinearLayout.LayoutParams nl = params(-1,dp(30)); nl.topMargin=dp(4);
             tile.addView(name,nl);
             String pkg = info.packageName;
-            tile.setOnClickListener(v -> launchLocal(pkg));
+            tile.setOnClickListener(v -> showLaunchModeDialog(pkg));
             tile.setOnLongClickListener(v -> {
                 ClipData data = ClipData.newPlainText("TwinFold package",pkg);
                 tile.startDragAndDrop(data,new View.DragShadowBuilder(tile),null,0);
@@ -636,6 +642,53 @@ public class MainActivity extends Activity {
             row.addView(tile,tl);
         }
         pageText.setText("Страница " + (pageNumber+1) + " / " + pages + "   •   листайте влево или вправо");
+    }
+
+    private void showLaunchModeDialog(String pkg) {
+        String label = pkg;
+        try {
+            ApplicationInfo info = getPackageManager().getApplicationInfo(pkg, 0);
+            label = String.valueOf(getPackageManager().getApplicationLabel(info));
+        } catch (Exception ignored) {}
+        new AlertDialog.Builder(this)
+                .setTitle("Как открыть «" + label + "»?")
+                .setMessage("Выберите обычный запуск на этом телефоне или режим, в котором второй телефон получает половину изображения и отправляет управление обратно.")
+                .setPositiveButton("Обычный запуск", (d, w) -> launchLocal(pkg))
+                .setNegativeButton("На двух телефонах", (d, w) -> startSplitLaunch(pkg))
+                .setNeutralButton("Отмена", null)
+                .show();
+    }
+
+    private void startSplitLaunch(String pkg) {
+        if (!paired) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Сначала соедините телефоны")
+                    .setMessage("Режим на двух телефонах работает после подключения обоих устройств в TwinFold по одной Wi‑Fi сети.")
+                    .setPositiveButton("Понятно", null).show();
+            return;
+        }
+        if (!TwinFoldAccessibilityService.isEnabled(this)) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Включить управление со второго телефона?")
+                    .setMessage("Чтобы касания и свайпы со второго телефона передавались в игру, Android требует отдельно включить службу TwinFold Control в специальных возможностях. Служба только отправляет жесты в открытое приложение и не читает текст с экрана. Можно продолжить и без неё — тогда на втором телефоне будет только изображение.")
+                    .setPositiveButton("Настроить управление", (d, w) -> {
+                        try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); }
+                        catch (Exception e) { Toast.makeText(this, "Не удалось открыть настройки специальных возможностей.", Toast.LENGTH_LONG).show(); }
+                    })
+                    .setNegativeButton("Только изображение", (d, w) -> requestSplitCapture(pkg))
+                    .setNeutralButton("Отмена", null)
+                    .show();
+            return;
+        }
+        requestSplitCapture(pkg);
+    }
+
+    private void requestSplitCapture(String pkg) {
+        if (!paired) return;
+        pendingSplitLaunchPackage = pkg;
+        activeSplitSide = remoteSideSpinner == null ? prefs.getInt("remote_side", 0) : remoteSideSpinner.getSelectedItemPosition();
+        MediaProjectionManager manager = (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
+        startActivityForResult(manager.createScreenCaptureIntent(), RC_SPLIT_CAPTURE);
     }
 
     private void launchLocal(String pkg) {
@@ -977,6 +1030,36 @@ public class MainActivity extends Activity {
             finishIncomingFile();
         } else if(type.equals("APK_END")) {
             finishIncomingBundle();
+        } else if(type.equals("SPLIT_BEGIN")) {
+            try {
+                final int side = Math.max(0, Math.min(3, Integer.parseInt(payload)));
+                main.post(() -> {
+                    Intent viewer = new Intent(this, ScreenViewerActivity.class);
+                    viewer.putExtra("split_mode", true);
+                    viewer.putExtra("split_side", side);
+                    viewer.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    startActivity(viewer);
+                });
+            } catch (Exception ignored) {}
+        } else if(type.equals("SPLIT_END")) {
+            main.post(() -> ScreenViewerActivity.finishFromPeer());
+        } else if(type.equals("SPLIT_LEAVE")) {
+            main.post(() -> {
+                stopScreenCapture();
+                Toast.makeText(this, "Второй телефон завершил общий просмотр. Игра продолжает работать здесь.", Toast.LENGTH_LONG).show();
+            });
+        } else if(type.equals("SPLIT_TOUCH")) {
+            String[] g = payload.split("\\\\|", 5);
+            if (g.length == 5) {
+                try {
+                    final float x1 = Float.parseFloat(g[0]);
+                    final float y1 = Float.parseFloat(g[1]);
+                    final float x2 = Float.parseFloat(g[2]);
+                    final float y2 = Float.parseFloat(g[3]);
+                    final long duration = Long.parseLong(g[4]);
+                    main.post(() -> TwinFoldAccessibilityService.dispatchRemoteGesture(this, x1, y1, x2, y2, duration, activeSplitSide));
+                } catch (Exception ignored) {}
+            }
         } else if(type.equals("FRAME")) {
             byte[] bytes=Base64.decode(payload,Base64.DEFAULT);
             Bitmap bitmap=BitmapFactory.decodeByteArray(bytes,0,bytes.length);
@@ -1182,14 +1265,29 @@ public class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data) {
         super.onActivityResult(requestCode,resultCode,data);
-        if(requestCode==RC_CAPTURE && resultCode==RESULT_OK && data!=null) {
-            Intent service=new Intent(this,ScreenShareService.class);
+        if ((requestCode == RC_CAPTURE || requestCode == RC_SPLIT_CAPTURE) && resultCode == RESULT_OK && data != null) {
+            Intent service = new Intent(this, ScreenShareService.class);
             service.setAction(ScreenShareService.ACTION_START);
-            service.putExtra(ScreenShareService.EXTRA_RESULT_CODE,resultCode);
-            service.putExtra(ScreenShareService.EXTRA_RESULT_DATA,data);
-            service.putExtra(ScreenShareService.EXTRA_SIDE,remoteSideSpinner.getSelectedItemPosition());
-            if(Build.VERSION.SDK_INT>=26) startForegroundService(service); else startService(service);
-            Toast.makeText(this,"Захват экрана включён. Откройте игру или нужное приложение — выбранная половина появится у партнёра.",Toast.LENGTH_LONG).show();
+            service.putExtra(ScreenShareService.EXTRA_RESULT_CODE, resultCode);
+            service.putExtra(ScreenShareService.EXTRA_RESULT_DATA, data);
+            int side = requestCode == RC_SPLIT_CAPTURE ? activeSplitSide :
+                    (remoteSideSpinner == null ? prefs.getInt("remote_side", 0) : remoteSideSpinner.getSelectedItemPosition());
+            service.putExtra(ScreenShareService.EXTRA_SIDE, side);
+            if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);
+
+            if (requestCode == RC_SPLIT_CAPTURE) {
+                final String pkg = pendingSplitLaunchPackage;
+                pendingSplitLaunchPackage = "";
+                splitExternalRunning = true;
+                sendRaw("SPLIT_BEGIN|" + side);
+                Toast.makeText(this, "Режим двух телефонов включён. Второй экран показывает выбранную половину; его касания будут отправляться сюда, если включена TwinFold Control.", Toast.LENGTH_LONG).show();
+                main.postDelayed(() -> launchLocal(pkg), 450);
+            } else {
+                Toast.makeText(this, "Захват экрана включён. Выбранная половина появится у партнёра.", Toast.LENGTH_LONG).show();
+            }
+        } else if (requestCode == RC_SPLIT_CAPTURE) {
+            pendingSplitLaunchPackage = "";
+            Toast.makeText(this, "Разделённый режим не запущен: разрешение на захват экрана не выдано.", Toast.LENGTH_LONG).show();
         } else if(requestCode==RC_INSTALL_PERMISSION) {
             if(Build.VERSION.SDK_INT<26 || getPackageManager().canRequestPackageInstalls()) installReceivedPackage();
             else Toast.makeText(this,"Разрешение на установку не включено.",Toast.LENGTH_LONG).show();
@@ -1243,7 +1341,31 @@ public class MainActivity extends Activity {
         try{return new String(Base64.decode(value,Base64.DEFAULT),StandardCharsets.UTF_8);}catch(Exception e){return value;}
     }
 
+    public static void sendSplitGesture(float x1, float y1, float x2, float y2, long durationMs) {
+        MainActivity activity = activeInstance;
+        if (activity == null) return;
+        String message = String.format(Locale.US, "SPLIT_TOUCH|%.5f|%.5f|%.5f|%.5f|%d",
+                x1, y1, x2, y2, Math.max(50L, Math.min(1200L, durationMs)));
+        activity.sendRaw(message);
+    }
+
+    public static void leaveSplitViewer() {
+        MainActivity activity = activeInstance;
+        if (activity != null) activity.sendRaw("SPLIT_LEAVE");
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (splitExternalRunning) {
+            splitExternalRunning = false;
+            sendRaw("SPLIT_END");
+            stopScreenCapture();
+            Toast.makeText(this, "Сеанс двух экранов завершён. Вы вернулись в TwinFold.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     @Override protected void onDestroy() {
+        if (activeInstance == this) activeInstance = null;
         try{unregisterReceiver(screenReceiver);}catch(Exception ignored){}
         try{unregisterReceiver(installReceiver);}catch(Exception ignored){}
         disconnectPeer();
