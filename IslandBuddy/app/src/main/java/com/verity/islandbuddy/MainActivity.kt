@@ -141,7 +141,7 @@ class MainActivity : Activity() {
             addView(page)
         }
 
-        page.addView(label("ISLAND BUDDY  2.3", 25f, Color.WHITE, true))
+        page.addView(label("ISLAND BUDDY  2.5", 25f, Color.WHITE, true))
         page.addView(label("Камера-островок с живыми глазами и голосовым ИИ", 13f, 0xFF9CAFC6.toInt()))
 
         val previewCard = card()
@@ -304,7 +304,7 @@ class MainActivity : Activity() {
         actions.addView(button("Открыть голосового помощника") { startActivity(Intent(this, AssistantActivity::class.java)) })
         actions.addView(button("Выключить островок") { stopIsland() })
         page.addView(actions)
-        page.addView(label("Island Buddy 2.3 • Android 8–14 • Honor X8b", 11f, 0xFF71839A.toInt()))
+        page.addView(label("Island Buddy 2.5 • Android 8–14 • Honor X8b", 11f, 0xFF71839A.toInt()))
         setContentView(scroll)
     }
 
