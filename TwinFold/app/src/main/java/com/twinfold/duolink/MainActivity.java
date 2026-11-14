@@ -421,6 +421,7 @@ public class MainActivity extends Activity {
         panel.setBackground(round(remote ? Color.rgb(26,47,69) : CARD, 15));
         panel.addView(text(title, 10, remote ? ACCENT : MUTED, true));
         TextView device = text(sub, 13, TEXT, true);
+        if (remote) remoteDeviceText = device; else localDeviceText = device;
         LinearLayout.LayoutParams d = params(-1, -2);
         d.topMargin = dp(9);
         panel.addView(device, d);
@@ -862,7 +863,7 @@ public class MainActivity extends Activity {
 
     private void finishIncomingBundle() {
         File dir=incomingDir; incomingDir=null;
-        if(dir==null || incomingFilesDone!=incomingFileCount || pendingInstallFiles.isEmpty()) {
+        if(dir==null || incomingFilesDone!=incomingFileCount || pendingInstallFiles.size()!=incomingFileCount || pendingInstallFiles.isEmpty()) {
             main.post(()->Toast.makeText(this,"Передача APK завершилась с ошибкой.",Toast.LENGTH_LONG).show());
             approvedPackage="";
             return;
@@ -877,7 +878,6 @@ public class MainActivity extends Activity {
         if(pendingInstallFiles==null || pendingInstallFiles.isEmpty()) return;
         if(Build.VERSION.SDK_INT>=26 && !getPackageManager().canRequestPackageInstalls()) {
             Intent settings=new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,Uri.parse("package:"+getPackageName()));
-            startActivityForResult(settings,RC_INSTALL_PERMISSION);
             new AlertDialog.Builder(this).setTitle("Разрешить установку")
                     .setMessage("Для установки переданного APK Android попросит разрешить TwinFold устанавливать приложения. После возврата установка продолжится с системным подтверждением.")
                     .setPositiveButton("Открыть настройки",(d,w)->{try{startActivityForResult(settings,RC_INSTALL_PERMISSION);}catch(Exception ignored){}})
@@ -1000,6 +1000,7 @@ public class MainActivity extends Activity {
     @Override protected void onDestroy() {
         try{unregisterReceiver(screenReceiver);}catch(Exception ignored){}
         disconnectPeer();
+        try { stopService(new Intent(this, ScreenShareService.class)); } catch(Exception ignored) {}
         io.shutdownNow();
         super.onDestroy();
     }
