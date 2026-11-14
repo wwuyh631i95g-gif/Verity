@@ -153,6 +153,24 @@ public class MainActivity extends Activity {
         }
     };
 
+    private final BroadcastReceiver installReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            String pkg = intent.getStringExtra("package");
+            boolean success = intent.getBooleanExtra("success", false);
+            if (pkg == null || pkg.isEmpty()) return;
+            if (success) {
+                setOwner(pkg, localDeviceId);
+                prefs.edit().remove("installed_move_pending").apply();
+                if (paired) sendRaw("MOVE_DONE|" + enc(pkg));
+                loadAllApps();
+                Toast.makeText(MainActivity.this, "Приложение теперь находится на этой стороне TwinFold.", Toast.LENGTH_LONG).show();
+            } else {
+                prefs.edit().remove("installed_move_pending").apply();
+                Toast.makeText(MainActivity.this, "Установка не завершилась — ярлык не перемещён.", Toast.LENGTH_LONG).show();
+            }
+        }
+    };
+
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().setStatusBarColor(BG);
@@ -663,10 +681,12 @@ public class MainActivity extends Activity {
                 if (p.length != 3 || !p[0].equals("PAIR") || !p[1].equals(expectedPin)) {
                     writer.println("NO|PIN"); socket.close(); return;
                 }
-                String other = dec(p[2]);
+                String[] identity = dec(p[2]).split("\\t", 2);
+                String otherId = identity.length > 0 ? identity[0] : "peer";
+                String other = identity.length > 1 ? identity[1] : "Второй телефон";
                 socket.setSoTimeout(0);
-                writer.println("WELCOME|" + enc(deviceName()));
-                attachPeer(socket,reader,writer,other);
+                writer.println("WELCOME|" + enc(localDeviceId + "\t" + deviceName()));
+                attachPeer(socket,reader,writer,otherId,other,true);
             } catch(Exception e) { try { socket.close(); } catch(Exception ignored) {} }
         });
     }
@@ -697,16 +717,18 @@ public class MainActivity extends Activity {
                 socket.setSoTimeout(15000);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(),StandardCharsets.UTF_8));
                 PrintWriter writer = new PrintWriter(socket.getOutputStream(),true);
-                writer.println("PAIR|" + pin + "|" + enc(deviceName()));
+                writer.println("PAIR|" + pin + "|" + enc(localDeviceId + "\t" + deviceName()));
                 String answer = reader.readLine();
                 if (answer==null || !answer.startsWith("WELCOME|")) {
                     socket.close();
                     main.post(()->{statusText.setText("●  КОД НЕ ПРИНЯТ");statusText.setTextColor(Color.RED);});
                     return;
                 }
-                String other=dec(answer.substring(8));
+                String[] identity=dec(answer.substring(8)).split("\\t",2);
+                String otherId=identity.length>0?identity[0]:"peer";
+                String other=identity.length>1?identity[1]:"Второй телефон";
                 socket.setSoTimeout(0);
-                attachPeer(socket,reader,writer,other);
+                attachPeer(socket,reader,writer,otherId,other,false);
             } catch(Exception e) {
                 try{socket.close();}catch(Exception ignored){}
                 main.post(()->{statusText.setText("●  ОШИБКА ПОДКЛЮЧЕНИЯ");statusText.setTextColor(Color.RED);Toast.makeText(this,"Проверьте Wi‑Fi, IP и код.",Toast.LENGTH_LONG).show();});
@@ -714,13 +736,17 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void attachPeer(Socket socket,BufferedReader reader,PrintWriter writer,String other) {
+    private void attachPeer(Socket socket,BufferedReader reader,PrintWriter writer,String otherId,String other,boolean hostSide) {
         peerSocket=socket; peerReader=reader; peerWriter=writer; paired=true;
+        remoteDeviceId=otherId; isHost=hostSide;
+        prefs.edit().putString("last_peer_id", otherId).apply();
         main.post(()->{
-            statusText.setText("●  ДВА ТЕЛЕФОНА СОЕДИНЕНЫ");
+            statusText.setText("●  ДВА ТЕЛЕФОНА ОБЪЕДИНЕНЫ");
             statusText.setTextColor(ACCENT);
             remoteDeviceText.setText(other);
-            connectionInfo.setText("Соединено с " + other + "\nПеретаскивание значка отправляет запрос на передачу APK.");
+            connectionInfo.setText("Соединено с " + other + "\nОбщий каталог синхронизируется. Ярлыки распределяются между сторонами.");
+            filterApps(); renderApps();
+            sendLocalCatalog();
         });
         io.execute(()->{
             try {
@@ -729,8 +755,8 @@ public class MainActivity extends Activity {
             } catch(Exception ignored) {
             } finally {
                 if(peerSocket==socket) {
-                    paired=false; peerSocket=null; peerWriter=null; peerReader=null;
-                    main.post(()->{statusText.setText("●  СОЕДИНЕНИЕ ПРЕРВАНО");statusText.setTextColor(MUTED);remoteDeviceText.setText("Не подключён");});
+                    paired=false; peerSocket=null; peerWriter=null; peerReader=null; remoteDeviceId="";
+                    main.post(()->{statusText.setText("●  СОЕДИНЕНИЕ ПРЕРВАНО");statusText.setTextColor(MUTED);remoteDeviceText.setText("Не подключён");filterApps();renderApps();});
                 }
                 try{socket.close();}catch(Exception ignored){}
             }
