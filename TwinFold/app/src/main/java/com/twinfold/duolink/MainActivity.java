@@ -1135,6 +1135,7 @@ public class MainActivity extends Activity {
             }
             Intent callback=new Intent(this,InstallStatusReceiver.class);
             callback.setAction("com.twinfold.duolink.INSTALL_STATUS");
+            callback.putExtra("package", pendingInstallPackage);
             PendingIntent pi=PendingIntent.getBroadcast(this,sessionId,callback,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_MUTABLE);
             session.commit(pi.getIntentSender());
             Toast.makeText(this,"Передано установщику Android. Подтвердите установку на системном экране.",Toast.LENGTH_LONG).show();
