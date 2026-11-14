@@ -141,7 +141,7 @@ class MainActivity : Activity() {
             addView(page)
         }
 
-        page.addView(label("ISLAND BUDDY  2.2", 25f, Color.WHITE, true))
+        page.addView(label("ISLAND BUDDY  2.3", 25f, Color.WHITE, true))
         page.addView(label("Камера-островок с живыми глазами и голосовым ИИ", 13f, 0xFF9CAFC6.toInt()))
 
         val previewCard = card()
@@ -245,7 +245,7 @@ class MainActivity : Activity() {
         val aiCard = card()
         aiCard.addView(label("ГОЛОСОВОЙ ИИ", 13f, Color.WHITE, true))
         aiCard.addView(label(
-            "Островок открывает чат. Скажи вопрос голосом или напиши его: ответ появится белым сообщением снизу экрана и будет озвучен. Для настоящих ответов нейросети добавь свой API-ключ.",
+            "Нажми на глазки прямо в любом приложении: микрофон включится здесь же, без перехода в чат. Ответ появится в белом окошке поверх текущего приложения и прозвучит голосом. Для настоящих ответов нейросети добавь свой API-ключ.",
             12f, 0xFFB7C6D8.toInt()
         ))
         val endpoint = editField("HTTPS-адрес API", prefs.getString("endpoint", DEFAULT_ENDPOINT) ?: DEFAULT_ENDPOINT)
@@ -304,7 +304,7 @@ class MainActivity : Activity() {
         actions.addView(button("Открыть голосового помощника") { startActivity(Intent(this, AssistantActivity::class.java)) })
         actions.addView(button("Выключить островок") { stopIsland() })
         page.addView(actions)
-        page.addView(label("Island Buddy 2.2 • Android 8–14 • Honor X8b", 11f, 0xFF71839A.toInt()))
+        page.addView(label("Island Buddy 2.3 • Android 8–14 • Honor X8b", 11f, 0xFF71839A.toInt()))
         setContentView(scroll)
     }
 
@@ -350,6 +350,11 @@ class MainActivity : Activity() {
 
     private fun enableIsland() {
         saveSettings()
+        // Android требует выдать микрофон, пока приложение открыто; после этого сервис сможет слушать из любого приложения.
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_AUDIO)
+            return
+        }
         if (!Settings.canDrawOverlays(this)) {
             try {
                 startActivityForResult(
@@ -403,8 +408,8 @@ class MainActivity : Activity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_AUDIO) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                launchSpeechRecognizer()
-            } else toast("Для голосового ввода нужен доступ к микрофону")
+                if (!assistantMode) enableIsland() else launchSpeechRecognizer()
+            } else toast("Для голосового общения с персонажем нужен доступ к микрофону")
         }
     }
 
