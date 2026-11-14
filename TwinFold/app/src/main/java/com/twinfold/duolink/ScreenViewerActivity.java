@@ -11,6 +11,10 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 public class ScreenViewerActivity extends Activity {
     public static volatile Bitmap latestFrame;
     private static volatile ScreenViewerActivity active;
@@ -19,6 +23,29 @@ public class ScreenViewerActivity extends Activity {
     private float downX;
     private float downY;
     private long downAt;
+    private final LinkedHashMap<Integer, TouchTrack> activeTracks = new LinkedHashMap<>();
+    private final ArrayList<TouchTrack> completedTracks = new ArrayList<>();
+
+    private static final class TouchTrack {
+        final long downAt;
+        long upAt;
+        final ArrayList<float[]> points = new ArrayList<>();
+        TouchTrack(long time) { downAt = time; upAt = time; }
+        void add(float x, float y, long time) {
+            upAt = time;
+            if (points.isEmpty()) {
+                points.add(new float[]{x, y});
+                return;
+            }
+            float[] last = points.get(points.size() - 1);
+            float dx = x - last[0];
+            float dy = y - last[1];
+            if ((dx * dx + dy * dy) >= 0.000016f || points.size() == 1) {
+                if (points.size() < 120) points.add(new float[]{x, y});
+                else if ((points.size() % 3) == 0) points.set(points.size() - 1, new float[]{x, y});
+            }
+        }
+    }
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -66,27 +93,93 @@ public class ScreenViewerActivity extends Activity {
 
     private boolean handleTouch(MotionEvent event) {
         if (!controlEnabled) return false;
-        float width = Math.max(1f, image.getWidth());
-        float height = Math.max(1f, image.getHeight());
-        switch (event.getActionMasked()) {
+        final int action = event.getActionMasked();
+        final long now = event.getEventTime();
+        switch (action) {
             case MotionEvent.ACTION_DOWN:
-                downX = clamp(event.getX() / width);
-                downY = clamp(event.getY() / height);
-                downAt = event.getEventTime();
+                activeTracks.clear();
+                completedTracks.clear();
+                startTrack(event, event.getActionIndex(), now);
                 return true;
+
+            case MotionEvent.ACTION_POINTER_DOWN:
+                updateExistingTracks(event, now);
+                startTrack(event, event.getActionIndex(), now);
+                return true;
+
             case MotionEvent.ACTION_MOVE:
+                updateExistingTracks(event, now);
                 return true;
+
+            case MotionEvent.ACTION_POINTER_UP:
+                updateExistingTracks(event, now);
+                finishTrack(event.getPointerId(event.getActionIndex()), now);
+                return true;
+
             case MotionEvent.ACTION_UP:
-                float x = clamp(event.getX() / width);
-                float y = clamp(event.getY() / height);
-                long duration = Math.max(50L, Math.min(1200L, event.getEventTime() - downAt));
-                MainActivity.sendSplitGesture(downX, downY, x, y, duration);
+                updateExistingTracks(event, now);
+                finishTrack(event.getPointerId(event.getActionIndex()), now);
+                sendCompletedGesture();
                 return true;
+
             case MotionEvent.ACTION_CANCEL:
+                activeTracks.clear();
+                completedTracks.clear();
                 return true;
+
             default:
                 return true;
         }
+    }
+
+    private void startTrack(MotionEvent event, int index, long time) {
+        int id = event.getPointerId(index);
+        TouchTrack track = new TouchTrack(time);
+        track.add(clamp(event.getX(index) / Math.max(1f, image.getWidth())),
+                clamp(event.getY(index) / Math.max(1f, image.getHeight())), time);
+        activeTracks.put(id, track);
+    }
+
+    private void updateExistingTracks(MotionEvent event, long time) {
+        for (int i = 0; i < event.getPointerCount(); i++) {
+            int id = event.getPointerId(i);
+            TouchTrack track = activeTracks.get(id);
+            if (track != null) {
+                track.add(clamp(event.getX(i) / Math.max(1f, image.getWidth())),
+                        clamp(event.getY(i) / Math.max(1f, image.getHeight())), time);
+            }
+        }
+    }
+
+    private void finishTrack(int id, long time) {
+        TouchTrack track = activeTracks.remove(id);
+        if (track != null) {
+            track.upAt = time;
+            completedTracks.add(track);
+        }
+    }
+
+    private void sendCompletedGesture() {
+        if (completedTracks.isEmpty()) return;
+        long gestureStart = Long.MAX_VALUE;
+        for (TouchTrack track : completedTracks) gestureStart = Math.min(gestureStart, track.downAt);
+        StringBuilder payload = new StringBuilder();
+        int maxTracks = Math.min(completedTracks.size(), 10);
+        for (int i = 0; i < maxTracks; i++) {
+            TouchTrack track = completedTracks.get(i);
+            if (i > 0) payload.append(';');
+            long offset = Math.max(0L, track.downAt - gestureStart);
+            long duration = Math.max(50L, Math.min(60000L - offset, track.upAt - track.downAt));
+            payload.append(offset).append(',').append(duration);
+            ArrayList<float[]> pts = track.points;
+            for (int n = 0; n < pts.size(); n++) {
+                float[] point = pts.get(n);
+                payload.append(',').append(Math.round(clamp(point[0]) * 10000f));
+                payload.append(',').append(Math.round(clamp(point[1]) * 10000f));
+            }
+        }
+        MainActivity.sendSplitGestureBatch(payload.toString());
+        completedTracks.clear();
     }
 
     private float clamp(float value) {
