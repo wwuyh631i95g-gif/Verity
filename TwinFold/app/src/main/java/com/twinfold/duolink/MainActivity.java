@@ -1049,7 +1049,7 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "Второй телефон завершил общий просмотр. Игра продолжает работать здесь.", Toast.LENGTH_LONG).show();
             });
         } else if(type.equals("SPLIT_TOUCH")) {
-            String[] g = payload.split("\\\\|", 5);
+            String[] g = payload.split("\\|", 5);
             if (g.length == 5) {
                 try {
                     final float x1 = Float.parseFloat(g[0]);
