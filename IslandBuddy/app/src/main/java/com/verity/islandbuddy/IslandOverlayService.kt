@@ -165,10 +165,12 @@ class IslandOverlayService : Service() {
         val intent = Intent(this, AssistantActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
+        // Показываем мгновенную реакцию даже пока экран голосового помощника открывается.
+        showReplyBubble("Бадди: О, привет! Я слушаю тебя…")
         try {
             startActivity(intent)
         } catch (_: Exception) {
-            showReplyBubble("Бадди: Не получилось открыться. Запусти Island Buddy из списка приложений.")
+            showReplyBubble("Бадди: Не получилось открыть голосовой экран. Запусти Island Buddy из списка приложений.")
         }
     }
 
