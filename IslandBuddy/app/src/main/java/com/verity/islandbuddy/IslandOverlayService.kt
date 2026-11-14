@@ -15,6 +15,8 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.IBinder
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.Manifest
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -54,6 +56,8 @@ class IslandOverlayService : Service() {
     private var ttsReady = false
     private var pendingSpeech: String? = null
     private val chatHistory = mutableListOf<Pair<String, String>>()
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var serviceDestroyed = false
 
     override fun onCreate() {
         super.onCreate()
@@ -259,8 +263,8 @@ class IslandOverlayService : Service() {
         val endpoint = prefs.getString("endpoint", "https://openrouter.ai/api/v1/chat/completions") ?: "https://openrouter.ai/api/v1/chat/completions"
         val model = prefs.getString("model", "openrouter/auto") ?: "openrouter/auto"
         AiClient.ask(endpoint, model, key, chatHistory.toList()) { answer, error ->
-            runOnUiThread {
-                if (isDestroyed) return@runOnUiThread
+            mainHandler.post {
+                if (serviceDestroyed) return@post
                 if (answer != null) {
                     chatHistory.add("assistant" to answer)
                     finishAnswer(answer)
@@ -368,6 +372,7 @@ class IslandOverlayService : Service() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     override fun onDestroy() {
+        serviceDestroyed = true
         try { speechRecognizer?.cancel(); speechRecognizer?.destroy() } catch (_: Exception) {}
         speechRecognizer = null
         try { tts?.stop(); tts?.shutdown() } catch (_: Exception) {}
