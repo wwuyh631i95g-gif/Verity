@@ -1,19 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="wrap_content"
-    android:orientation="vertical" android:padding="12dp" android:background="#20314e">
+    android:orientation="vertical" android:padding="10dp" android:background="#20314e">
     <TextView android:id="@+id/game_title" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="DASHBELL" android:textColor="#ffffff" android:textStyle="bold" android:textSize="16sp"/>
+        android:text="ARCADE" android:textColor="#ffffff" android:textStyle="bold" android:textSize="15sp"/>
     <TextView android:id="@+id/game_stats" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:paddingTop="5dp" android:text="Очки: 0    Жизни: 3" android:textColor="#b9d4ff" android:textSize="13sp"/>
+        android:paddingTop="3dp" android:text="Очки 0   ♥ 3" android:textColor="#b9d4ff" android:textSize="12sp"/>
+    <TextView android:id="@+id/game_board" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:paddingTop="6dp" android:paddingBottom="5dp" android:gravity="center"
+        android:fontFamily="monospace" android:text="━━━━ ▲ ━━━━ ◆" android:textColor="#fff5cb"
+        android:textStyle="bold" android:textSize="17sp"/>
     <TextView android:id="@+id/game_message" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:paddingTop="7dp" android:paddingBottom="8dp" android:text="Готов?" android:textColor="#ffffff" android:textSize="13sp"/>
+        android:paddingTop="2dp" android:paddingBottom="6dp" android:text="Готов?" android:textColor="#ffffff" android:textSize="12sp"/>
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-        <Button android:id="@+id/btn_jump" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1"
-            android:text="↑ ПРЫЖОК" android:textAllCaps="false"/>
-        <Button android:id="@+id/btn_duck" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1"
-            android:text="↓ НИЗКО" android:textAllCaps="false"/>
-        <Button android:id="@+id/btn_reset" android:layout_width="wrap_content" android:layout_height="48dp"
-            android:text="↻" android:textAllCaps="false"/>
+        <Button android:id="@+id/btn_left" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1"
+            android:text="◀" android:textAllCaps="false" android:minWidth="0dp"/>
+        <Button android:id="@+id/btn_action" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="2"
+            android:text="● ДЕЙСТВИЕ" android:textAllCaps="false" android:minWidth="0dp"/>
+        <Button android:id="@+id/btn_right" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1"
+            android:text="▶" android:textAllCaps="false" android:minWidth="0dp"/>
+        <Button android:id="@+id/btn_reset" android:layout_width="40dp" android:layout_height="42dp"
+            android:text="■" android:textAllCaps="false" android:minWidth="0dp"/>
     </LinearLayout>
 </LinearLayout>
