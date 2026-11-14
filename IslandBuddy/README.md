@@ -1,27 +1,28 @@
-# Island Buddy
+# Island Buddy 2.0
 
-Отдельное Android-приложение для Honor X8b / Android 14: плавающий островок вокруг фронтальной камеры с анимированными глазами.
+Android companion overlay for Honor X8b / Android 14. It adds a customizable animated camera island and a voice/text assistant.
 
-## Возможности
-- плавающий островок поверх других приложений;
-- изменение ширины, высоты и вертикального отступа;
-- перетаскивание островка пальцем;
-- три варианта внешнего вида: робот, кот и пришелец;
-- нажатие на островок открывает экран помощника;
-- голосовой ввод через системное распознавание Android;
-- ответ через системный Text-to-Speech;
-- базовые локальные ответы без API-ключа;
-- подключение совместимого HTTPS Chat Completions API;
-- API-ключ шифруется при хранении с помощью Android Keystore;
-- микрофон не слушает постоянно и включается только после явного нажатия.
+## Features
+- Floating island overlay above other apps.
+- Touch editing inside the app's Honor phone preview: drag the island to reposition it, or drag the eight round handles to resize it.
+- Direct drag on the live overlay to move it after enabling it.
+- Robot, cat and alien faces; seven eye colors; five accessories.
+- Six eye animation styles plus a master animation switch.
+- Tap the live island to open the assistant.
+- Russian voice input using Android speech recognition and spoken replies using Android Text-to-Speech.
+- A white reply card appears near the bottom of the screen above other apps, with a close button.
+- Local demo responses when no API key is configured.
+- Optional OpenAI-compatible HTTPS Chat Completions endpoint with a connection test.
+- The API key is stored encrypted using Android Keystore.
 
-## Сборка
-Самостоятельный Gradle-проект в папке IslandBuddy. CI собирает debug APK для Android 8.0+ (API 26+) с target API 34.
+## Build
+The standalone Gradle project is in this folder. CI builds a debug APK for Android 8.0+ (API 26+) with target API 34.
 
-## Первый запуск
-1. Нажми «Включить островок поверх приложений».
-2. Разреши Island Buddy показываться поверх других приложений.
-3. Островок появится сверху. Его можно перетаскивать.
-4. Нажми на островок, чтобы открыть помощника. Android запросит микрофон при первом нажатии голосового ввода.
+## First launch
+1. Install and open Island Buddy.
+2. In the preview, drag the island or its round handles to set its position and size.
+3. Choose eyes, color, animation and an accessory.
+4. Tap "Включить островок поверх приложений" and grant overlay permission.
+5. Tap the live island to open the assistant. Speech recognition asks for microphone permission only after tapping the voice button.
 
-Без API-ключа доступен локальный демонстрационный режим. Для генеративных ответов нужна учётная запись у выбранного API-провайдера, адрес сервиса, модель и личный ключ. Не публикуй ключ и не отправляй его в чат.
+A real AI response requires an API provider account, a valid HTTPS endpoint, a model available to that account, and a private API key. The app does not ship with a key. Without one, the app clearly remains in local demo mode.
