@@ -113,16 +113,13 @@ public class GameReceiver extends BroadcastReceiver {
     private static int expectedCommand(int game,int step){
         // A deterministic but varied obstacle sequence. 0=left, 1=action, 2=right.
         int[][] sequences={
-            {1,0,1,2,1,0,1,2}, {0,1,2,1,0,1,2,1}, {0,1,2,1,2,0,1,2},
-            {0,1,2,0,1,2,1,0}, {0,1,2,1,2,0,1,2}, {0,1,2,1,0,2,1,2},
-            {0,1,2,1,2,0,1,2}, {0,1,2,1,0,2,1,2}, {0,2,1,0,1,2,0,1},
-            {0,1,2,1,2,0,1,2}, {0,1,2,1,0,2,1,2}, {0,1,2,0,1,2,1,0},
-            {0,1,2,1,2,0,1,2}, {0,1,2,1,0,2,1,2}, {0,1,2,1,2,0,1,2},
-            {0,1,2,1,0,2,1,2}, {0,1,2,1,2,0,1,2}, {0,1,2,1,0,2,1,2},
-            {0,1,2,1,2,0,1,2}, {0,1,2,1,0,2,1,2}
+            {1,0,1},{0,1,2},{0,1,2},{0,1,2},{0,1,2},
+            {0,1,2},{0,1,2},{0,1,2},{0,2,1},{0,1,2},
+            {0,1,2},{0,1,2},{0,1,2},{0,1,2},{0,1,2},
+            {0,1,2},{0,1,2},{0,1,2},{0,1,2},{0,1,2}
         };
         int[] s=sequences[game];
-        return s[Math.floorMod(step+s.length*(game%3),s.length)];
+        return s[Math.floorMod(step,s.length)];
     }
 
     private static String commandName(int cmd){
