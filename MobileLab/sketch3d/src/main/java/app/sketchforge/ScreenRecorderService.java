@@ -9,6 +9,7 @@ import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.os.*;
+import android.view.WindowManager;
 import android.provider.MediaStore;
 import android.net.Uri;
 import java.io.File;
