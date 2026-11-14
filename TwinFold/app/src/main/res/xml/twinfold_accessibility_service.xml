@@ -3,5 +3,6 @@
     android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:notificationTimeout="100"
+    android:description="@string/twinfold_accessibility_description"
     android:canPerformGestures="true"
     android:canRetrieveWindowContent="false" />
