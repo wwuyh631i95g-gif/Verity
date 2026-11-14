@@ -20,6 +20,15 @@ object AiClient {
                     "Для безопасности адрес API должен начинаться с https://"
                 }
                 require(apiKey.isNotBlank()) { "Не указан API-ключ" }
+                val cleanEndpoint = endpoint.trim().trimEnd('/')
+                val requestUrl = when {
+                    cleanEndpoint.equals("https://openrouter.ai", true) ->
+                        "https://openrouter.ai/api/v1/chat/completions"
+                    cleanEndpoint.equals("https://openrouter.ai/api/v1", true) ->
+                        "https://openrouter.ai/api/v1/chat/completions"
+                    cleanEndpoint.endsWith("/chat/completions", true) -> cleanEndpoint
+                    else -> cleanEndpoint
+                }
 
                 val messages = JSONArray()
                 messages.put(
@@ -31,10 +40,10 @@ object AiClient {
                     messages.put(JSONObject().put("role", role).put("content", text))
                 }
                 val body = JSONObject()
-                    .put("model", model.ifBlank { "gpt-5.4-mini" })
+                    .put("model", model.ifBlank { "openrouter/auto" })
                     .put("messages", messages)
 
-                connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+                connection = (URL(requestUrl).openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     connectTimeout = 15000
                     readTimeout = 45000
@@ -42,6 +51,10 @@ object AiClient {
                     setRequestProperty("Content-Type", "application/json; charset=utf-8")
                     setRequestProperty("Accept", "application/json")
                     setRequestProperty("Authorization", "Bearer $apiKey")
+                    if (requestUrl.contains("openrouter.ai", true)) {
+                        setRequestProperty("HTTP-Referer", "https://github.com/wwuyh631i95g-gif/Verity")
+                        setRequestProperty("X-OpenRouter-Title", "Island Buddy")
+                    }
                 }
                 connection.outputStream.use {
                     it.write(body.toString().toByteArray(Charsets.UTF_8))

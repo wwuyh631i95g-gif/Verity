@@ -56,8 +56,8 @@ class MainActivity : Activity() {
         private const val REQUEST_OVERLAY = 601
         private const val REQUEST_AUDIO = 602
         private const val REQUEST_SPEECH = 603
-        private const val DEFAULT_ENDPOINT = "https://api.openai.com/v1/chat/completions"
-        private const val DEFAULT_MODEL = "gpt-5.4-mini"
+        private const val DEFAULT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
+        private const val DEFAULT_MODEL = "openrouter/auto"
 
         private val animationNames = arrayOf(
             "Спокойное моргание",
@@ -141,7 +141,7 @@ class MainActivity : Activity() {
             addView(page)
         }
 
-        page.addView(label("ISLAND BUDDY  2.0", 25f, Color.WHITE, true))
+        page.addView(label("ISLAND BUDDY  2.1", 25f, Color.WHITE, true))
         page.addView(label("Камера-островок с живыми глазами и голосовым ИИ", 13f, 0xFF9CAFC6.toInt()))
 
         val previewCard = card()
@@ -304,7 +304,7 @@ class MainActivity : Activity() {
         actions.addView(button("Открыть голосового помощника") { showAssistant() })
         actions.addView(button("Выключить островок") { stopIsland() })
         page.addView(actions)
-        page.addView(label("Island Buddy 2.0 • Android 8–14 • Honor X8b", 11f, 0xFF71839A.toInt()))
+        page.addView(label("Island Buddy 2.1 • Android 8–14 • Honor X8b", 11f, 0xFF71839A.toInt()))
         setContentView(scroll)
     }
 
