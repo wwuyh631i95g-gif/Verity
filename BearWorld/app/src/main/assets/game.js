@@ -95,7 +95,7 @@ function update(dt){
  if(parts.arm_r_10)parts.arm_r_10.rotation.x=walking?-s:0;
  if(parts.leg_l_18)parts.leg_l_18.rotation.x=walking?-s:0;
  if(parts.leg_r_22)parts.leg_r_22.rotation.x=walking?s:0;
- if(Math.abs(x)>.08)model.rotation.z+=(x>0?-.18:.18-model.rotation.z)*Math.min(1,dt*4);
+ if(Math.abs(x)>.08){const wanted=x>0?-.18:.18;model.rotation.z+=(wanted-model.rotation.z)*Math.min(1,dt*4);}
  else model.rotation.z+=(0-model.rotation.z)*Math.min(1,dt*4);}
  collectAndCollide();dist=Math.max(0,Math.floor(Math.abs(player.position.z)*1.5));$("distance").textContent=dist;
 }
@@ -142,5 +142,5 @@ $("pause").addEventListener("click",()=>{paused=!paused;$("panel").style.display
 $("resume").addEventListener("click",()=>{paused=false;$("panel").style.display="none";clock.getDelta();});
 $("importModels").addEventListener("click",()=>$("modelFiles").click());
 $("modelFiles").addEventListener("change",e=>{importFiles(e.target.files);e.target.value="";});
-setup();
+try{setup();}catch(error){console.error(error);loading.textContent='Не удалось запустить 3D-графику на этом устройстве.';}
 })();
