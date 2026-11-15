@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#101820">
+<title>BearWorld</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;font-family:Arial,sans-serif;color:#fff;touch-action:none}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block}
+#hud{position:fixed;inset:0;pointer-events:none}
+.pill{background:#0c161dbb;border:1px solid #ffffff2b;border-radius:16px;padding:8px 12px;text-shadow:0 1px 2px #000;font-weight:800}
+#brand{position:absolute;left:12px;top:10px;font-size:14px}
+#stats{position:absolute;right:12px;top:10px;display:flex;gap:7px;font-size:14px}
+#hint{position:absolute;left:50%;top:12px;transform:translateX(-50%);font-size:12px;white-space:nowrap}
+#pause{position:absolute;right:12px;top:58px;width:42px;height:42px;border-radius:13px;background:#0c161dbb;color:white;border:1px solid #ffffff55;pointer-events:auto;font-size:18px}
+#importModels{position:absolute;left:12px;top:58px;pointer-events:auto;border:1px solid #ffffff55;border-radius:13px;background:#183b45e8;color:#fff;padding:11px 13px;font-size:12px;font-weight:900}
+#modelFiles{display:none}
+#joystick{position:absolute;left:17px;bottom:17px;width:clamp(105px,18vw,145px);height:clamp(105px,18vw,145px);border-radius:50%;background:#0f1c237d;border:2px solid #ffffff55;pointer-events:auto;touch-action:none}
+#stick{position:absolute;width:42%;height:42%;left:29%;top:29%;border-radius:50%;background:#f5c65be8;border:2px solid white;pointer-events:none}
+#buttons{position:absolute;right:18px;bottom:18px;display:flex;gap:10px;align-items:flex-end;pointer-events:auto}
+.control{width:clamp(68px,12vw,90px);height:clamp(68px,12vw,90px);border-radius:50%;border:2px solid #ffffffd0;background:#1f5062df;color:white;font-size:12px;font-weight:900;touch-action:none}
+#jump{width:clamp(80px,14vw,104px);height:clamp(80px,14vw,104px);background:#da9730e8}
+#loading{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#081117e8;border:1px solid #ffffff33;border-radius:16px;padding:16px 20px;font-weight:800;text-align:center}
+#toast{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);padding:8px 13px;border-radius:12px;background:#10232bea;font-size:13px;opacity:0;transition:opacity .2s;white-space:nowrap}
+#panel{display:none;position:absolute;inset:0;background:#050c11bb;pointer-events:auto;align-items:center;justify-content:center}
+#panelCard{background:#172a32;border:1px solid #ffffff33;border-radius:20px;padding:22px;min-width:min(300px,85vw);text-align:center}
+#panelCard p{color:#ccdae0;line-height:1.4}
+#resume{border:0;border-radius:13px;background:#f5c65b;color:#2c2415;padding:13px 24px;font-weight:900}
+@media(orientation:portrait){#hint{top:110px;max-width:90vw;white-space:normal;text-align:center}#pause,#importModels{top:58px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+ <div id="brand" class="pill">🐻 BEARWORLD · БЕСКОНЕЧНЫЙ МИР</div>
+ <div id="stats"><div class="pill">🪙 <span id="coins">0</span></div><div class="pill">📍 <span id="distance">0</span> м</div></div>
+ <div id="hint" class="pill">Джойстик — движение · справа — обзор и прыжок</div>
+ <button id="importModels">ЗАГРУЗИТЬ GLB</button>
+ <input id="modelFiles" type="file" accept=".glb,model/gltf-binary" multiple>
+ <button id="pause">Ⅱ</button>
+ <div id="joystick"><div id="stick"></div></div>
+ <div id="buttons"><button class="control" id="look">КАМЕРА</button><button class="control" id="jump">ПРЫЖОК</button></div>
+ <div id="loading">Создаю бесконечный 3D-мир…</div>
+ <div id="toast"></div>
+ <div id="panel"><div id="panelCard"><h2>Пауза</h2><p>Мир создаётся дальше по мере движения.<br>Можешь добавить свои GLB-карты и персонажа.</p><button id="resume">ПРОДОЛЖИТЬ</button></div></div>
+</div>
+<script src="vendor/three.min.js"></script>
+<script src="vendor/GLTFLoader.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
