@@ -212,12 +212,12 @@ if 'android.hardware.type.watch' not in m:
     m = m.replace(needle, feature + needle, 1)
 if 'xmlns:tools=' not in m:
     m = m.replace('xmlns:android="http://schemas.android.com/apk/res/android"', 'xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"', 1)
-if 'tools:overrideLibrary="zone.ien.highigadaptive,zone.ien.highignative,zone.ien.hig"' not in m:
+if 'tools:overrideLibrary="zone.ien.highigadaptive,zone.ien.highignative,zone.ien.highig"' not in m:
     manifest_start = m.find("<manifest")
     manifest_end = m.find(">", manifest_start)
     if manifest_start < 0 or manifest_end < 0:
         raise SystemExit("Manifest root insertion point not found")
-    m = m[:manifest_end + 1] + '\n    <uses-sdk tools:overrideLibrary="zone.ien.highigadaptive,zone.ien.highignative,zone.ien.hig" />' + m[manifest_end + 1:]
+    m = m[:manifest_end + 1] + '\n    <uses-sdk tools:overrideLibrary="zone.ien.highigadaptive,zone.ien.highignative,zone.ien.highig" />' + m[manifest_end + 1:]
 manifest.write_text(m, encoding="utf-8")
 
 print("Prepared Verity 5.5.0 X9CALL edition for Android 8.0+.")
