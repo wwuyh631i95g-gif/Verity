@@ -1,5 +1,5 @@
 # X9CALL API 26/27 compatibility build
-# Rebuild with both HIG manifest package overrides for Android 8.
+# Rebuild with HIG replaced by native Material 3 components for Android 8.
 name: Build Verity X9CALL APK (Android 8)
 on:
   workflow_dispatch:
@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/build-verity-x9call.yml"
       - "scripts/prepare_x9call_build.py"
+      - "scripts/prepare_x9call_android8.py"
 
 permissions:
   contents: write
@@ -113,6 +114,12 @@ jobs:
         run: |
           python3 -m py_compile scripts/prepare_x9call_build.py
           python3 scripts/prepare_x9call_build.py Verity-main
+
+      - name: Replace Android 10-only HIG widgets for API 26
+        run: |
+          python3 -m py_compile scripts/prepare_x9call_android8.py
+          python3 scripts/prepare_x9call_android8.py Verity-main
+          ! grep -R "zone.ien.hig" Verity-main/app/src/main/java Verity-main/app/build.gradle.kts
 
       - name: Build X9CALL APK
         working-directory: Verity-main
