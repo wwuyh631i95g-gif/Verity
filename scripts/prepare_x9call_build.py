@@ -5,6 +5,11 @@ import sys
 root = Path(sys.argv[1] if len(sys.argv) > 1 else "Verity-main")
 main = root / "app/src/main/java/dev/veriti/app/MainActivity.kt"
 s = main.read_text(encoding="utf-8")
+if "import androidx.compose.ui.unit.sp" not in s:
+    dp_import = "import androidx.compose.ui.unit.dp\\n"
+    if dp_import not in s:
+        raise SystemExit("Compose dp import insertion point not found")
+    s = s.replace(dp_import, dp_import + "import androidx.compose.ui.unit.sp\\n", 1)
 
 def once(old: str, new: str, label: str):
     global s
@@ -205,6 +210,14 @@ if 'android.hardware.type.watch' not in m:
     needle = '    <uses-permission android:name="android.permission.INTERNET" />'
     if needle not in m: raise SystemExit("Manifest permission insertion point not found")
     m = m.replace(needle, feature + needle, 1)
+if 'xmlns:tools=' not in m:
+    m = m.replace('xmlns:android="http://schemas.android.com/apk/res/android"', 'xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"', 1)
+if 'tools:overrideLibrary="zone.ien.highigadaptive"' not in m:
+    manifest_start = m.find("<manifest")
+    manifest_end = m.find(">", manifest_start)
+    if manifest_start < 0 or manifest_end < 0:
+        raise SystemExit("Manifest root insertion point not found")
+    m = m[:manifest_end + 1] + '\\n    <uses-sdk tools:overrideLibrary="zone.ien.highigadaptive" />' + m[manifest_end + 1:]
 manifest.write_text(m, encoding="utf-8")
 
 print("Prepared Verity 5.5.0 X9CALL edition for Android 8.0+.")

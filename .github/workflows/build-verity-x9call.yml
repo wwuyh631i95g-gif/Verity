@@ -8,7 +8,7 @@ on:
       - "scripts/prepare_x9call_build.py"
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 jobs:
@@ -173,3 +173,42 @@ jobs:
               exit 1
             fi
             echo "X9CALL Android 8.1 launch test passed"
+
+      - name: Smoke test on Android 8.0 emulator at X9CALL resolution
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          target: google_apis
+          arch: x86
+          profile: Nexus 6
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim -camera-back none
+          script: |
+            APK="Verity-main/app/build/outputs/apk/debug/Verity-5.5.0-X9CALL-debug.apk"
+            adb shell wm size 320x385
+            adb shell wm density 160
+            adb install -r "$APK"
+            adb logcat -c
+            adb shell am start -W -n dev.veriti.app.x9call/dev.veriti.app.MainActivity
+            sleep 12
+            if ! adb shell pidof dev.veriti.app.x9call >/dev/null; then
+              adb logcat -d -t 4000
+              echo "Verity X9CALL exited after launch on Android 8.0"
+              exit 1
+            fi
+            adb logcat -d -t 4000 > /tmp/verity-x9call-api26-logcat.txt
+            if grep -E "FATAL EXCEPTION|Process: dev.veriti.app.x9call" /tmp/verity-x9call-api26-logcat.txt; then
+              cat /tmp/verity-x9call-api26-logcat.txt
+              exit 1
+            fi
+            echo "X9CALL Android 8.0 launch test passed"
+
+      - name: Publish direct-download X9CALL APK release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK="Verity-main/app/build/outputs/apk/debug/Verity-5.5.0-X9CALL-debug.apk"
+          TAG="verity-x9call-5.5.0-build-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --title "Verity 5.5.0 — X9CALL (Android 8)" --notes "Compact Verity 5.5.0 edition for X9CALL-class smartwatches. minSdk 26, targetSdk 27. Built and smoke-tested on Android 8.0 and 8.1 emulator profiles."
+          echo "### Direct APK download" >> "$GITHUB_STEP_SUMMARY"
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$(basename "$APK")" >> "$GITHUB_STEP_SUMMARY"
