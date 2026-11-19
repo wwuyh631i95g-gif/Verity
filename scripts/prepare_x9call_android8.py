@@ -7,8 +7,8 @@ s = main.read_text(encoding="utf-8")
 
 # The HIG 1.3.1 artifacts require Android 10 (API 29). Replace these
 # composables with the Material 3 components already used by Verity.
-s = re.sub(r"^import zone\\.ien\\.hig\\..*\\n", "", s, flags=re.M)
-anchor = "import androidx.compose.material3.AlertDialog\\n"
+s = re.sub(r"^import zone\.ien\.hig\..*\n", "", s, flags=re.M)
+anchor = "import androidx.compose.material3.AlertDialog\n"
 imports = """import androidx.compose.material3.Button as MaterialButton
 import androidx.compose.material3.NavigationBar as MaterialNavigationBar
 import androidx.compose.material3.NavigationBarItem as MaterialNavigationBarItem
@@ -26,8 +26,8 @@ if "import androidx.compose.material3.Button as MaterialButton" not in s:
 
 s = s.replace("AdaptiveSwitch(", "Switch(")
 
-start = s.find("@OptIn(ExperimentalAdaptiveApi::class)\\n@Composable\\nprivate fun VeritiTheme(")
-end = s.find("\\nprivate enum class Screen", start)
+start = s.find("@OptIn(ExperimentalAdaptiveApi::class)\n@Composable\nprivate fun VeritiTheme(")
+end = s.find("\nprivate enum class Screen", start)
 if start < 0 or end < 0:
     raise SystemExit("Adaptive theme block not found")
 new_theme = """@Composable
@@ -52,8 +52,8 @@ private fun VeritiTheme(style: String, accent: String, content: @Composable () -
 """
 s = s[:start] + new_theme + s[end:]
 
-start = s.find("@OptIn(ExperimentalAdaptiveApi::class)\\n@Composable\\nprivate fun AppBottomBar(")
-end = s.find("\\n@Composable\\nprivate fun StyleTabIcon", start)
+start = s.find("@OptIn(ExperimentalAdaptiveApi::class)\n@Composable\nprivate fun AppBottomBar(")
+end = s.find("\n@Composable\nprivate fun StyleTabIcon", start)
 if start < 0 or end < 0:
     raise SystemExit("Adaptive bottom bar block not found")
 new_nav = """@Composable
@@ -105,12 +105,12 @@ s = s.replace(") = AdaptiveTonalButton(onClick = onClick, modifier = modifier, e
               ") = MaterialOutlinedButton(onClick = onClick, modifier = modifier, enabled = enabled, content = content)")
 s = s.replace(") = AdaptiveTextButton(onClick = onClick, modifier = modifier, enabled = enabled, content = content)",
               ") = MaterialTextButton(onClick = onClick, modifier = modifier, enabled = enabled, content = content)")
-s = s.replace(") = AdaptiveSlider(\\n", ") = MaterialSlider(\\n")
-s = s.replace(") = AdaptiveScaffold(\\n", ") = MaterialScaffold(\\n")
-s = s.replace(") = AdaptiveTopAppBar(\\n    title = title,\\n    modifier = modifier,\\n    navigationIcon = navigationIcon,\\n    actions = actions,\\n    adaptation = { material { this.colors = colors } }\\n)",
-              ") = MaterialTopAppBar(\\n    title = title,\\n    modifier = modifier,\\n    navigationIcon = navigationIcon,\\n    actions = actions,\\n    colors = colors\\n)")
-s = s.replace("@OptIn(ExperimentalAdaptiveApi::class)\\n", "")
-s = s.replace("@Composable\\nprivate fun TopAppBar(\\n", "@OptIn(ExperimentalMaterial3Api::class)\\n@Composable\\nprivate fun TopAppBar(\\n", 1)
+s = s.replace(") = AdaptiveSlider(\n", ") = MaterialSlider(\n")
+s = s.replace(") = AdaptiveScaffold(\n", ") = MaterialScaffold(\n")
+s = s.replace(") = AdaptiveTopAppBar(\n    title = title,\n    modifier = modifier,\n    navigationIcon = navigationIcon,\n    actions = actions,\n    adaptation = { material { this.colors = colors } }\n)",
+              ") = MaterialTopAppBar(\n    title = title,\n    modifier = modifier,\n    navigationIcon = navigationIcon,\n    actions = actions,\n    colors = colors\n)")
+s = s.replace("@OptIn(ExperimentalAdaptiveApi::class)\n", "")
+s = s.replace("@Composable\nprivate fun TopAppBar(\n", "@OptIn(ExperimentalMaterial3Api::class)\n@Composable\nprivate fun TopAppBar(\n", 1)
 
 if any(x in s for x in ["zone.ien.hig", "AdaptiveTheme", "AdaptiveSwitch", "AdaptiveScaffold", "AdaptiveButton", "AdaptiveTopAppBar"]):
     raise SystemExit("Unconverted HIG API remains in MainActivity.kt")
@@ -124,10 +124,10 @@ gradle.write_text(g, encoding="utf-8")
 
 manifest = root / "app/src/main/AndroidManifest.xml"
 m = manifest.read_text(encoding="utf-8")
-m = re.sub(r"\\s*<uses-sdk\\s+tools:overrideLibrary=\"[^\"]*\"\\s*/>", "", m)
+m = re.sub(r"\s*<uses-sdk\s+tools:overrideLibrary=\"[^\"]*\"\s*/>", "", m)
 m = m.replace(' xmlns:tools="http://schemas.android.com/tools"', "")
 m = re.sub(r' android:foregroundServiceType="specialUse"', "", m)
-m = re.sub(r'\\s*<property\\s+android:name="android\\.app\\.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"\\s+android:value="[^"]*"\\s*/>', "", m)
+m = re.sub(r'\s*<property\s+android:name="android\.app\.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"\s+android:value="[^"]*"\s*/>', "", m)
 manifest.write_text(m, encoding="utf-8")
 
 print("Prepared Verity for Android 8: replaced Android-10-only HIG components with Compose Material 3.")
