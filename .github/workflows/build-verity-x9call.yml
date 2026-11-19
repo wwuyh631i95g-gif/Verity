@@ -1,4 +1,5 @@
 # X9CALL API 26/27 compatibility build
+# Rebuild with both HIG manifest package overrides for Android 8.
 name: Build Verity X9CALL APK (Android 8)
 on:
   workflow_dispatch:
