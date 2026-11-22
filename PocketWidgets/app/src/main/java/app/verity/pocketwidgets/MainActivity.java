@@ -11,7 +11,7 @@ import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Button;
 import android.widget.Chronometer;
-import android.widget.CountDownTimer;
+import android.os.CountDownTimer;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
