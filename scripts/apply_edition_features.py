@@ -27,7 +27,7 @@ def once(old: str, new: str, label: str):
     else:
         raise SystemExit(f"{label}: expected one match, got {n}")
 
-enum_match = re.search(r"private enum class Screen \\{([^}]+)\\}", s)
+enum_match = re.search(r"private enum class Screen \{([^}]+)\}", s)
 if not enum_match:
     raise SystemExit("edition screen enum: enum declaration not found")
 enum_values = [v.strip() for v in enum_match.group(1).split(",")]
