@@ -10,7 +10,8 @@ const themes=[
  {ground:0x6c9954,path:0x91b86a,sky:0x8bc7e7,prop:0x477341},
  {ground:0xc2a15c,path:0xe0c47a,sky:0xf0bd78,prop:0x927041},
  {ground:0xb8d1d8,path:0xe9f5f5,sky:0x9ebfd7,prop:0x718c99},
- {ground:0x4b505e,path:0x737b8b,sky:0x303444,prop:0x555c70}
+ {ground:0x4b505e,path:0x737b8b,sky:0x303444,prop:0x555c70},
+ {ground:0x938778,path:0xc9b99a,sky:0x91b7cf,prop:0x66574b}
 ];
 function say(s){toast.textContent=s;toast.style.opacity="1";clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.style.opacity="0",1800);}
 function mat(c){return new T.MeshStandardMaterial({color:c,roughness:.92});}
@@ -43,7 +44,7 @@ function replaceBear(gltf){
 }
 function addTree(g,x,z,theme,s,colliders){
  const trunk=new T.Mesh(new T.CylinderGeometry(.15*s,.22*s,1.25*s,7),mat(0x6b4a31));trunk.position.set(x,.6*s,z);g.add(trunk);
- const col=theme===2?0xe4f1f3:theme===1?0x9b854a:theme===3?0x555c70:0x477a42;
+ const col=theme===2?0xe4f1f3:theme===1?0x9b854a:theme===3?0x555c70:theme===4?0x736052:0x477a42;
  const crown=new T.Mesh(new T.ConeGeometry(.9*s,1.8*s,7),mat(col));crown.position.set(x,1.7*s,z);g.add(crown);
  colliders.push({x,z,rx:.30*s,rz:.30*s,height:1.45*s});
 }
@@ -52,7 +53,7 @@ function addCoin(g,x,z,list){
  m.position.set(x,1.18,z);m.rotation.y=Math.PI/2;g.add(m);list.push({mesh:m,taken:false});
 }
 function addRock(g,x,z,theme,s,colliders){
- const m=new T.Mesh(new T.DodecahedronGeometry(.7*s,0),mat([0x75816b,0x9b8054,0x9daeb7,0x6b7181][theme]));
+ const m=new T.Mesh(new T.DodecahedronGeometry(.7*s,0),mat([0x75816b,0x9b8054,0x9daeb7,0x6b7181,0x75695e][theme]));
  m.position.set(x,.35*s,z);m.rotation.z=.18;g.add(m);
  colliders.push({x,z,rx:.62*s,rz:.62*s,height:1.1*s});
 }
@@ -66,6 +67,19 @@ function addCottage(g,x,z,theme,colliders,r){
  const door=new T.Mesh(new T.BoxGeometry(.85,1.5,.12),mat(0x503529));
  door.position.set(x,height*.35,z-depth/2-.065);g.add(door);
  colliders.push({x,z,rx:width*.53,rz:depth*.53,height:height+1.3});
+}
+function addBigHouse(g,x,z,colliders){
+ const body=new T.Mesh(new T.BoxGeometry(11,4.1,9),mat(0xc5ad8b));
+ body.position.set(x,2.05,z);g.add(body);
+ const roof=new T.Mesh(new T.ConeGeometry(7.9,3.1,4),mat(0x5d3730));
+ roof.position.set(x,5.55,z);roof.rotation.y=Math.PI/4;g.add(roof);
+ const door=new T.Mesh(new T.BoxGeometry(1.35,2.35,.16),mat(0x51382d));
+ door.position.set(x,1.18,z-4.58);g.add(door);
+ for(const wx of [-3.5,3.5]){
+   const window=new T.Mesh(new T.BoxGeometry(1.25,1.1,.13),mat(0x8ec9dc));
+   window.position.set(x+wx,2.45,z-4.6);g.add(window);
+ }
+ colliders.push({x,z,rx:5.7,rz:4.8,height:7.2});
 }
 function attachMap(entry){
  if(!mapModels.length||entry.mapGroup)return;
@@ -86,14 +100,14 @@ function attachMap(entry){
    const bb=new T.Box3().setFromObject(o),sz=bb.getSize(new T.Vector3()),c=bb.getCenter(new T.Vector3());
    if(sz.y<.45||sz.y>10||sz.x>24||sz.z>24)return;
    if(sz.x>21&&sz.z>21)return;
-   entry.colliders.push({x:c.x,z:c.z,rx:Math.max(.35,sz.x*.45),rz:Math.max(.35,sz.z*.45),height:sz.y});
+   entry.colliders.push({x:c.x-entry.group.position.x,z:c.z-entry.group.position.z,rx:Math.max(.35,sz.x*.45),rz:Math.max(.35,sz.z*.45),height:sz.y});
  });
 }
 function refreshMaps(){
  chunks.forEach(entry=>{if(entry.mapGroup)entry.group.remove(entry.mapGroup);entry.mapGroup=null;entry.colliders=entry.baseColliders.slice();attachMap(entry);});
 }
 function biomeName(i){
- return ["Зелёная долина","Песчаная бухта","Снежная долина","Черепашья деревня"][i]||"Неизведанная зона";
+ return ["Зелёная долина","Песчаная бухта","Снежная долина","Черепашья деревня","Большой дом"][i]||"Неизведанная зона";
 }
 function makeChunk(cx,cz){
  const seed=((cx*73856093)^(cz*19349663)^0x5f3759df)>>>0;
@@ -118,6 +132,7 @@ function makeChunk(cx,cz){
      addCottage(g,x,z,themeIndex,colliders,r);
    }
  }
+ if(themeIndex===4) addBigHouse(g,(r()>.5?1:-1)*5,(r()>.5?1:-1)*4,colliders);
  if(themeIndex===2){
    for(let i=0;i<5;i++){
      const x=(r()>.5?1:-1)*(7+r()*6),z=(r()>.5?1:-1)*(6+r()*7);
