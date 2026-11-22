@@ -433,8 +433,8 @@ new_skin_helper = r'''    private fun loadVerityNewSkin(context: Context, group:
         val atlas = runCatching {
             context.assets.open("character_catalog/verity_new_skins_atlas.png").use(BitmapFactory::decodeStream)
         }.getOrNull() ?: return null
-        val cell = 128
-        if (atlas.width < cell * 4 || atlas.height < cell * 4) {
+        val cell = minOf(atlas.width / 4, atlas.height / 4)
+        if (cell < 1 || atlas.width < cell * 4 || atlas.height < cell * 4) {
             atlas.recycle()
             return null
         }
