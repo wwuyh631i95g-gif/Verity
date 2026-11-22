@@ -348,7 +348,7 @@ rep(skin,
         val decoded = runCatching { context.assets.open(resolvedPath).use(BitmapFactory::decodeStream) }.getOrNull() ?: return null
 ''',
 '''        if (!resolvedPath.endsWith(".png")) return null
-        val added = Regex("""character_catalog/sprites/(49|5[0-5])/\\\\d{2}_(\\\\d{2})\\\\.png""").find(resolvedPath)
+        val added = Regex("""character_catalog/sprites/(49|5[0-5])/\d{2}_\d{2}\.png""").find(resolvedPath)
         if (added != null) return drawAddedCatalogSprite(added.groupValues[1].toInt(), added.groupValues[2].toInt())
         val decoded = runCatching { context.assets.open(resolvedPath).use(BitmapFactory::decodeStream) }.getOrNull() ?: return null
 ''',
