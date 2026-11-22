@@ -8,6 +8,8 @@ on:
     paths:
       - ".github/workflows/build-verity-x9call.yml"
       - "scripts/apply_custom_updates.py"
+      - "scripts/apply_edition_features.py"
+      - "edition/**"
       - "scripts/prepare_x9call_build.py"
       - "scripts/prepare_x9call_android8.py"
 
@@ -121,6 +123,11 @@ jobs:
           python3 -m py_compile scripts/prepare_x9call_android8.py
           python3 scripts/prepare_x9call_android8.py Verity-main
           ! grep -R "zone.ien.hig" Verity-main/app/src/main/java Verity-main/app/build.gradle.kts
+
+      - name: Add X9CALL edition-specific features
+        run: |
+          python3 -m py_compile scripts/apply_edition_features.py
+          python3 scripts/apply_edition_features.py Verity-main
 
       - name: Build X9CALL APK
         working-directory: Verity-main

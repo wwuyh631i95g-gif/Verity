@@ -88,6 +88,11 @@ jobs:
         run: |
           python3 -m py_compile scripts/apply_verity_55.py
           python3 scripts/apply_verity_55.py Verity-main
+
+      - name: Add edition-specific feature set
+        run: |
+          python3 -m py_compile scripts/apply_edition_features.py
+          python3 scripts/apply_edition_features.py Verity-main
       - name: Build debug APK
         working-directory: Verity-main
         run: |

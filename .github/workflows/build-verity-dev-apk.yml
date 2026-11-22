@@ -9,6 +9,8 @@ on:
       - "developer/DeveloperWorkbenchScreen.kt"
       - "scripts/prepare_dev_build.py"
       - "scripts/apply_custom_updates.py"
+      - "scripts/apply_edition_features.py"
+      - "edition/**"
       - "scripts/apply_widget_v2.py"
       - "scripts/apply_life_v6.py"
       - "scripts/life_v6_bundle_*.txt"
@@ -109,6 +111,11 @@ jobs:
         run: |
           python3 -m py_compile scripts/apply_verity_55.py
           python3 scripts/apply_verity_55.py Verity-main
+
+      - name: Add edition-specific feature set
+        run: |
+          python3 -m py_compile scripts/apply_edition_features.py
+          python3 scripts/apply_edition_features.py Verity-main
 
       - name: Build developer debug APK
         working-directory: Verity-main
