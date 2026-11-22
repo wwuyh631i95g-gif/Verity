@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Pocket Widgets</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0d10;--card:#191c20;--line:#373b42;--white:#f3f4f6;--muted:#a2a7b0;--red:#f34852}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--white);font-family:Roboto,Arial,sans-serif}
+header{padding:16px 14px 8px;max-width:720px;margin:auto}.brand{font:700 10px monospace;letter-spacing:2px;color:#aeb3bc}
+h1{font-size:25px;line-height:1.1;margin:7px 0 5px;font-weight:800}.sub{font-size:11px;color:var(--muted)}
+#grid{padding:4px 11px 28px;display:grid;grid-template-columns:1fr;gap:11px;max-width:720px;margin:auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:17px;padding:11px;min-width:0;overflow:hidden}
+.title{font:700 12px monospace;letter-spacing:.5px}.desc{font-size:10px;color:var(--muted);margin:4px 0 9px;line-height:1.4}
+.texture{width:100%;height:100px;border-radius:10px;border:1px solid #3a3d44;background-image:url("widget_refs_atlas.jpg");background-size:400% 400%;background-repeat:no-repeat;margin-bottom:9px;background-color:#111317}
+.row{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+button{border:1px solid #444952;border-radius:9px;background:#30343a;color:#f4f5f7;font-size:10px;font-weight:700;letter-spacing:.2px;padding:9px 8px;min-height:36px;flex:1;cursor:pointer}
+button:active{background:#474c55;transform:scale(.985)}
+.big{font:700 20px monospace;text-align:center;padding:6px 0}.center{text-align:center}.muted{font-size:10px;color:var(--muted);text-align:center;margin:5px 0}
+.pops{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}.pop{min-height:31px!important;height:31px;padding:0;border-radius:50%;font-size:18px;background:#252930;color:#818791}.pop.popped{background:#343a42;color:var(--red);box-shadow:inset 0 2px 3px #090a0c}
+.fish{font-size:30px;text-align:center;padding:5px;transition:transform .3s}.robot{font:700 25px monospace;text-align:center;padding:4px}
+.crackbox{height:90px;border-radius:10px;border:1px solid #444a53;background:#11151a;overflow:hidden}
+canvas{width:100%;height:100%;display:block;touch-action:manipulation}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.tile{min-height:36px;padding:4px;border-radius:8px;background:#30343a;border:1px solid #444952;color:#f5f5f5;font-size:16px}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.board button{height:40px;font-size:22px;padding:0}
+.mines{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}.mine{padding:0;min-height:30px;height:30px;border-radius:6px}.mine.open{background:#20242a;color:#e6e8ed}
+.progress{height:7px;background:#333840;border-radius:9px;overflow:hidden;margin:9px 0}.progress>i{display:block;height:100%;width:0;background:var(--red);transition:width .3s}
+input[type=time]{background:#101318;border:1px solid var(--line);color:white;padding:7px;border-radius:8px}
+.smallprint{color:#757b85;font-size:9px;text-align:center;margin:13px 10px}
+@media(min-width:560px){#grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:350px){h1{font-size:21px}.card{padding:9px}.texture{height:76px}button{font-size:9px;padding:8px 6px}}
+</style></head><body>
+<header><div class="brand">VIDEO WIDGET SET  /  NOTHING STYLE</div><h1>POCKET WIDGETS</h1><div class="sub">Те самые мини-виджеты из присланного видео</div></header>
+<main id="grid"></main><div class="smallprint">Работает локально · без регистрации и подключения к сети</div>
+<script>
+(function(){
+"use strict";
+const defs=[
+["quick","БЫСТРЫЕ НАСТРОЙКИ","Wi‑Fi, Bluetooth, экран, звук и уведомления.",0],
+["year","ДО НОВОГО ГОДА","Обратный отсчёт до ближайшего 1 января.",1],
+["dino","ДИНОЗАВР И КАКТУС","Нажимай, чтобы перепрыгивать кактус.",2],
+["pop","ЛОПАЛКА-АНТИСТРЕСС","Тапай по точкам, чтобы переключать их.",3],
+["excuse","ПОЧЕМУ ОПОЗДАЛ","Генератор коротких отговорок.",4],
+["aquarium","АКВАРИУМ","Покорми рыбку и смотри, как она подплывает.",5],
+["robot","РОБОТ, КОТОРОГО МОЖНО ТРОГАТЬ","Касания меняют выражение и реплику.",6],
+["glass","АНТИСТРЕСС ПО ТАПУ","Касания добавляют расходящиеся линии.",7],
+["neglect","ТЫ МЕНЯ НЕ ТРОГАЛ","Время с момента последнего касания.",8],
+["bottle","FLIP BOTTLE CHALLENGE","Виртуальный переворот бутылки.",9],
+["counter","ПОЙМАЙ 6–7","Мини-счётчик нажатий.",10],
+["memory","МЕМОРИ","Открывай пары одинаковых символов.",11],
+["tic","КРЕСТИКИ-НОЛИКИ","Играй за X против простого бота.",12],
+["mines","САПЁР","Открывай клетки, избегая мин.",13],
+["work","ОСТАЛОСЬ ДО РАБОТЫ","Прогресс до выбранного времени.",14]
+];
+const root=document.getElementById("grid");
+function tex(i){return "background-position:"+((i%4)*100/3)+"% "+(Math.floor(i/4)*100/3)+"%";}
+root.innerHTML=defs.map(d=>'<section class="card" id="c-'+d[0]+'"><div class="title">'+d[1]+'</div><div class="desc">'+d[2]+'</div><div class="texture" style="'+tex(d[3])+'"></div><div id="b-'+d[0]+'"></div></section>').join("");
+const box=id=>document.getElementById("b-"+id);
+function row(p){let r=document.createElement("div");r.className="row";p.appendChild(r);return r;}
+function button(p,label,fn){let b=document.createElement("button");b.textContent=label;b.addEventListener("click",fn);p.appendChild(b);return b;}
+function label(p,t,cls){let n=document.createElement("div");n.className=cls||"big";n.textContent=t;p.appendChild(n);return n;}
+function setting(key){try{if(window.Android&&Android.openSettings)Android.openSettings(key);else alert("Открой этот раздел в настройках устройства.");}catch(e){alert("Настройки недоступны.");}}
+["Wi‑Fi","Bluetooth","Экран","Звук","Уведомления"].forEach((v,i)=>button(row(box("quick")),v,()=>setting(["wifi","bluetooth","display","sound","notifications"][i])));
+let y=label(box("year"),"СЧИТАЮ…");function tickYear(){let n=new Date(),t=new Date(n.getFullYear()+1,0,1);let s=Math.max(0,Math.floor((t-n)/1000)),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60),q=s%60;y.textContent=d+" Д  "+[h,m,q].map(v=>String(v).padStart(2,"0")).join(":");}tickYear();setInterval(tickYear,1000);
+let dino=0,best=Number(localStorage.getItem("dinoBest")||0),ds=label(box("dino"),"СЧЁТ 0 · РЕКОРД "+best),track=label(box("dino"),"▲       ▰        ▲","center");
+button(row(box("dino")),"ПРЫГНУТЬ",()=>{dino++;best=Math.max(best,dino);localStorage.setItem("dinoBest",best);ds.textContent="СЧЁТ "+dino+" · РЕКОРД "+best;track.textContent=dino%2?"      ▲       ▰":"▲       ▰       ▲";track.animate([{transform:"translateY(0)"},{transform:"translateY(-13px)"},{transform:"translateY(0)"}],250);});
+let popGrid=document.createElement("div");popGrid.className="pops";for(let i=0;i<30;i++){let p=document.createElement("button");p.className="pop";p.textContent="○";p.onclick=()=>{p.classList.toggle("popped");p.textContent=p.classList.contains("popped")?"●":"○";};popGrid.appendChild(p);}box("pop").appendChild(popGrid);button(row(box("pop")),"СБРОСИТЬ",()=>popGrid.querySelectorAll("button").forEach(p=>{p.classList.remove("popped");p.textContent="○";}));
+let excuse=label(box("excuse"),"Я ОПОЗДАЛ, ПОТОМУ ЧТО…","center");let excuses=["дед позвонил и попросил срочно помочь","сломал мой самокат","перепутал дни недели","автобус уехал раньше расписания","искал пропавший ключ","помогал соседу донести коробку"];button(row(box("excuse")),"СГЕНЕРИРОВАТЬ",()=>excuse.textContent=excuses[Math.floor(Math.random()*excuses.length)].toUpperCase());button(row(box("excuse")),"СКОПИРОВАТЬ",()=>{try{navigator.clipboard.writeText(excuse.textContent);}catch(e){}});
+let feed=0,fish=label(box("aquarium"),"🫧  🐟  🫧","fish"),food=label(box("aquarium"),"КОРМ: 0","muted");button(row(box("aquarium")),"ПОКОРМИТЬ",()=>{food.textContent="КОРМ: "+(++feed);fish.textContent=feed%2?"🐠  🫧  🐟":"🫧  🐟  🫧";fish.animate([{transform:"translateX(0)"},{transform:"translateX(18px)"},{transform:"translateX(0)"}],500);});
+let mood=0,faces=["◉  ◡  ◉","◕  ▿  ◕","ಠ  _  ಠ","•  ᴗ  •"],say=["МЕНЯ ЭТО КАЧАЕТ","ВСЁ ПОД КОНТРОЛЕМ","Я СЕЙЧАС ДУМАЮ","ЕЩЁ ОДИН ТАП?"],robot=label(box("robot"),faces[0],"robot"),reply=label(box("robot"),say[0],"muted");button(row(box("robot")),"ПОТРОГАТЬ РОБОТА",()=>{mood=(mood+1)%4;robot.textContent=faces[mood];reply.textContent=say[mood];});
+let cv=document.createElement("canvas");cv.width=480;cv.height=100;cv.className="crackbox";box("glass").appendChild(cv);let cx=cv.getContext("2d"),cracks=0;function draw(){cx.fillStyle="#11151a";cx.fillRect(0,0,480,100);cx.strokeStyle="#e1e4e8";cx.lineWidth=1.3;for(let i=0;i<cracks;i++){let x=(i*79+80)%480,yy=(i*37+41)%100;for(let j=0;j<5;j++){let a=6.283*j/5+i*.2;cx.beginPath();cx.moveTo(x,yy);cx.lineTo(x+Math.cos(a)*(20+i%5*8),yy+Math.sin(a)*(20+i%5*8));cx.stroke();}}}draw();cv.onclick=()=>{cracks=Math.min(cracks+1,24);draw();};button(row(box("glass")),"ОЧИСТИТЬ",()=>{cracks=0;draw();});
+let last=Date.now(),neg=label(box("neglect"),"00:00:00"),face=label(box("neglect"),"◉  _  ◉","center");button(row(box("neglect")),"Я ЗДЕСЬ",()=>{last=Date.now();face.textContent="◕  ᴗ  ◕";});setInterval(()=>{let s=Math.floor((Date.now()-last)/1000);neg.textContent=[Math.floor(s/3600),Math.floor(s%3600/60),s%60].map(v=>String(v).padStart(2,"0")).join(":");},1000);
+let streak=0,record=Number(localStorage.getItem("flipBest")||0),bottle=label(box("bottle"),"▯"),flipText=label(box("bottle"),"СЕРИЯ 0 · РЕКОРД "+record,"muted");button(row(box("bottle")),"ПЕРЕВЕРНУТЬ",()=>{bottle.animate([{transform:"rotate(0)"},{transform:"rotate(360deg)"},{transform:"rotate(720deg)"}],550);let win=Math.random()<.65;streak=win?streak+1:0;record=Math.max(record,streak);localStorage.setItem("flipBest",record);flipText.textContent=(win?"ЕСТЬ! ":"МИМО " )+"СЕРИЯ "+streak+" · РЕКОРД "+record;});
+let count=Number(localStorage.getItem("count67")||0),c=label(box("counter"),"6–7 · "+count);function addCount(){c.textContent="6–7 · "+(++count);localStorage.setItem("count67",count);try{Android.setCounter(count);}catch(e){}}button(row(box("counter")),"ПОЙМАТЬ 6",addCount);button(row(box("counter")),"ПОЙМАТЬ 7",addCount);
+function memory(){let p=box("memory");p.innerHTML="";let deck=["●","◆","▲","■","✦","✚","●","◆","▲","■","✦","✚"].sort(()=>Math.random()-.5),opened=[],matched=new Set(),g=document.createElement("div");g.className="tiles";p.appendChild(g);deck.forEach((sym,i)=>{let b=document.createElement("button");b.className="tile";b.textContent="·";b.onclick=()=>{if(matched.has(i)||opened.find(x=>x.i===i)||opened.length===2)return;b.textContent=sym;opened.push({i,sym,b});if(opened.length===2)setTimeout(()=>{if(opened[0].sym===opened[1].sym){opened.forEach(x=>{matched.add(x.i);x.b.textContent="✓";});}else opened.forEach(x=>x.b.textContent="·");opened=[];},600);};g.appendChild(b);});button(row(p),"ПЕРЕМЕШАТЬ",memory);}memory();
+function tic(){let p=box("tic");p.innerHTML='<div id="tic-state" class="muted">ТВОЙ ХОД</div><div id="tic-grid" class="board"></div>';let b=Array(9).fill(""),g=document.getElementById("tic-grid"),s=document.getElementById("tic-state");function won(c){return [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]].some(a=>a.every(i=>b[i]===c));}function bot(){let i=-1;for(let c of ["O","X"]){for(let n=0;n<9;n++)if(!b[n]){b[n]=c;let w=won(c);b[n]="";if(w){i=n;break;}}if(i>=0)break;}if(i<0&& !b[4])i=4;if(i<0)i=b.findIndex(x=>!x);if(i>=0){b[i]="O";g.children[i].textContent="O";}s.textContent=won("O")?"БОТ ВЫИГРАЛ":b.every(Boolean)?"НИЧЬЯ":"ТВОЙ ХОД";}for(let i=0;i<9;i++){let t=document.createElement("button");t.textContent="·";t.onclick=()=>{if(b[i]||s.textContent!=="ТВОЙ ХОД")return;b[i]="X";t.textContent="X";if(won("X")){s.textContent="ТЫ ВЫИГРАЛ";return;}if(b.every(Boolean)){s.textContent="НИЧЬЯ";return;}s.textContent="ХОД БОТА";setTimeout(bot,250);};g.appendChild(t);}button(row(p),"НОВАЯ ИГРА",tic);}tic();
+function mines(){let p=box("mines");p.innerHTML='<div id="mine-state" class="muted">6 МИН</div><div class="mines" id="mine-grid"></div>';let g=document.getElementById("mine-grid"),status=document.getElementById("mine-state"),m=new Set(),vals=Array(36).fill(0),open=new Set(),end=false;while(m.size<6)m.add(Math.floor(Math.random()*36));m.forEach(i=>{let x=i%6,y=Math.floor(i/6);for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){let xx=x+dx,yy=y+dy;if(xx>=0&&xx<6&&yy>=0&&yy<6&&!m.has(yy*6+xx))vals[yy*6+xx]++;}});for(let i=0;i<36;i++){let b=document.createElement("button");b.className="mine";b.textContent="·";b.onclick=()=>{if(end||open.has(i))return;open.add(i);b.classList.add("open");if(m.has(i)){end=true;b.textContent="✹";status.textContent="МИНА · НОВОЕ ПОЛЕ";}else{b.textContent=vals[i]||"·";if(open.size===30){end=true;status.textContent="ПОЛЕ ОЧИЩЕНО";}}};g.appendChild(b);}button(row(p),"НОВОЕ ПОЛЕ",mines);}mines();
+let work=label(box("work"),"ОСТАЛОСЬ --:--"),progress=document.createElement("div");progress.className="progress";progress.innerHTML="<i></i>";box("work").appendChild(progress);let fill=progress.firstChild,time=document.createElement("input");time.type="time";time.value="18:00";box("work").appendChild(time);function updateWork(){let now=new Date(),v=time.value.split(":").map(Number),end=new Date(now);end.setHours(v[0]||18,v[1]||0,0,0);let start=new Date(now);start.setHours(9,0,0,0);let left=end-now,total=Math.max(1,end-start);if(left<=0){work.textContent="СВОБОДА · ДЕНЬ ЗАКОНЧЕН";fill.style.width="100%";}else{let min=Math.floor(left/60000);work.textContent="ОСТАЛОСЬ "+String(Math.floor(min/60)).padStart(2,"0")+":"+String(min%60).padStart(2,"0");fill.style.width=Math.max(0,Math.min(100,(1-left/total)*100))+"%";}}time.onchange=updateWork;updateWork();setInterval(updateWork,15000);
+})();
+</script></body></html>

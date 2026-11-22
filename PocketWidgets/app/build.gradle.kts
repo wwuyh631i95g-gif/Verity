@@ -1,15 +1,13 @@
 plugins { id("com.android.application") }
-
 android {
     namespace = "app.verity.pocketwidgets"
     compileSdk = 35
-
     defaultConfig {
         applicationId = "app.verity.pocketwidgets"
         minSdk = 26
         targetSdk = 28
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "3.0.0"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

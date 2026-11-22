@@ -1,7 +1,7 @@
-# Pocket Widgets
+# Pocket Widgets — Video Edition
 
-Android 8+ utility dashboard with an actual Android home-screen AppWidget. The widget shows a clock, a persistent tap counter, a working +1 action, and an Open shortcut.
+A compact offline Android application based on the widget demonstrations in the supplied video. The UI cards use screenshot crops extracted from the video and combined into `widget_refs_atlas.jpg`.
 
-The app contains a countdown timer, stopwatch, offline robot phrase button, animated digital bottle flip, dinosaur jump counter, Snake-themed step counter, 6–7 counter, and a small 4×4 mine-reveal puzzle. Layout switches to compact mode on small displays.
+Included video-style widgets: quick settings shortcuts, New Year countdown, dinosaur/cactus runner, pop-it, excuse generator, aquarium, touch-reactive robot, glass anti-stress touch display, neglected timer, Flip Bottle Challenge, 6–7 counter, Memory, Tic-tac-toe, Minesweeper and workday progress.
 
-Compatibility note: Wear OS applications can use the compact interface, but the standard Android AppWidget API is not exposed by every watch launcher. The widget is available only on launchers that support home-screen AppWidgets. No network or storage permission is requested.
+The app's dashboard automatically compresses for small screens. A separate genuine Android home-screen AppWidget shows the clock and working 6–7 counter. Android 8+ is supported. No internet or storage permissions are required. Watch launchers that do not implement Android AppWidget can still run the compact in-app widget collection; the external home widget is launcher-dependent.

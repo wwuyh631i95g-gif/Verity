@@ -1,4 +1,4 @@
-name: Build Pocket Widgets APK (Android 8+)
+name: Build Pocket Widgets APK — video collection
 on:
   workflow_dispatch:
   push:
@@ -24,13 +24,13 @@ jobs:
       - uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
-      - name: Install Android SDK
+      - name: Install Android 35 SDK
         run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
-      - name: Build APK
+      - name: Build Pocket Widgets
         run: gradle -p PocketWidgets --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: Pocket-Widgets-Android-8-APK
+          name: Pocket-Widgets-Video-Edition-Android-8-APK
           path: PocketWidgets/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
