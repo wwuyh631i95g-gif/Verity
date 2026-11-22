@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -43,7 +45,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,7 +79,7 @@ internal fun EditionFeaturesScreen(onBack: () -> Unit) {
         "developer" -> "Developer · инструменты"
         else -> "Phone · функции телефона"
     }
-    var note by rememberSaveable { mutableStateOf(prefs.getString("quick_note", "") ?: "") }
+    var note by remember { mutableStateOf(prefs.getString("quick_note", "") ?: "") }
     var noteDialog by rememberSaveable { mutableStateOf(false) }
     var infoTitle by rememberSaveable { mutableStateOf("") }
     var infoText by rememberSaveable { mutableStateOf("") }
@@ -308,7 +309,7 @@ internal fun EditionFeaturesScreen(onBack: () -> Unit) {
             text = {
                 OutlinedTextField(
                     value = note,
-                    onValueChange = { note = it.take(1600) },
+                    onValueChange = { newText: String -> note = newText.take(1600) },
                     label = { Text("Текст заметки") },
                     minLines = 4,
                     maxLines = 7
