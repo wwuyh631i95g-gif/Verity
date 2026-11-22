@@ -1,4 +1,4 @@
-name: Build BearWorld 0.1.0 APK
+name: Build BearWorld 0.2.0 APK
 on:
   workflow_dispatch:
   push:
@@ -61,14 +61,14 @@ jobs:
           APK="BearWorld/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           unzip -t "$APK"
-          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep "package: name='com.verity.bearworld' versionCode='1' versionName='0.1.0'"
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep "package: name='com.verity.bearworld' versionCode='2' versionName='0.2.0'"
           sha256sum "$APK"
           ls -lh "$APK"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BearWorld-0.1.0-Android-APK
+          name: BearWorld-0.2.0-Connected-World-APK
           path: BearWorld/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14

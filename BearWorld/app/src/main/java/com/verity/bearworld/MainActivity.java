@@ -30,8 +30,8 @@ public final class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setAllowFileAccess(true);
         s.setAllowContentAccess(true);
-        s.setAllowFileAccessFromFileURLs(true);
-        s.setAllowUniversalAccessFromFileURLs(true);
+        s.setAllowFileAccessFromFileURLs(false);
+        s.setAllowUniversalAccessFromFileURLs(false);
         s.setSupportZoom(false);
         s.setMediaPlaybackRequiresUserGesture(true);
         gameView.setWebViewClient(new WebViewClient());
