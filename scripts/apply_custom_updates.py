@@ -579,3 +579,132 @@ if s.count(anchor) != 1:
     raise SystemExit("SkinSheet insertion point not unique")
 skin.write_text(s.replace(anchor, addedDrawers + anchor, 1), encoding="utf-8")
 print("Added seven original catalog mascots (groups 49-55)")
+
+
+# Minecraft 2D: reduce the mascot footprint and test the whole body against block collisions.
+# The world already expands in deterministic 48-column chunks in both directions.
+old_physics = '''private void updateVerityPhysics() {
+    float input = (moveRightHeld ? 1f : 0f) - (moveLeftHeld ? 1f : 0f);
+    if (input != 0f) {
+        verityVelocityX = Math.max(-0.22f, Math.min(0.22f, verityVelocityX + input * 0.045f));
+    } else {
+        verityVelocityX *= 0.72f;
+        if (Math.abs(verityVelocityX) < 0.008f) verityVelocityX = 0f;
+    }
+    float nextX = verityX + verityVelocityX;
+    int nx = Math.max(0, Math.min(W - 1, Math.round(nextX)));
+    int topCell = Math.max(0, Math.min(H - 1, (int)Math.floor(verityY + 0.25f)));
+    int bottomCell = Math.max(0, Math.min(H - 1, (int)Math.floor(verityY + 1.45f)));
+    if (!physicsSolid(world[topCell][nx]) && !physicsSolid(world[bottomCell][nx])) {
+        verityX = Math.max(0.5f, Math.min(W - 1.5f, nextX));
+    } else verityVelocityX = 0f;
+
+    if (jumpQueued && verityGrounded) { verityVelocityY = -0.58f; verityGrounded = false; }
+    jumpQueued = false;
+    verityVelocityY = Math.min(0.72f, verityVelocityY + 0.035f);
+    float nextY = verityY + verityVelocityY;
+    int cx = Math.max(0, Math.min(W - 1, Math.round(verityX)));
+    if (verityVelocityY < 0f) {
+        int headCell = Math.max(0, Math.min(H - 1, (int)Math.floor(nextY)));
+        if (physicsSolid(world[headCell][cx])) { nextY = headCell + 1f; verityVelocityY = 0f; }
+    } else {
+        int scanFrom = Math.max(0, Math.min(H - 1, (int)Math.floor(verityY + 1.7f)));
+        int floorCell = -1;
+        for (int y = scanFrom; y < H; y++) if (physicsSolid(world[y][cx])) { floorCell = y; break; }
+        if (floorCell >= 0 && nextY + 1.8f >= floorCell) {
+            nextY = floorCell - 1.8f; verityVelocityY = 0f; verityGrounded = true;
+        } else verityGrounded = false;
+    }
+    verityY = Math.max(0f, Math.min(H - 2.1f, nextY));
+    if (input != 0f || Math.abs(verityVelocityX) > 0.02f) {
+        cameraX += (verityX - cameraX) * 0.12f;
+        cameraY += ((verityY + 5.2f) - cameraY) * 0.035f;
+    }
+}'''
+new_physics = '''private static final float VERITY_HALF_WIDTH = 0.62f;
+private static final float VERITY_BODY_HEIGHT = 1.55f;
+
+private boolean bodyOverlapsSolid(float centerX, float topY) {
+    int left = Math.max(0, (int)Math.floor(centerX - VERITY_HALF_WIDTH + 0.02f));
+    int right = Math.min(W - 1, (int)Math.floor(centerX + VERITY_HALF_WIDTH - 0.02f));
+    int top = Math.max(0, (int)Math.floor(topY + 0.04f));
+    int bottom = Math.min(H - 1, (int)Math.floor(topY + VERITY_BODY_HEIGHT - 0.04f));
+    for (int x = left; x <= right; x++) {
+        for (int y = top; y <= bottom; y++) {
+            if (physicsSolid(world[y][x])) return true;
+        }
+    }
+    return false;
+}
+
+private int firstFloorUnderBody(float centerX, float topY) {
+    int left = Math.max(0, (int)Math.floor(centerX - VERITY_HALF_WIDTH + 0.02f));
+    int right = Math.min(W - 1, (int)Math.floor(centerX + VERITY_HALF_WIDTH - 0.02f));
+    int start = Math.max(0, Math.min(H - 1, (int)Math.floor(topY + VERITY_BODY_HEIGHT)));
+    int nearest = -1;
+    for (int x = left; x <= right; x++) {
+        for (int y = start; y < H; y++) {
+            if (physicsSolid(world[y][x])) {
+                if (nearest < 0 || y < nearest) nearest = y;
+                break;
+            }
+        }
+    }
+    return nearest;
+}
+
+private void updateVerityPhysics() {
+    float input = (moveRightHeld ? 1f : 0f) - (moveLeftHeld ? 1f : 0f);
+    if (input != 0f) {
+        verityVelocityX = Math.max(-0.22f, Math.min(0.22f, verityVelocityX + input * 0.045f));
+    } else {
+        verityVelocityX *= 0.72f;
+        if (Math.abs(verityVelocityX) < 0.008f) verityVelocityX = 0f;
+    }
+
+    float nextX = verityX + verityVelocityX;
+    nextX = Math.max(VERITY_HALF_WIDTH + 0.05f, Math.min(W - VERITY_HALF_WIDTH - 0.05f, nextX));
+    if (!bodyOverlapsSolid(nextX, verityY)) verityX = nextX;
+    else verityVelocityX = 0f;
+
+    if (jumpQueued && verityGrounded) {
+        verityVelocityY = -0.58f;
+        verityGrounded = false;
+    }
+    jumpQueued = false;
+    verityVelocityY = Math.min(0.72f, verityVelocityY + 0.035f);
+    float nextY = verityY + verityVelocityY;
+
+    if (verityVelocityY < 0f) {
+        if (bodyOverlapsSolid(verityX, nextY)) {
+            int headCell = Math.max(0, Math.min(H - 1, (int)Math.floor(nextY + 0.04f)));
+            nextY = headCell + 1f;
+            verityVelocityY = 0f;
+        }
+    } else {
+        int floorCell = firstFloorUnderBody(verityX, verityY);
+        if (floorCell >= 0 && nextY + VERITY_BODY_HEIGHT >= floorCell) {
+            nextY = floorCell - VERITY_BODY_HEIGHT;
+            verityVelocityY = 0f;
+            verityGrounded = true;
+        } else {
+            verityGrounded = false;
+        }
+    }
+
+    verityY = Math.max(0f, Math.min(H - VERITY_BODY_HEIGHT - 0.05f, nextY));
+    if (input != 0f || Math.abs(verityVelocityX) > 0.02f) {
+        cameraX += (verityX - cameraX) * 0.12f;
+        cameraY += ((verityY + 4.8f) - cameraY) * 0.035f;
+    }
+}'''
+rep(game, old_physics, new_physics, "Minecraft full-body collision");
+rep(game,
+    "RectF d=new RectF(x-tile*.9f,y,x+tile*.9f,y+tile*1.8f);",
+    "RectF d=new RectF(x-tile*.70f,y,x+tile*.70f,y+tile*1.55f);",
+    "Minecraft avatar visual scale");
+rep(game,
+    "c.save();c.translate(x,y);c.scale(verityFacing,1f);",
+    "c.save();c.translate(x,y);c.scale(.78f,.78f);c.scale(verityFacing,1f);",
+    "Minecraft scary avatar visual scale");
+print("Minecraft collision and player scale fixes applied")
