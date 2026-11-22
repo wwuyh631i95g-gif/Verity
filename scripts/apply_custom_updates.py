@@ -281,3 +281,301 @@ greplace('''int x = (int) Math.floor((ux - originX) / tile); int y = (int) Math.
  int x = (int) Math.floor((ux - originX) / tile); int y = (int) Math.floor((uy - originY) / tile); if (inside(x, y)) {''',"tap Verity")
 game.write_text(s,encoding="utf-8")
 print("Verity custom updates applied successfully")
+
+
+
+# Verity original mascot catalog extension: groups 49-55
+# These are freshly drawn vector characters; the reference images are inspiration only.
+catalog = JAVA/"CharacterCatalogScreen.kt"
+rep(catalog,
+'''    "Фиолетовый персонаж в очках", "Голубой персонаж с руками", "Огненный персонаж", "Оранжевая планета", "Красный сердитый персонаж", "Светлый розовый смайлик"
+)''',
+'''    "Фиолетовый персонаж в очках", "Голубой персонаж с руками", "Огненный персонаж", "Оранжевая планета", "Красный сердитый персонаж", "Светлый розовый смайлик",
+    "Жёлтый эмо-смайлик", "Коробка-почтальон", "Трёхглазый смайлик", "Ретро-телевизор", "Лунный странник", "Скелетик", "Тыквенная голова"
+)''',
+"new catalog names")
+rep(catalog,
+'''    "Глазастик", "Вайлет", "Рэдик", "Мимик", "Курочка", "Поросёнок", "Очкарик", "Лапыч", "Плами", "Планетик", "Сердитик", "Розик"
+)''',
+'''    "Глазастик", "Вайлет", "Рэдик", "Мимик", "Курочка", "Поросёнок", "Очкарик", "Лапыч", "Плами", "Планетик", "Сердитик", "Розик",
+    "Эмолик", "Коробыш", "Трио", "ТВик", "Месяц", "Костик", "Тыквик"
+)''',
+"new catalog nicknames")
+rep(catalog,'(1..48).filter {','(1..55).filter {',"catalog filter range")
+rep(catalog,'if (selectedGroup in 1..48) {','if (selectedGroup in 1..55) {',"catalog selection range")
+rep(catalog,'Встроенные 48 групп нельзя удалить.','Встроенные 55 групп нельзя удалить.',"catalog count text")
+rep(catalog,'Встроенные 48 групп персонажей удалить нельзя.','Встроенные 55 групп персонажей удалить нельзя.',"catalog deletion text")
+rep(catalog,'Text("Полная исходная таблица",','Text("Исходная таблица · 48 базовых групп",',"catalog source title")
+rep(catalog,
+'''import dev.veriti.app.data.CustomCharacterLibrary
+''',
+'''import dev.veriti.app.data.CustomCharacterLibrary
+import dev.veriti.app.data.SkinSheet
+''',
+"catalog dynamic sprite import")
+rep(catalog,
+'''        } else {
+            runCatching { context.assets.open(path).use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull()
+        }
+''',
+'''        } else if (path.startsWith("character_catalog/sprites/")) {
+            runCatching { SkinSheet.loadCatalogSprite(context, path, "happy")?.asImageBitmap() }.getOrNull()
+        } else {
+            runCatching { context.assets.open(path).use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull()
+        }
+''',
+"catalog preview generated sprites")
+
+lore = DATA/"CharacterLore.kt"
+rep(lore,
+'''        Entry(48, "Розик", "Розик — мягкий и приветливый спутник. Он любит рисовать сердечки, поддерживать друзей и устраивать тихие праздники.")
+''',
+'''        Entry(48, "Розик", "Розик — мягкий и приветливый спутник. Он любит рисовать сердечки, поддерживать друзей и устраивать тихие праздники."),
+        Entry(49, "Эмолик", "Эмолик умеет показывать двенадцать настроений и напоминает, что разные эмоции можно выражать спокойно и честно."),
+        Entry(50, "Коробыш", "Коробыш — коробочка-почтальон. Он хранит записки, идеи и маленькие сюрпризы, но никогда не открывает чужие письма без разрешения."),
+        Entry(51, "Трио", "Трио смотрит на мир сразу тремя глазами и любит замечать необычные детали. Он сначала проверяет, а потом делает выводы."),
+        Entry(52, "ТВик", "ТВик — дружелюбный телевизионный спутник с антенной-настроением. Он превращает скучные паузы в маленькие передачи и загадки."),
+        Entry(53, "Месяц", "Месяц путешествует по вечернему небу, собирает звёздные карты и помогает друзьям находить спокойные места."),
+        Entry(54, "Костик", "Костик — добрый сказочный скелетик. Он любит головоломки, старые истории и напоминает, что внешность не рассказывает всё о характере."),
+        Entry(55, "Тыквик", "Тыквик — осенний фонарик с листочком на макушке. Он украшает тёмные вечера добрыми историями и смешными гримасами.")
+''',
+"new mascot lore")
+rep(lore,'takeIf { it in 1..48 }','takeIf { it in 1..55 }',"lore id range")
+
+skin = DATA/"SkinSheet.kt"
+rep(skin,
+'''        if (!resolvedPath.endsWith(".png")) return null
+        val decoded = runCatching { context.assets.open(resolvedPath).use(BitmapFactory::decodeStream) }.getOrNull() ?: return null
+''',
+'''        if (!resolvedPath.endsWith(".png")) return null
+        val added = Regex("""character_catalog/sprites/(49|5[0-5])/\\\\d{2}_(\\\\d{2})\\\\.png""").find(resolvedPath)
+        if (added != null) return drawAddedCatalogSprite(added.groupValues[1].toInt(), added.groupValues[2].toInt())
+        val decoded = runCatching { context.assets.open(resolvedPath).use(BitmapFactory::decodeStream) }.getOrNull() ?: return null
+''',
+"dynamic mascot dispatch")
+
+addedDrawers = r'''
+    /** Draws the seven new built-in mascots at runtime, each with twelve expressive frames. */
+    private fun drawAddedCatalogSprite(group: Int, frame: Int): Bitmap {
+        val size = 384
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val mood = frame.coerceIn(1, 12)
+
+        fun fill(color: Int) {
+            paint.style = Paint.Style.FILL
+            paint.color = color
+            paint.shader = null
+        }
+        fun lineStyle(color: Int, width: Float = 8f) {
+            paint.style = Paint.Style.STROKE
+            paint.color = color
+            paint.strokeWidth = width
+            paint.strokeCap = Paint.Cap.ROUND
+            paint.strokeJoin = Paint.Join.ROUND
+            paint.shader = null
+        }
+        fun circle(x: Float, y: Float, radius: Float, color: Int) {
+            fill(color)
+            canvas.drawCircle(x, y, radius, paint)
+        }
+        fun oval(left: Float, top: Float, right: Float, bottom: Float, color: Int) {
+            fill(color)
+            canvas.drawOval(left, top, right, bottom, paint)
+        }
+        fun round(left: Float, top: Float, right: Float, bottom: Float, radius: Float, color: Int) {
+            fill(color)
+            canvas.drawRoundRect(left, top, right, bottom, radius, radius, paint)
+        }
+        fun strokePath(path: Path, color: Int, width: Float) {
+            lineStyle(color, width)
+            canvas.drawPath(path, paint)
+            paint.style = Paint.Style.FILL
+        }
+        fun featureFace(cx: Float, cy: Float, scale: Float, eyeCount: Int = 2,
+                        eyeColor: Int = 0xFF24164F.toInt(), mouthColor: Int = 0xFF24164F.toInt()) {
+            val eyeY = cy - scale * .16f
+            val eyeW = scale * .085f
+            val eyeH = scale * .145f
+            val eyeXs = if (eyeCount == 3) {
+                listOf(cx - scale * .34f, cx, cx + scale * .34f)
+            } else {
+                listOf(cx - scale * .25f, cx + scale * .25f)
+            }
+            eyeXs.forEachIndexed { index, eyeX ->
+                if (mood == 9) {
+                    val lid = Path().apply {
+                        moveTo(eyeX - eyeW, eyeY)
+                        quadTo(eyeX, eyeY + eyeH * .52f, eyeX + eyeW, eyeY)
+                    }
+                    strokePath(lid, eyeColor, scale * .045f)
+                } else {
+                    canvas.save()
+                    if (mood == 3 || mood == 7) canvas.rotate(if (index == 0) -12f else 12f, eyeX, eyeY)
+                    oval(eyeX - eyeW, eyeY - eyeH, eyeX + eyeW, eyeY + eyeH, eyeColor)
+                    if (mood == 11) circle(eyeX, eyeY, eyeW * .32f, 0xFFFFFFFF.toInt())
+                    canvas.restore()
+                }
+            }
+            if (mood == 3 || mood == 7) {
+                eyeXs.forEachIndexed { index, eyeX ->
+                    val brow = Path().apply {
+                        if (index == 0) {
+                            moveTo(eyeX - eyeW * 1.2f, eyeY - eyeH * 1.05f)
+                            lineTo(eyeX + eyeW * .9f, eyeY - eyeH * .58f)
+                        } else {
+                            moveTo(eyeX - eyeW * .9f, eyeY - eyeH * .58f)
+                            lineTo(eyeX + eyeW * 1.2f, eyeY - eyeH * 1.05f)
+                        }
+                    }
+                    strokePath(brow, eyeColor, scale * .055f)
+                }
+            }
+            val mouthY = cy + scale * .20f
+            val mouthW = scale * if (mood == 6 || mood == 10 || mood == 11) .28f else .34f
+            val mouthH = scale * if (mood == 6 || mood == 11) .20f else .13f
+            when (mood) {
+                4 -> {
+                    val frown = Path().apply {
+                        moveTo(cx - mouthW, mouthY)
+                        quadTo(cx, mouthY - mouthH * 1.8f, cx + mouthW, mouthY)
+                    }
+                    strokePath(frown, mouthColor, scale * .055f)
+                    circle(cx - scale * .45f, cy + scale * .08f, scale * .035f, 0xFF70BDF5.toInt())
+                }
+                6, 11 -> oval(cx - mouthW * .55f, mouthY - mouthH, cx + mouthW * .55f, mouthY + mouthH, mouthColor)
+                10 -> {
+                    oval(cx - mouthW, mouthY - mouthH * .7f, cx + mouthW, mouthY + mouthH * 1.1f, mouthColor)
+                    oval(cx - mouthW * .5f, mouthY + mouthH * .35f, cx + mouthW * .5f, mouthY + mouthH, 0xFFE878A6.toInt())
+                }
+                9 -> {
+                    lineStyle(mouthColor, scale * .045f)
+                    canvas.drawLine(cx - mouthW * .40f, mouthY, cx + mouthW * .40f, mouthY, paint)
+                }
+                else -> {
+                    val curve = Path().apply {
+                        moveTo(cx - mouthW, mouthY)
+                        quadTo(cx, mouthY + mouthH * if (mood == 3 || mood == 7) .35f else 1.45f, cx + mouthW, mouthY)
+                    }
+                    strokePath(curve, mouthColor, scale * .055f)
+                }
+            }
+        }
+
+        // Soft contact shadow, shared by the round and object-shaped mascots.
+        oval(76f, 326f, 308f, 354f, 0x30000000)
+
+        when (group) {
+            49 -> {
+                circle(192f, 190f, 137f, 0xFF4B347D.toInt())
+                circle(192f, 184f, 130f, 0xFFFFE333.toInt())
+                oval(105f, 82f, 190f, 116f, 0x55FFFFFF)
+                circle(112f, 237f, 13f, 0x44F06F8C)
+                circle(272f, 237f, 13f, 0x44F06F8C)
+                featureFace(192f, 183f, 218f)
+            }
+            50 -> {
+                round(63f, 72f, 321f, 320f, 24f, 0xFF754A2D.toInt())
+                round(74f, 82f, 310f, 309f, 18f, 0xFFC88A53.toInt())
+                val flap = Path().apply {
+                    moveTo(74f, 84f); lineTo(192f, 142f); lineTo(310f, 84f); lineTo(310f, 116f)
+                    lineTo(192f, 172f); lineTo(74f, 116f); close()
+                }
+                fill(0xFFD9A36D.toInt()); canvas.drawPath(flap, paint)
+                round(176f, 74f, 210f, 173f, 6f, 0xFFF0D39A.toInt())
+                lineStyle(0xFF8D5A36.toInt(), 6f)
+                canvas.drawLine(192f, 173f, 192f, 307f, paint)
+                circle(135f, 211f, 8f, 0xFF6A4028.toInt())
+                circle(249f, 211f, 8f, 0xFF6A4028.toInt())
+                featureFace(192f, 218f, 150f, 2, 0xFF39251B.toInt(), 0xFF39251B.toInt())
+            }
+            51 -> {
+                circle(192f, 190f, 137f, 0xFF493276.toInt())
+                circle(192f, 184f, 130f, 0xFFFFD936.toInt())
+                oval(104f, 84f, 187f, 116f, 0x55FFFFFF)
+                featureFace(192f, 185f, 224f, 3, 0xFF27124F.toInt(), 0xFF27124F.toInt())
+                circle(145f, 255f, 8f, 0x44EA6486)
+                circle(239f, 255f, 8f, 0x44EA6486)
+            }
+            52 -> {
+                val antennaOne = Path().apply { moveTo(143f, 93f); quadTo(102f, 27f, 80f, 51f) }
+                val antennaTwo = Path().apply { moveTo(241f, 93f); quadTo(282f, 27f, 304f, 51f) }
+                strokePath(antennaOne, 0xFF263341.toInt(), 11f)
+                strokePath(antennaTwo, 0xFF263341.toInt(), 11f)
+                circle(80f, 51f, 9f, 0xFF75D8D0.toInt())
+                circle(304f, 51f, 9f, 0xFF75D8D0.toInt())
+                round(48f, 86f, 336f, 310f, 36f, 0xFF243748.toInt())
+                round(61f, 98f, 323f, 297f, 30f, 0xFF537C86.toInt())
+                round(83f, 121f, 288f, 270f, 23f, 0xFFB9F1E6.toInt())
+                featureFace(186f, 193f, 147f, 2, 0xFF1F3848.toInt(), 0xFF1F3848.toInt())
+                circle(303f, 159f, 8f, 0xFFFFD46A.toInt())
+                circle(303f, 190f, 8f, 0xFFF28A84.toInt())
+                round(91f, 298f, 143f, 343f, 10f, 0xFF243748.toInt())
+                round(243f, 298f, 295f, 343f, 10f, 0xFF243748.toInt())
+            }
+            53 -> {
+                val crescent = Path().apply {
+                    moveTo(274f, 55f)
+                    cubicTo(118f, 44f, 39f, 171f, 97f, 285f)
+                    cubicTo(148f, 384f, 286f, 364f, 335f, 242f)
+                    cubicTo(288f, 304f, 218f, 305f, 169f, 271f)
+                    cubicTo(94f, 213f, 142f, 96f, 274f, 55f)
+                    close()
+                }
+                fill(0xFF8E8BC9.toInt()); canvas.drawPath(crescent, paint)
+                lineStyle(0xFF514B91.toInt(), 9f); canvas.drawPath(crescent, paint)
+                circle(86f, 103f, 8f, 0xFFFFE9A8.toInt())
+                circle(300f, 107f, 7f, 0xFFFFE9A8.toInt())
+                circle(291f, 283f, 6f, 0xFFFFE9A8.toInt())
+                featureFace(198f, 196f, 124f, 2, 0xFF37305F.toInt(), 0xFF37305F.toInt())
+            }
+            54 -> {
+                oval(75f, 55f, 309f, 282f, 0xFFF2E8D6.toInt())
+                round(119f, 211f, 265f, 324f, 42f, 0xFFE2D4BF.toInt())
+                lineStyle(0xFFB5A48E.toInt(), 8f)
+                canvas.drawArc(80f, 63f, 304f, 286f, 185f, 170f, false, paint)
+                oval(119f, 129f, 174f, 197f, 0xFF383443.toInt())
+                oval(210f, 129f, 265f, 197f, 0xFF383443.toInt())
+                val nose = Path().apply { moveTo(192f, 190f); lineTo(174f, 223f); lineTo(210f, 223f); close() }
+                fill(0xFF6F6570.toInt()); canvas.drawPath(nose, paint)
+                round(133f, 238f, 251f, 288f, 9f, 0xFF383443.toInt())
+                fill(0xFFF6EEDF.toInt())
+                for (i in 0..4) canvas.drawRect(138f + i * 22f, 239f, 155f + i * 22f, 270f, paint)
+                lineStyle(0xFF9E8F7E.toInt(), 3f)
+                for (i in 1..4) canvas.drawLine(155f + (i - 1) * 22f, 240f, 155f + (i - 1) * 22f, 269f, paint)
+                if (mood == 4 || mood == 9) {
+                    lineStyle(0xFF6D5964.toInt(), 7f)
+                    canvas.drawLine(146f, 165f, 170f, 165f, paint)
+                    canvas.drawLine(214f, 165f, 238f, 165f, paint)
+                }
+            }
+            55 -> {
+                round(165f, 43f, 220f, 105f, 18f, 0xFF537B3F.toInt())
+                val leaf = Path().apply { moveTo(183f, 64f); quadTo(134f, 36f, 131f, 72f); quadTo(160f, 88f, 183f, 64f) }
+                fill(0xFF79A84D.toInt()); canvas.drawPath(leaf, paint)
+                oval(69f, 83f, 315f, 322f, 0xFFE98A27.toInt())
+                lineStyle(0xFFB65A1C.toInt(), 10f)
+                for (x in listOf(124f, 164f, 220f, 260f)) {
+                    val rib = Path().apply { moveTo(192f, 88f); quadTo(x, 210f, 192f, 319f) }
+                    canvas.drawPath(rib, paint)
+                }
+                featureFace(192f, 194f, 185f, 2, 0xFF4F281C.toInt(), 0xFF4F281C.toInt())
+                if (mood == 3 || mood == 7) {
+                    lineStyle(0xFF4F281C.toInt(), 9f)
+                    canvas.drawLine(119f, 136f, 167f, 151f, paint)
+                    canvas.drawLine(217f, 151f, 265f, 136f, paint)
+                }
+            }
+        }
+        paint.style = Paint.Style.FILL
+        return bitmap
+    }
+
+'''
+anchor = '    private fun loadCustom(context: Context, value: String): Bitmap? {'
+let s = skin.read_text(encoding="utf-8")
+if s.count(anchor) != 1:
+    raise SystemExit("SkinSheet insertion point not unique")
+skin.write_text(s.replace(anchor, addedDrawers + anchor, 1), encoding="utf-8")
+print("Added seven original catalog mascots (groups 49-55)")
