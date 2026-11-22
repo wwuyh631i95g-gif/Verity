@@ -653,6 +653,14 @@ private int firstFloorUnderBody(float centerX, float topY) {
     return nearest;
 }
 
+private boolean headBlocked(float centerX, float topY) {
+    int left = Math.max(0, (int)Math.floor(centerX - VERITY_HALF_WIDTH + 0.02f));
+    int right = Math.min(W - 1, (int)Math.floor(centerX + VERITY_HALF_WIDTH - 0.02f));
+    int head = Math.max(0, Math.min(H - 1, (int)Math.floor(topY + 0.04f)));
+    for (int x = left; x <= right; x++) if (physicsSolid(world[head][x])) return true;
+    return false;
+}
+
 private void updateVerityPhysics() {
     float input = (moveRightHeld ? 1f : 0f) - (moveLeftHeld ? 1f : 0f);
     if (input != 0f) {
@@ -676,7 +684,7 @@ private void updateVerityPhysics() {
     float nextY = verityY + verityVelocityY;
 
     if (verityVelocityY < 0f) {
-        if (bodyOverlapsSolid(verityX, nextY)) {
+        if (headBlocked(verityX, nextY)) {
             int headCell = Math.max(0, Math.min(H - 1, (int)Math.floor(nextY + 0.04f)));
             nextY = headCell + 1f;
             verityVelocityY = 0f;
@@ -705,6 +713,6 @@ rep(game,
     "Minecraft avatar visual scale");
 rep(game,
     "c.save();c.translate(x,y);c.scale(verityFacing,1f);",
-    "c.save();c.translate(x,y);c.scale(.78f,.78f);c.scale(verityFacing,1f);",
+    "c.save();c.translate(x,y);c.scale(.65f,.65f);c.scale(verityFacing,1f);",
     "Minecraft scary avatar visual scale");
 print("Minecraft collision and player scale fixes applied")
