@@ -15,6 +15,31 @@ const themes=[
 ];
 function say(s){toast.textContent=s;toast.style.opacity="1";clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.style.opacity="0",1800);}
 function mat(c){return new T.MeshStandardMaterial({color:c,roughness:.92});}
+let tileAtlas=null;
+const atlasTextures=new Map(),atlasPendingMaterials=[];
+function subTexture(index){
+ if(!tileAtlas)return null;
+ if(atlasTextures.has(index))return atlasTextures.get(index);
+ const tex=tileAtlas.clone();
+ tex.wrapS=T.ClampToEdgeWrapping;tex.wrapT=T.ClampToEdgeWrapping;
+ tex.repeat.set(1/5,1/6);
+ tex.offset.set((index%5)/5,1-(Math.floor(index/5)+1)/6);
+ tex.needsUpdate=true;atlasTextures.set(index,tex);return tex;
+}
+function tileMat(index,tint=0xffffff,transparent=false){
+ const material=new T.MeshStandardMaterial({color:tint,roughness:.95,side:T.DoubleSide,transparent,depthWrite:!transparent});
+ const tex=subTexture(index);
+ if(tex)material.map=tex;else atlasPendingMaterials.push({material,index});
+ return material;
+}
+function activateMapAtlas(texture){
+ tileAtlas=texture;
+ if(T.sRGBEncoding!==undefined)texture.encoding=T.sRGBEncoding;
+ texture.needsUpdate=true;
+ atlasPendingMaterials.forEach(entry=>{entry.material.map=subTexture(entry.index);entry.material.needsUpdate=true;});
+ atlasPendingMaterials.length=0;
+}
+new T.TextureLoader().load("bear_map_textures_atlas.jpg",activateMapAtlas,undefined,()=>{if(typeof say==="function")say("Текстуры локаций не найдены — включён резервный стиль");});
 function rngFor(seed){let n=(seed*1664525+1013904223)>>>0;return()=>{n=(n*1664525+1013904223)>>>0;return n/4294967296;};}
 function addBear(){
  const root=new T.Group(),fur=mat(0x95603e),cream=mat(0xe7c6a0),black=mat(0x171717);
@@ -43,40 +68,56 @@ function replaceBear(gltf){
  say("Персонаж подогнан под рост 1,55 м");
 }
 function addTree(g,x,z,theme,s,colliders){
- const trunk=new T.Mesh(new T.CylinderGeometry(.15*s,.22*s,1.25*s,7),mat(0x6b4a31));trunk.position.set(x,.6*s,z);g.add(trunk);
+ const trunk=new T.Mesh(new T.CylinderGeometry(.15*s,.22*s,1.25*s,7),tileMat(4));trunk.position.set(x,.6*s,z);g.add(trunk);
  const col=theme===2?0xe4f1f3:theme===1?0x9b854a:theme===3?0x555c70:theme===4?0x736052:0x477a42;
- const crown=new T.Mesh(new T.ConeGeometry(.9*s,1.8*s,7),mat(col));crown.position.set(x,1.7*s,z);g.add(crown);
- colliders.push({x,z,rx:.30*s,rz:.30*s,height:1.45*s});
+ const roundTree=theme===0||theme===3;
+ const crown=new T.Mesh(roundTree?new T.SphereGeometry(.82*s,9,7):new T.ConeGeometry(.9*s,1.8*s,7),tileMat(roundTree?25:26,col));
+ crown.position.set(x,1.7*s,z);g.add(crown);
+ colliders.push({x,z,rx:.36*s,rz:.36*s,height:1.45*s});
 }
 function addCoin(g,x,z,list){
  const m=new T.Mesh(new T.TorusGeometry(.3,.09,8,16),new T.MeshStandardMaterial({color:0xffd34f,metalness:.65,roughness:.28,emissive:0x442800}));
  m.position.set(x,1.18,z);m.rotation.y=Math.PI/2;g.add(m);list.push({mesh:m,taken:false});
 }
 function addRock(g,x,z,theme,s,colliders){
- const m=new T.Mesh(new T.DodecahedronGeometry(.7*s,0),mat([0x75816b,0x9b8054,0x9daeb7,0x6b7181,0x75695e][theme]));
+ const m=new T.Mesh(new T.DodecahedronGeometry(.7*s,0),tileMat(24,[0xffffff,0xffffff,0xdbe7ef,0xffffff,0xe3d7c8][theme]));
  m.position.set(x,.35*s,z);m.rotation.z=.18;g.add(m);
  colliders.push({x,z,rx:.62*s,rz:.62*s,height:1.1*s});
 }
 function addCottage(g,x,z,theme,colliders,r){
  const width=4.5+r()*2.5,depth=4+r()*2.3,height=2.2+r()*.7;
  const wallColor=theme===2?0xcbd7df:theme===1?0xb78b55:theme===3?0x555765:0xc4a27d;
- const body=new T.Mesh(new T.BoxGeometry(width,height,depth),mat(wallColor));
+ const body=new T.Mesh(new T.BoxGeometry(width,height,depth),tileMat(theme===3?15:13,wallColor));
  body.position.set(x,height/2,z);g.add(body);
- const roof=new T.Mesh(new T.ConeGeometry(width*.78,1.35,4),mat(theme===2?0x667b91:theme===3?0x393f50:0x884d35));
+ const roof=new T.Mesh(new T.ConeGeometry(width*.78,1.35,4),tileMat(16,theme===2?0xe7eef2:theme===3?0xffffff:0xffffff));
  roof.position.set(x,height+.62,z);roof.rotation.y=Math.PI/4;g.add(roof);
- const door=new T.Mesh(new T.BoxGeometry(.85,1.5,.12),mat(0x503529));
+ const door=new T.Mesh(new T.BoxGeometry(.85,1.5,.12),tileMat(17));
  door.position.set(x,height*.35,z-depth/2-.065);g.add(door);
  colliders.push({x,z,rx:width*.53,rz:depth*.53,height:height+1.3});
 }
+function addFlowerPatch(g,x,z,theme,r){
+ const variants=theme===3?[29,5,6]:theme===1?[6,7]:[5,6,7,29];
+ for(let i=0;i<4;i++){
+   const index=variants[Math.floor(r()*variants.length)];
+   const flower=new T.Mesh(new T.PlaneGeometry(.44,.44),tileMat(index,0xffffff,true));
+   flower.position.set(x+(r()-.5)*1.4,.36,z+(r()-.5)*1.4);
+   flower.rotation.y=r()*Math.PI*2;g.add(flower);
+ }
+}
+function addPond(g,x,z,theme,r){
+ const water=new T.Mesh(new T.PlaneGeometry(theme===3?7.5:5.5,theme===3?4.2:5.5),
+   tileMat(theme===3?19:2,0xdff8ff,true));
+ water.rotation.x=-Math.PI/2;water.position.set(x,.012,z);g.add(water);
+}
 function addBigHouse(g,x,z,colliders){
- const body=new T.Mesh(new T.BoxGeometry(11,4.1,9),mat(0xc5ad8b));
+ const body=new T.Mesh(new T.BoxGeometry(11,4.1,9),tileMat(13));
  body.position.set(x,2.05,z);g.add(body);
- const roof=new T.Mesh(new T.ConeGeometry(7.9,3.1,4),mat(0x5d3730));
+ const roof=new T.Mesh(new T.ConeGeometry(7.9,3.1,4),tileMat(16));
  roof.position.set(x,5.55,z);roof.rotation.y=Math.PI/4;g.add(roof);
- const door=new T.Mesh(new T.BoxGeometry(1.35,2.35,.16),mat(0x51382d));
+ const door=new T.Mesh(new T.BoxGeometry(1.35,2.35,.16),tileMat(17));
  door.position.set(x,1.18,z-4.58);g.add(door);
  for(const wx of [-3.5,3.5]){
-   const window=new T.Mesh(new T.BoxGeometry(1.25,1.1,.13),mat(0x8ec9dc));
+   const window=new T.Mesh(new T.BoxGeometry(1.25,1.1,.13),tileMat(18));
    window.position.set(x+wx,2.45,z-4.6);g.add(window);
  }
  colliders.push({x,z,rx:5.7,rz:4.8,height:7.2});
@@ -113,9 +154,12 @@ function makeChunk(cx,cz){
  const seed=((cx*73856093)^(cz*19349663)^0x5f3759df)>>>0;
  const r=rngFor(seed),themeIndex=Math.floor(r()*themes.length),th=themes[themeIndex],g=new T.Group();
  g.position.set(cx*CHUNK,0,cz*CHUNK);scene.add(g);
- const base=new T.Mesh(new T.BoxGeometry(CHUNK+.25,.8,CHUNK+.25),mat(th.ground));
+ const groundTiles=[0,11,-1,10,0],pathTiles=[3,12,-1,12,3];
+ const groundTile=groundTiles[themeIndex],pathTile=pathTiles[themeIndex];
+ const groundMaterial=groundTile>=0?tileMat(groundTile,themeIndex===1?0xfff0cf:0xffffff):mat(th.ground);
+ const base=new T.Mesh(new T.BoxGeometry(CHUNK+.25,.8,CHUNK+.25),groundMaterial);
  base.position.set(0,-.43,0);g.add(base);
- const pathMat=mat(th.path);
+ const pathMat=pathTile>=0?tileMat(pathTile,0xffffff):mat(th.path);
  const northSouth=new T.Mesh(new T.BoxGeometry(5.6,.035,CHUNK+.15),pathMat);northSouth.position.y=.005;g.add(northSouth);
  const eastWest=new T.Mesh(new T.BoxGeometry(CHUNK+.15,.035,5.6),pathMat);eastWest.position.y=.006;g.add(eastWest);
  const localCoins=[],localObs=[],colliders=[];
@@ -133,6 +177,10 @@ function makeChunk(cx,cz){
    }
  }
  if(themeIndex===4) addBigHouse(g,(r()>.5?1:-1)*5,(r()>.5?1:-1)*4,colliders);
+ if(themeIndex===0||themeIndex===3){
+   for(let i=0;i<5;i++)addFlowerPatch(g,(r()>.5?1:-1)*(7+r()*5),(r()>.5?1:-1)*(7+r()*5),themeIndex,r);
+ }
+ if((themeIndex===0||themeIndex===3)&&r()>.5)addPond(g,(r()>.5?1:-1)*9,(r()>.5?1:-1)*8,themeIndex,r);
  if(themeIndex===2){
    for(let i=0;i<5;i++){
      const x=(r()>.5?1:-1)*(7+r()*6),z=(r()>.5?1:-1)*(6+r()*7);
