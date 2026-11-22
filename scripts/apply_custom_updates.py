@@ -574,7 +574,7 @@ addedDrawers = r'''
 
 '''
 anchor = '    private fun loadCustom(context: Context, value: String): Bitmap? {'
-let s = skin.read_text(encoding="utf-8")
+s = skin.read_text(encoding="utf-8")
 if s.count(anchor) != 1:
     raise SystemExit("SkinSheet insertion point not unique")
 skin.write_text(s.replace(anchor, addedDrawers + anchor, 1), encoding="utf-8")
