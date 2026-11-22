@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import shutil
 import sys
 
@@ -26,11 +27,13 @@ def once(old: str, new: str, label: str):
     else:
         raise SystemExit(f"{label}: expected one match, got {n}")
 
-once(
-    "private enum class Screen {CHAT, GAME, SETTINGS, PLUS, CUSTOMIZATIONS, ABOUT, SKIN_EDITOR, CHARACTERS, APP_BUILDER, HOME_ASSISTANT, FRIENDS, FEATURES, LIFE, STUDIO, VIRTUAL_OS}",
-    "private enum class Screen {CHAT, GAME, SETTINGS, PLUS, CUSTOMIZATIONS, ABOUT, SKIN_EDITOR, CHARACTERS, APP_BUILDER, HOME_ASSISTANT, FRIENDS, FEATURES, LIFE, STUDIO, VIRTUAL_OS, EDITION_FEATURES}",
-    "edition screen enum"
-)
+enum_match = re.search(r"private enum class Screen \\{([^}]+)\\}", s)
+if not enum_match:
+    raise SystemExit("edition screen enum: enum declaration not found")
+enum_values = [v.strip() for v in enum_match.group(1).split(",")]
+if "EDITION_FEATURES" not in enum_values:
+    enum_values.append("EDITION_FEATURES")
+    s = s[:enum_match.start()] + "private enum class Screen {" + ", ".join(enum_values) + "}" + s[enum_match.end():]
 once(
     "                onFeatures = { screen = Screen.FEATURES },\n                onSave = vm::updateSettings,",
     "                onFeatures = { screen = Screen.FEATURES },\n                onEditionFeatures = { screen = Screen.EDITION_FEATURES },\n                onSave = vm::updateSettings,",
