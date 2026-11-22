@@ -1,11 +1,12 @@
 package dev.veriti.app
 
-import android.app.AlarmClock
+import android.provider.AlarmClock
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.os.VibrationEffect
@@ -132,7 +133,10 @@ internal fun EditionFeaturesScreen(onBack: () -> Unit) {
         }
         if (vibrator == null || !vibrator.hasVibrator()) toast("Вибромотор не обнаружен")
         else if (Build.VERSION.SDK_INT >= 26) vibrator.vibrate(VibrationEffect.createOneShot(90, VibrationEffect.DEFAULT_AMPLITUDE))
-        else @Suppress("DEPRECATION") vibrator.vibrate(90)
+        else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(90)
+        }
     }
     fun versionLine(): String {
         val info = runCatching {
@@ -209,7 +213,9 @@ internal fun EditionFeaturesScreen(onBack: () -> Unit) {
             EditionFeature("07 · Экспорт локального набора настроек", "Отправляет только настройки этого экрана Edition Tools в JSON.") { share("Verity Edition settings", prefsJson()) },
             EditionFeature("08 · Вибрационный тест", "Проверка вибромотора при отладке тактильных элементов.") { vibrate() },
             EditionFeature("09 · Настройки приложения Android", "Открывает системную страницу разрешений и хранилища Verity.") {
-                open(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "приложение")
+                runCatching {
+                    context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }.onFailure { toast("Не удалось открыть настройки Verity") }
             },
             EditionFeature("10 · Очистить только кэш", "Удаляет временный cacheDir; чаты, скины и настройки не затрагиваются.") {
                 showInfo("Очистка кэша", "Для безопасности эту операцию можно выполнить в системной странице приложения Android. Там видны размер кэша и кнопка очистки.")
