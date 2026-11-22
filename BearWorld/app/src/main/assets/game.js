@@ -5,7 +5,7 @@ if(!window.THREE||!THREE.GLTFLoader){loading.textContent="3D-движок не �
 const T=THREE,CHUNK=36,SPEED=8.1,GRAVITY=19,MAX_DPR=1.3;
 let renderer,scene,camera,clock,player,model,parts={},velocityY=0,onGround=true,paused=false,ready=false;
 let yaw=0,coins=0,dist=0,moveX=0,moveY=0,stickId=null,lookId=null,lastLookX=0,anim=0,toastTimer=0;
-let chunks=new Map(),coinMeshes=[],obstacles=[],mapModels=[];
+let chunks=new Map(),coinMeshes=[],obstacles=[],mapModels=[],worldThemeIndex=0,worldName='Зелёная долина';
 const themes=[
  {ground:0x6c9954,path:0x91b86a,sky:0x8bc7e7,prop:0x477341},
  {ground:0xc2a15c,path:0xe0c47a,sky:0xf0bd78,prop:0x927041},
@@ -27,81 +27,200 @@ function addBear(){
 }
 function replaceBear(gltf){
  while(player.children.length)player.remove(player.children[0]);
- model=gltf.scene;model.scale.setScalar(.82);model.rotation.y=Math.PI;
- model.traverse(o=>{if(o.isMesh)o.frustumCulled=true;});
+ model=gltf.scene;
+ model.rotation.y=Math.PI;
+ model.updateMatrixWorld(true);
+ const before=new T.Box3().setFromObject(model),size=before.getSize(new T.Vector3());
+ const maxHeight=Math.max(.01,size.y);
+ model.scale.setScalar(1.55/maxHeight);
+ model.updateMatrixWorld(true);
+ const after=new T.Box3().setFromObject(model);
+ model.position.y-=after.min.y;
+ model.traverse(o=>{if(o.isMesh){o.frustumCulled=true;o.castShadow=false;o.receiveShadow=true;}});
  player.add(model);parts={};
  ["arm_l_4","arm_r_10","leg_l_18","leg_r_22"].forEach(n=>{const o=model.getObjectByName(n);if(o)parts[n]=o;});
+ say("Персонаж подогнан под рост 1,55 м");
 }
-function addTree(g,x,z,theme,s){
+function addTree(g,x,z,theme,s,colliders){
  const trunk=new T.Mesh(new T.CylinderGeometry(.15*s,.22*s,1.25*s,7),mat(0x6b4a31));trunk.position.set(x,.6*s,z);g.add(trunk);
  const col=theme===2?0xe4f1f3:theme===1?0x9b854a:theme===3?0x555c70:0x477a42;
  const crown=new T.Mesh(new T.ConeGeometry(.9*s,1.8*s,7),mat(col));crown.position.set(x,1.7*s,z);g.add(crown);
+ colliders.push({x,z,rx:.30*s,rz:.30*s,height:1.45*s});
 }
 function addCoin(g,x,z,list){
  const m=new T.Mesh(new T.TorusGeometry(.3,.09,8,16),new T.MeshStandardMaterial({color:0xffd34f,metalness:.65,roughness:.28,emissive:0x442800}));
  m.position.set(x,1.18,z);m.rotation.y=Math.PI/2;g.add(m);list.push({mesh:m,taken:false});
 }
-function addRock(g,x,z,theme,s){
+function addRock(g,x,z,theme,s,colliders){
  const m=new T.Mesh(new T.DodecahedronGeometry(.7*s,0),mat([0x75816b,0x9b8054,0x9daeb7,0x6b7181][theme]));
  m.position.set(x,.35*s,z);m.rotation.z=.18;g.add(m);
+ colliders.push({x,z,rx:.62*s,rz:.62*s,height:1.1*s});
+}
+function addCottage(g,x,z,theme,colliders,r){
+ const width=4.5+r()*2.5,depth=4+r()*2.3,height=2.2+r()*.7;
+ const wallColor=theme===2?0xcbd7df:theme===1?0xb78b55:theme===3?0x555765:0xc4a27d;
+ const body=new T.Mesh(new T.BoxGeometry(width,height,depth),mat(wallColor));
+ body.position.set(x,height/2,z);g.add(body);
+ const roof=new T.Mesh(new T.ConeGeometry(width*.78,1.35,4),mat(theme===2?0x667b91:theme===3?0x393f50:0x884d35));
+ roof.position.set(x,height+.62,z);roof.rotation.y=Math.PI/4;g.add(roof);
+ const door=new T.Mesh(new T.BoxGeometry(.85,1.5,.12),mat(0x503529));
+ door.position.set(x,height*.35,z-depth/2-.065);g.add(door);
+ colliders.push({x,z,rx:width*.53,rz:depth*.53,height:height+1.3});
 }
 function attachMap(entry){
  if(!mapModels.length||entry.mapGroup)return;
- const source=mapModels[Math.abs(entry.index)%mapModels.length],group=new T.Group(),clone=source.clone(true);
- clone.scale.setScalar(.24);clone.position.set(entry.index%2?11:-11,.1,-CHUNK*.5);
- clone.rotation.y=entry.index%3?0:Math.PI;group.add(clone);entry.group.add(group);entry.mapGroup=group;
+ const source=mapModels[Math.abs(entry.cx*31+entry.cz*17)%mapModels.length];
+ const group=new T.Group(),clone=source.clone(true);
+ clone.updateMatrixWorld(true);
+ const original=new T.Box3().setFromObject(clone),size=original.getSize(new T.Vector3());
+ const largest=Math.max(size.x,size.z,1);
+ const scale=Math.min(1,24/largest);
+ clone.scale.setScalar(scale);clone.updateMatrixWorld(true);
+ const box=new T.Box3().setFromObject(clone);
+ clone.position.x-=(box.min.x+box.max.x)/2;
+ clone.position.z-=(box.min.z+box.max.z)/2;
+ clone.position.y-=box.min.y;
+ group.add(clone);entry.group.add(group);entry.mapGroup=group;
+ clone.traverse(o=>{
+   if(!o.isMesh||!o.geometry)return;
+   const bb=new T.Box3().setFromObject(o),sz=bb.getSize(new T.Vector3()),c=bb.getCenter(new T.Vector3());
+   if(sz.y<.45||sz.y>10||sz.x>24||sz.z>24)return;
+   if(sz.x>21&&sz.z>21)return;
+   entry.colliders.push({x:c.x,z:c.z,rx:Math.max(.35,sz.x*.45),rz:Math.max(.35,sz.z*.45),height:sz.y});
+ });
 }
 function refreshMaps(){
- chunks.forEach(entry=>{if(entry.mapGroup)entry.group.remove(entry.mapGroup);entry.mapGroup=null;attachMap(entry);});
+ chunks.forEach(entry=>{if(entry.mapGroup)entry.group.remove(entry.mapGroup);entry.mapGroup=null;entry.colliders=entry.baseColliders.slice();attachMap(entry);});
 }
-function makeChunk(index){
- const r=rngFor(index+12345),themeIndex=Math.floor(Math.abs(index)/4)%4,th=themes[themeIndex],g=new T.Group();
- g.position.z=-index*CHUNK;scene.add(g);
- const floor=new T.Mesh(new T.BoxGeometry(38,.75,CHUNK),mat(th.ground));floor.position.set(0,-.43,-CHUNK/2);g.add(floor);
- const path=new T.Mesh(new T.BoxGeometry(7.2,.16,CHUNK),mat(th.path));path.position.set(0,.015,-CHUNK/2);g.add(path);
- [-3.8,3.8].forEach(x=>{const rail=new T.Mesh(new T.BoxGeometry(.2,.38,CHUNK),mat(th.prop));rail.position.set(x,.15,-CHUNK/2);g.add(rail);});
- for(let i=0;i<6;i++){let z=-3-i*5.7;if(r()>.4)addTree(g,(r()>.5?1:-1)*(7+r()*7),z,themeIndex,.7+r()*.55);if(r()>.6)addRock(g,(r()>.5?1:-1)*(6+r()*6),z-2,themeIndex,.6+r()*.6);}
- const localCoins=[],localObs=[],lanes=[-2.25,0,2.25];
- for(let i=0;i<4;i++){let z=-6-i*7.2;if(r()>.2)addCoin(g,lanes[Math.floor(r()*3)],z,localCoins);
- if(i>0&&r()>.35){const o=new T.Mesh(new T.DodecahedronGeometry(.72,0),mat(th.prop));o.position.set(lanes[Math.floor(r()*3)],.55,z-2);o.scale.set(1.1,.8,.9);g.add(o);localObs.push({mesh:o,hit:false});}}
- const entry={index,group:g,coins:localCoins,obstacles:localObs,mapGroup:null};chunks.set(index,entry);
+function biomeName(i){
+ return ["Зелёная долина","Песчаная бухта","Снежная долина","Черепашья деревня"][i]||"Неизведанная зона";
+}
+function makeChunk(cx,cz){
+ const seed=((cx*73856093)^(cz*19349663)^0x5f3759df)>>>0;
+ const r=rngFor(seed),themeIndex=Math.floor(r()*themes.length),th=themes[themeIndex],g=new T.Group();
+ g.position.set(cx*CHUNK,0,cz*CHUNK);scene.add(g);
+ const base=new T.Mesh(new T.BoxGeometry(CHUNK+.25,.8,CHUNK+.25),mat(th.ground));
+ base.position.set(0,-.43,0);g.add(base);
+ const pathMat=mat(th.path);
+ const northSouth=new T.Mesh(new T.BoxGeometry(5.6,.035,CHUNK+.15),pathMat);northSouth.position.y=.005;g.add(northSouth);
+ const eastWest=new T.Mesh(new T.BoxGeometry(CHUNK+.15,.035,5.6),pathMat);eastWest.position.y=.006;g.add(eastWest);
+ const localCoins=[],localObs=[],colliders=[];
+ // Keep the outside rim unobstructed so every generated zone joins its neighbours.
+ for(let i=0;i<7;i++){
+   const angle=r()*Math.PI*2,rad=10+r()*5,x=Math.cos(angle)*rad,z=Math.sin(angle)*rad;
+   if(r()>.27)addTree(g,x,z,themeIndex,.72+r()*.48,colliders);
+   if(r()>.48)addRock(g,x*.76,z*.76,themeIndex,.65+r()*.55,colliders);
+ }
+ if(themeIndex===0||themeIndex===1||themeIndex===3){
+   const count=themeIndex===3?4:2;
+   for(let i=0;i<count;i++){
+     const x=(r()>.5?1:-1)*(7+r()*6),z=(r()>.5?1:-1)*(7+r()*6);
+     addCottage(g,x,z,themeIndex,colliders,r);
+   }
+ }
+ if(themeIndex===2){
+   for(let i=0;i<5;i++){
+     const x=(r()>.5?1:-1)*(7+r()*6),z=(r()>.5?1:-1)*(6+r()*7);
+     addTree(g,x,z,themeIndex,1+r()*.7,colliders);
+   }
+ }
+ const lanes=[-7,-2,3,8];
+ for(let i=0;i<5;i++){
+   const x=lanes[Math.floor(r()*lanes.length)],z=lanes[Math.floor(r()*lanes.length)];
+   if(r()>.35)addCoin(g,x,z,localCoins);
+   if(r()>.78){
+     const rock=new T.Mesh(new T.DodecahedronGeometry(.7,0),mat(th.prop));
+     rock.position.set(x,.45,z);g.add(rock);localObs.push({mesh:rock,hit:false});
+     colliders.push({x,z,rx:.72,rz:.72,height:1.2});
+   }
+ }
+ const entry={cx,cz,group:g,coins:localCoins,obstacles:localObs,colliders,baseColliders:colliders.slice(),mapGroup:null,themeIndex};
+ chunks.set(cx+","+cz,entry);
  coinMeshes.push(...localCoins);obstacles.push(...localObs);attachMap(entry);
 }
 function updateChunks(){
- const cur=Math.floor(-player.position.z/CHUNK),min=cur-3,max=cur+7;
- for(let i=min;i<=max;i++)if(!chunks.has(i))makeChunk(i);
- for(const [i,e] of Array.from(chunks.entries()))if(i<min||i>max){scene.remove(e.group);e.coins.forEach(c=>c.mesh.visible=false);e.obstacles.forEach(o=>o.mesh.visible=false);chunks.delete(i);}
- coinMeshes=coinMeshes.filter(c=>c.mesh.parent&&c.mesh.visible);obstacles=obstacles.filter(o=>o.mesh.parent&&o.mesh.visible);
- const t=themes[Math.floor(Math.abs(cur)/4)%4];scene.background.setHex(t.sky);scene.fog.color.setHex(t.sky);
+ const cx=Math.floor(player.position.x/CHUNK),cz=Math.floor(player.position.z/CHUNK);
+ const radius=2;
+ for(let x=cx-radius;x<=cx+radius;x++)for(let z=cz-radius;z<=cz+radius;z++){
+   const key=x+","+z;if(!chunks.has(key))makeChunk(x,z);
+ }
+ for(const [key,e] of Array.from(chunks.entries())){
+   if(Math.abs(e.cx-cx)>radius+1||Math.abs(e.cz-cz)>radius+1){
+     scene.remove(e.group);
+     e.coins.forEach(c=>c.mesh.visible=false);
+     e.obstacles.forEach(o=>o.mesh.visible=false);
+     chunks.delete(key);
+   }
+ }
+ coinMeshes=coinMeshes.filter(c=>c.mesh.parent&&c.mesh.visible);
+ obstacles=obstacles.filter(o=>o.mesh.parent&&o.mesh.visible);
+ const current=chunks.get(cx+","+cz);
+ if(current){
+   worldThemeIndex=current.themeIndex;worldName=biomeName(current.themeIndex);
+   scene.background.setHex(themes[worldThemeIndex].sky);scene.fog.color.setHex(themes[worldThemeIndex].sky);
+   if($("hint"))$("hint").textContent="Локация: "+worldName+" · исследуй тропы к соседним зонам";
+ }
+}
+function collidesAt(x,z){
+ for(const e of chunks.values()){
+   const ox=e.group.position.x,oz=e.group.position.z;
+   for(const c of e.colliders){
+     if(player.position.y>Math.max(.65,c.height-.15))continue;
+     const dx=x-(ox+c.x),dz=z-(oz+c.z);
+     if(Math.abs(dx)<c.rx+.43&&Math.abs(dz)<c.rz+.43)return true;
+   }
+ }
+ return false;
 }
 function collectAndCollide(){
  const v=new T.Vector3();
- for(const c of coinMeshes){if(c.taken||!c.mesh.visible)continue;c.mesh.getWorldPosition(v);
- const dx=v.x-player.position.x,dz=v.z-player.position.z,dy=v.y-player.position.y-.9;
- if(dx*dx+dz*dz<1.5&&Math.abs(dy)<1.6){c.taken=true;c.mesh.visible=false;coins++;$("coins").textContent=coins;}}
- for(const o of obstacles){if(o.hit||!o.mesh.visible)continue;o.mesh.getWorldPosition(v);
- if(Math.abs(v.x-player.position.x)<1.15&&Math.abs(v.z-player.position.z)<1.15&&player.position.y<.9){o.hit=true;say("Препятствие! Перепрыгни его.");player.position.z+=1.7;velocityY=2.7;onGround=false;}}
+ for(const c of coinMeshes){
+   if(c.taken||!c.mesh.visible)continue;
+   c.mesh.getWorldPosition(v);
+   const dx=v.x-player.position.x,dz=v.z-player.position.z,dy=v.y-player.position.y-.9;
+   if(dx*dx+dz*dz<1.5&&Math.abs(dy)<1.6){
+     c.taken=true;c.mesh.visible=false;coins++;$("coins").textContent=coins;
+   }
+ }
 }
 function jump(){if(!ready||paused||!onGround)return;velocityY=8.2;onGround=false;}
 function update(dt){
  let x=moveX,y=moveY;
  if(Math.abs(x)>1||Math.abs(y)>1){const l=Math.hypot(x,y);x/=l;y/=l;}
- player.position.x=T.MathUtils.clamp(player.position.x+x*SPEED*dt,-3,3);
- player.position.z+=y*SPEED*dt;
- if(!onGround){velocityY-=GRAVITY*dt;player.position.y+=velocityY*dt;if(player.position.y<=0){player.position.y=0;velocityY=0;onGround=true;}}
+ const nextX=player.position.x+x*SPEED*dt;
+ const nextZ=player.position.z+y*SPEED*dt;
+ // Resolve X and Z independently: walls and buildings block movement, while open paths stay connected.
+ if(!collidesAt(nextX,player.position.z))player.position.x=nextX;
+ if(!collidesAt(player.position.x,nextZ))player.position.z=nextZ;
+ if(!onGround){
+   velocityY-=GRAVITY*dt;player.position.y+=velocityY*dt;
+   if(player.position.y<=0){player.position.y=0;velocityY=0;onGround=true;}
+ }
+ // Ground is present beneath every generated neighbour chunk; this guard prevents falling through unloaded seams.
+ if(player.position.y<0){player.position.y=0;velocityY=0;onGround=true;}
  const walking=Math.abs(x)+Math.abs(y)>.12;
- if(model){const s=Math.sin(anim*10)*.45;
- if(parts.arm_l_4)parts.arm_l_4.rotation.x=walking?s:0;
- if(parts.arm_r_10)parts.arm_r_10.rotation.x=walking?-s:0;
- if(parts.leg_l_18)parts.leg_l_18.rotation.x=walking?-s:0;
- if(parts.leg_r_22)parts.leg_r_22.rotation.x=walking?s:0;
- if(Math.abs(x)>.08){const wanted=x>0?-.18:.18;model.rotation.z+=(wanted-model.rotation.z)*Math.min(1,dt*4);}
- else model.rotation.z+=(0-model.rotation.z)*Math.min(1,dt*4);}
- collectAndCollide();dist=Math.max(0,Math.floor(Math.abs(player.position.z)*1.5));$("distance").textContent=dist;
+ if(model){
+   const s=Math.sin(anim*10)*.28;
+   if(parts.arm_l_4)parts.arm_l_4.rotation.x=walking?s:0;
+   if(parts.arm_r_10)parts.arm_r_10.rotation.x=walking?-s:0;
+   if(parts.leg_l_18)parts.leg_l_18.rotation.x=walking?-s:0;
+   if(parts.leg_r_22)parts.leg_r_22.rotation.x=walking?s:0;
+   if(Math.abs(x)>.08){const wanted=x>0?-.12:.12;model.rotation.z+=(wanted-model.rotation.z)*Math.min(1,dt*4);}
+   else model.rotation.z+=(0-model.rotation.z)*Math.min(1,dt*4);
+ }
+ collectAndCollide();
+ dist=Math.floor(Math.hypot(player.position.x,player.position.z)*1.5);
+ $("distance").textContent=dist;
 }
 function cameraUpdate(dt){
- const target=new T.Vector3(player.position.x+Math.sin(yaw)*9.1,player.position.y+4.9,player.position.z+Math.cos(yaw)*9.1);
- camera.position.lerp(target,Math.min(1,dt*4));camera.lookAt(player.position.x,player.position.y+1.0,player.position.z-2);
+ const distance=5.7,height=2.55;
+ const target=new T.Vector3(
+   player.position.x+Math.sin(yaw)*distance,
+   player.position.y+height,
+   player.position.z+Math.cos(yaw)*distance
+ );
+ camera.position.lerp(target,Math.min(1,dt*5));
+ camera.lookAt(player.position.x,player.position.y+1.05,player.position.z);
 }
 function resize(){if(!renderer)return;const w=innerWidth,h=innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setPixelRatio(Math.min(devicePixelRatio||1,MAX_DPR));renderer.setSize(w,h,false);}
 function setup(){
@@ -112,8 +231,8 @@ function setup(){
  scene.add(new T.HemisphereLight(0xe9f7ff,0x68744d,1.5));
  const sun=new T.DirectionalLight(0xfff0d6,1.15);sun.position.set(-8,18,12);scene.add(sun);
  const fill=new T.DirectionalLight(0xb4d7ff,.4);fill.position.set(9,7,-12);scene.add(fill);
- clock=new T.Clock();player=new T.Group();player.position.set(0,0,2.4);scene.add(player);model=addBear();player.add(model);
- makeChunk(0);updateChunks();resize();addEventListener("resize",resize,{passive:true});
+ clock=new T.Clock();player=new T.Group();player.position.set(0,0,1.5);scene.add(player);model=addBear();player.add(model);
+ updateChunks();resize();addEventListener("resize",resize,{passive:true});
  ready=true;loading.style.display="none";say("Мир готов. Нажми «ЗАГРУЗИТЬ GLB» для моделей из ZIP.");
  requestAnimationFrame(loop);
 }
@@ -134,7 +253,7 @@ joy.addEventListener("pointermove",e=>{if(stickId===e.pointerId)stickMove(e);});
 function releaseJoy(e){if(stickId!==e.pointerId)return;stickId=null;moveX=moveY=0;stick.style.transform="translate(0,0)";}
 joy.addEventListener("pointerup",releaseJoy);joy.addEventListener("pointercancel",releaseJoy);
 canvas.addEventListener("pointerdown",e=>{if(e.clientX<innerWidth*.4)return;lookId=e.pointerId;lastLookX=e.clientX;canvas.setPointerCapture(e.pointerId);});
-canvas.addEventListener("pointermove",e=>{if(lookId!==e.pointerId||paused)return;yaw=T.MathUtils.clamp(yaw+(e.clientX-lastLookX)*.004,-1.1,1.1);lastLookX=e.clientX;});
+canvas.addEventListener("pointermove",e=>{if(lookId!==e.pointerId||paused)return;yaw=(yaw+(e.clientX-lastLookX)*.006)%(Math.PI*2);lastLookX=e.clientX;});
 canvas.addEventListener("pointerup",e=>{if(lookId===e.pointerId)lookId=null;});canvas.addEventListener("pointercancel",e=>{if(lookId===e.pointerId)lookId=null;});
 $("jump").addEventListener("pointerdown",e=>{e.preventDefault();jump();});$("jump").addEventListener("click",jump);
 $("look").addEventListener("click",()=>{yaw=yaw===0?.48:0;say(yaw===0?"Камера сзади":"Камера сбоку");});
