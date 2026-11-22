@@ -481,3 +481,5 @@ for ui_file in (JAVA / "MainActivity.kt", JAVA / "FeatureListScreen.kt"):
     ui_file.write_text(ui, encoding="utf-8")
 
 print("Added six exact-image Verity skin groups (49–54)")
+
+# Source atlas is a transparent PNG; keep its binary payload intact in the APK.
