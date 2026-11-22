@@ -80,10 +80,10 @@ internal fun EditionFeaturesScreen(onBack: () -> Unit) {
         else -> "Phone · функции телефона"
     }
     var note by remember { mutableStateOf(prefs.getString("quick_note", "") ?: "") }
-    var noteDialog by rememberSaveable { mutableStateOf(false) }
-    var infoTitle by rememberSaveable { mutableStateOf("") }
-    var infoText by rememberSaveable { mutableStateOf("") }
-    var infoDialog by rememberSaveable { mutableStateOf(false) }
+    var noteDialog by remember { mutableStateOf(false) }
+    var infoTitle by remember { mutableStateOf("") }
+    var infoText by remember { mutableStateOf("") }
+    var infoDialog by remember { mutableStateOf(false) }
 
     fun showInfo(t: String, body: String) {
         infoTitle = t
