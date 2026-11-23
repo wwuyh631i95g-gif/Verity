@@ -1,17 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-feature android:name="android.hardware.type.watch" android:required="false"/>
-    <application android:allowBackup="false" android:label="@string/app_name"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar" android:supportsRtl="true">
-        <activity android:name=".MainActivity" android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-        <receiver android:name=".PocketWidgetProvider" android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/pocket_widget_info"/>
-        </receiver>
-        <receiver android:name=".WidgetActionReceiver" android:exported="false"/>
-    </application>
-</manifest>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"><uses-feature android:name="android.hardware.type.watch" android:required="false"/>
+<application android:allowBackup="false" android:label="@string/app_name" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:supportsRtl="true">
+<activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
+<receiver android:name=".WidgetProviders$QuickSettings" android:label="@string/l_QuickSettings" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$NewYear" android:label="@string/l_NewYear" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$TiltSand" android:label="@string/l_TiltSand" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$DinoRunner" android:label="@string/l_DinoRunner" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$RoboVac" android:label="@string/l_RoboVac" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$PopIt" android:label="@string/l_PopIt" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$Excuse" android:label="@string/l_Excuse" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$Aquarium" android:label="@string/l_Aquarium" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$Robot" android:label="@string/l_Robot" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$Glass" android:label="@string/l_Glass" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$PetTimer" android:label="@string/l_PetTimer" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$Workday" android:label="@string/l_Workday" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$FlipBottle" android:label="@string/l_FlipBottle" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$SixSeven" android:label="@string/l_SixSeven" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$Memory" android:label="@string/l_Memory" android:exported="true"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info"/></receiver>
+<receiver android:name=".WidgetProviders$ActionReceiver" android:exported="false"/></application></manifest>

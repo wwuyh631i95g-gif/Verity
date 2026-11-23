@@ -1,65 +1,8 @@
 package app.verity.pocketwidgets;
-
-import android.app.Activity;
-import android.content.Context;
-import android.content.Intent;
-import android.os.Bundle;
-import android.provider.Settings;
-import android.webkit.JavascriptInterface;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
-
+import android.app.Activity;import android.graphics.Color;import android.graphics.Typeface;import android.graphics.drawable.GradientDrawable;import android.os.Bundle;import android.widget.*;
 public final class MainActivity extends Activity {
-    private WebView webView;
-
-    @Override protected void onCreate(Bundle state) {
-        super.onCreate(state);
-        getWindow().setStatusBarColor(0xFF0B0D10);
-        getWindow().setNavigationBarColor(0xFF0B0D10);
-        webView = new WebView(this);
-        webView.setBackgroundColor(0xFF0B0D10);
-        WebSettings settings = webView.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setAllowFileAccess(true);
-        settings.setAllowContentAccess(false);
-        settings.setAllowFileAccessFromFileURLs(false);
-        settings.setAllowUniversalAccessFromFileURLs(false);
-        settings.setSupportZoom(false);
-        webView.addJavascriptInterface(new Bridge(this), "Android");
-        webView.setWebViewClient(new WebViewClient());
-        setContentView(webView);
-        webView.loadUrl("file:///android_asset/index.html");
-    }
-
-    @Override public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) webView.goBack();
-        else super.onBackPressed();
-    }
-
-    public static final class Bridge {
-        private final Context context;
-        Bridge(Context context) { this.context = context.getApplicationContext(); }
-
-        @JavascriptInterface public void setCounter(int value) {
-            context.getSharedPreferences("pocket_widgets", Context.MODE_PRIVATE).edit()
-                    .putInt("counter_67", Math.max(0, value)).apply();
-            WidgetActionReceiver.refresh(context);
-        }
-
-        @JavascriptInterface public void openSettings(String page) {
-            String action;
-            switch (page) {
-                case "wifi": action = Settings.ACTION_WIFI_SETTINGS; break;
-                case "bluetooth": action = Settings.ACTION_BLUETOOTH_SETTINGS; break;
-                case "display": action = Settings.ACTION_DISPLAY_SETTINGS; break;
-                case "sound": action = Settings.ACTION_SOUND_SETTINGS; break;
-                case "notifications": action = Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS; break;
-                default: action = Settings.ACTION_SETTINGS;
-            }
-            try { context.startActivity(new Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
-            catch (Exception ignored) { }
-        }
-    }
+ String[][] items={{"QUICK TOGGLES","Wi-Fi, Bluetooth, display and sound shortcuts."},{"NEW YEAR","Days and a live hours/minutes countdown."},{"TILT SAND","Move the sand with widget controls."},{"DINO RUNNER","Jump over cactuses and score."},{"ROBOT VACUUM","Move the cleaner and collect fluff."},{"POP-IT","Six individual bubbles."},{"WHY AM I LATE?","Generate the phrases shown in the video."},{"AQUARIUM","Feed the fish and change its position."},{"REACTIVE ROBOT","Touch it to change its face and mood."},{"BREAK THE GLASS","Tap to crack, then reset."},{"DON'T FORGET ME","A little pet with a time-since-touch counter."},{"WORKDAY","Live countdown; adjust finish time."},{"FLIP BOTTLE","Flip and build a streak."},{"CATCH 6–7","Tap the changing target number."},{"MEMORY PAIRS","A 4×4 matching game on the home screen."}};
+ @Override protected void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(0xFF0A0C0F);getWindow().setNavigationBarColor(0xFF0A0C0F);ScrollView s=new ScrollView(this);LinearLayout root=new LinearLayout(this);root.setOrientation(1);root.setPadding(dp(14),dp(16),dp(14),dp(22));root.setBackgroundColor(0xFF0A0C0F);s.addView(root);root.addView(txt("NOTHING-STYLE  /  HOME SCREEN WIDGETS",10,0xFFADB4BE,true));TextView title=txt("POCKET WIDGETS",26,Color.WHITE,true);title.setPadding(0,dp(8),0,dp(5));root.addView(title);root.addView(txt("15 отдельных настоящих Android AppWidget. Каждый устанавливается на главный экран и реагирует на нажатия прямо там — это не картинки и не карточки внутри приложения.",13,0xFFCFD4DC,false));TextView guide=txt("ДОБАВЛЕНИЕ\n1. Вернись на главный экран.\n2. Удерживай пустое место.\n3. Открой «Виджеты» → Pocket Widgets.\n4. Перетащи нужный виджет.",12,Color.WHITE,true);guide.setPadding(dp(12),dp(12),dp(12),dp(12));guide.setBackground(bg());LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(-1,-2);gp.topMargin=dp(12);root.addView(guide,gp);for(String[] item:items){LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(dp(12),dp(10),dp(12),dp(10));card.setBackground(bg());LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.topMargin=dp(8);root.addView(card,cp);card.addView(txt(item[0],12,Color.WHITE,true));TextView d=txt(item[1],11,0xFFADB4BE,false);d.setPadding(0,dp(4),0,0);card.addView(d);}root.addView(txt("ЧАСЫ: Android 8+ поддерживается. Установка виджетов на часах зависит от того, поддерживает ли их лаунчер часов.",10,0xFF9099A4,false));setContentView(s);}
+ TextView txt(String s,int n,int c,boolean b){TextView t=new TextView(this);t.setText(s);t.setTextSize(n);t.setTextColor(c);if(b)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);return t;}
+ GradientDrawable bg(){GradientDrawable d=new GradientDrawable();d.setColor(0xFF171A1F);d.setCornerRadius(dp(16));d.setStroke(dp(1),0xFF414750);return d;}int dp(float x){return Math.round(x*getResources().getDisplayMetrics().density);}
 }
