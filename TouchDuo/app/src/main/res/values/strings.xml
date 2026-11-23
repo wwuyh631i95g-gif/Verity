@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TouchDuo</string>
+    <string name="accessibility_desc">Отправляет выбранную комбинацию виртуальных одновременных касаний по нажатию плавающей кнопки. Не читает содержимое экрана.</string>
+</resources>
