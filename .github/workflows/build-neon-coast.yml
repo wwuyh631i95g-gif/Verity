@@ -62,7 +62,7 @@ jobs:
           APK="NeonCoast/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           unzip -t "$APK"
-          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep "package: name='com.verity.neoncoast' versionCode='1' versionName='0.1.0'"
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep "package: name='com.verity.neoncoast' versionCode='2' versionName='0.2.0'"
           sha256sum "$APK"
           ls -lh "$APK"
 
