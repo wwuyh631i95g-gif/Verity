@@ -250,16 +250,26 @@ function addCity() {
       if (cx > 165) continue;
       const lotW = 57, lotD = 57;
       const count = (ix > 1 && ix < 5 && iz > 1 && iz < 5) ? 2 : (Math.random() > 0.55 ? 2 : 1);
+      const downtown = Math.abs(cx) < 95 && Math.abs(cz) < 110;
       for (let b = 0; b < count; b++) {
-        const bw = rand(15, 27), bd = rand(15, 27);
-        const bx = cx + (b === 0 ? -13 : 14) + rand(-3, 3);
-        const bz = cz + (count === 1 ? 0 : (b === 0 ? -12 : 12)) + rand(-3, 3);
-        const downtown = Math.abs(cx) < 95 && Math.abs(cz) < 110;
-        let height = downtown ? rand(25, 66) : rand(8, 29);
-        if (Math.random() > 0.82) height = rand(38, 76);
-        if (ix === 0 || iz === 0 || iz === 6) height *= 0.7;
-        addBuilding(bx, bz, Math.min(bw, lotW), Math.min(bd, lotD), height,
-          palette[Math.floor(rand(0, palette.length))], Math.floor(rand(0, 8)));
+        let placed = false;
+        for(let attempt=0;attempt<10&&!placed;attempt++){
+          const bw = Math.min(rand(15, 27),lotW), bd = Math.min(rand(15, 27),lotD);
+          const bx = cx + (b === 0 ? -13 : 14) + rand(-3, 3);
+          const bz = cz + (count === 1 ? 0 : (b === 0 ? -12 : 12)) + rand(-3, 3);
+          const candidate={x:bx-bw/2-1,z:bz-bd/2-1,w:bw+2,d:bd+2};
+          const overlaps=buildings.some(old=>
+            candidate.x<old.x+old.w+3&&candidate.x+candidate.w+3>old.x&&
+            candidate.z<old.z+old.d+3&&candidate.z+candidate.d+3>old.z
+          );
+          if(overlaps)continue;
+          let height = downtown ? rand(25, 66) : rand(8, 29);
+          if (Math.random() > 0.82) height = rand(38, 76);
+          if (ix === 0 || iz === 0 || iz === 6) height *= 0.7;
+          addBuilding(bx,bz,bw,bd,height,
+            palette[Math.floor(rand(0,palette.length))],Math.floor(rand(0,8)));
+          placed=true;
+        }
       }
     }
   }
