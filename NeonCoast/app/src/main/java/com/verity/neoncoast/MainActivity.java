@@ -3,9 +3,13 @@ package com.verity.neoncoast;
 import android.app.Activity;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.ConsoleMessage;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -35,8 +39,36 @@ public final class MainActivity extends Activity {
         settings.setBuiltInZoomControls(false);
         settings.setMediaPlaybackRequiresUserGesture(true);
 
-        gameView.setWebViewClient(new WebViewClient());
-        gameView.setWebChromeClient(new WebChromeClient());
+        gameView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                view.evaluateJavascript(
+                    "(function(){var e=document.getElementById('loading');return e&&e.style.display==='none'?'READY':'NOT_READY';})()",
+                    value -> Log.i("NeonCoast", "GAME_STATE " + value)
+                );
+            }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                if (request.isForMainFrame()) {
+                    Log.e("NeonCoast", "MAIN_FRAME_ERROR " + error.getDescription());
+                }
+            }
+        });
+        gameView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(ConsoleMessage message) {
+                String text = message.message() + " @ " + message.sourceId() + ":" + message.lineNumber();
+                if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR) {
+                    Log.e("NeonCoastWeb", text);
+                } else {
+                    Log.d("NeonCoastWeb", text);
+                }
+                return true;
+            }
+        });
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);

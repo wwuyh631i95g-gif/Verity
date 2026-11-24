@@ -42,10 +42,12 @@ let lastAutoSave = 0;
 let easterEggs = [], savedEggs = [], foundEggs = 0;
 let raceActive = false, raceTimer = 0, raceIndex = 0, raceMarkers = [];
 let raceBest = 0, raceStart = new T.Vector3(-500,0,210);
+let ferrisWheelSpin = null, lastDistrictLabel = "";
+let qualityLevel = 1;
 const worldSize = 1400;
 const roadXs = Array.from({length:9},(_,i)=>-560+i*80);
 const roads = Array.from({length:15},(_,i)=>-560+i*80);
-const specialLots = [[-500,-520],[-160,-520],[-500,280],[-500,520]];
+const specialLots = [[-500,-520],[-160,-520],[-500,280],[-500,520],[120,350]];
 const missionData = [
   {
     x:-120,z:8,title:"Встреться с Рэй в кафе старого порта",district:"OLD PORT",hero:0,reward:250,
@@ -87,6 +89,31 @@ const missionData = [
       {name:"ЛИНА",text:"Мы понимаем. Люди должны знать, почему их дома исчезают с карты."},
       {name:"КАЙ · СООБЩЕНИЕ",text:"Эфир начался. Сохрани копию архива — это только первая глава."},
       {name:"ЛИНА",text:"Порт ещё можно спасти. Теперь у нас есть шанс."}
+    ]
+  },
+  {
+    x:128,z:350,title:"Проверь старый маяк на Sunset Pier",district:"SUNSET PIER",hero:0,reward:650,
+    scene:[
+      {name:"КАЙ",text:"На причале говорят, что маяк выключили после странной ночной смены."},
+      {name:"КАПИТАН МАРА",text:"Это не поломка. Кто-то отключил журнал сигналов, чтобы скрыть ночные рейсы."},
+      {name:"КАЙ",text:"Я сохраню копию журнала. Причал не должен стать ещё одной закрытой улицей."}
+    ]
+  },
+  {
+    x:-455,z:-535,title:"Найди полётный журнал в аэропорту",district:"BAYLINE AIRPORT",hero:1,reward:850,
+    scene:[
+      {name:"ЛИНА",text:"В старом терминале остался журнал чартерных рейсов. В нём есть даты встреч Meridian."},
+      {name:"ТЕХНИК АЭРОПОРТА",text:"Я не хочу проблем. Просто верни журнал в архив, а не продавай его."},
+      {name:"ЛИНА",text:"Так и сделаю. Иногда важнее сохранить доказательство, чем устроить сенсацию."}
+    ]
+  },
+  {
+    x:-500,z:535,title:"Передай архив защитникам Cypress Marsh",district:"CYPRESS MARSH",hero:1,reward:1200,
+    scene:[
+      {name:"ЛИНА",text:"В документах есть план застройки болот. Если его утвердят, исчезнут пруды и тропы."},
+      {name:"ЭКОЛОГ СЭМ",text:"Нам нужны точные координаты и копия разрешения. Тогда мы сможем потребовать проверку."},
+      {name:"ЛИНА",text:"Архив у вас. Пусть у этого места будет будущее, а не только ценник."},
+      {name:"КАЙ · СООБЩЕНИЕ",text:"Город услышал нас. Теперь можно исследовать побережье и искать оставшиеся секреты."}
     ]
   }
 ];
@@ -215,6 +242,22 @@ function addRoads() {
   }
   scene.add(marks);
 }
+function addRoadDetails() {
+  const centers=[];
+  [-240,-80,80].forEach(x=>[-240,0,240].forEach(z=>centers.push([x,z])));
+  const paint=new T.MeshStandardMaterial({color:0xe2dfd3,roughness:0.98});
+  const acrossZ=new T.InstancedMesh(new T.BoxGeometry(0.48,0.035,6.4),paint,centers.length*8);
+  const acrossX=new T.InstancedMesh(new T.BoxGeometry(6.4,0.035,0.48),paint,centers.length*8);
+  const dummy=new T.Object3D();let n=0;
+  centers.forEach(([x,z])=>{for(let i=0;i<8;i++){
+    dummy.position.set(x+(i-3.5)*1.0,-0.075,z);dummy.rotation.set(0,0,0);dummy.updateMatrix();acrossZ.setMatrixAt(n++,dummy.matrix);
+  }});
+  n=0;
+  centers.forEach(([x,z])=>{for(let i=0;i<8;i++){
+    dummy.position.set(x,-0.075,z+(i-3.5)*1.0);dummy.rotation.set(0,0,0);dummy.updateMatrix();acrossX.setMatrixAt(n++,dummy.matrix);
+  }});
+  scene.add(acrossZ,acrossX);
+}
 function addCity() {
   const palette=[0xb7b4aa,0x9ba8a8,0xc2b6a2,0x77888d,0xd4c4ad,0x87969a,0xaea99c,0x687c84];
   for(let ix=0;ix<9;ix++)for(let iz=0;iz<15;iz++){
@@ -261,6 +304,21 @@ function addBuilding(x, z, w, d, h, color, style) {
   box(g,0.12,0.14,0.12,0xd4b36d,-w*0.18+0.42,1.15,-d/2-0.14,0.4,0.55);
   box(g, w + 0.28, 0.32, d + 0.28, 0x444c4b, 0, h - 0.48, 0, 0.78);
   box(g, w * 0.96, baseH, d * 0.985, 0x243b43, 0, baseH / 2 - 0.38, 0, 0.35, 0.18);
+  if (style % 5 === 0) {
+    box(g, w * 0.82, 0.20, 1.15, [0xd28b55,0x4f9294,0x9b6e91][style % 3], 0, 3.05, -d/2-0.48, 0.48, 0.08);
+    box(g, w * 0.82, 0.10, 1.2, 0xf0d6a4, 0, 2.92, -d/2-0.48, 0.5, 0.02);
+  }
+  if (style % 4 === 2 && h > 16) {
+    for (let floor = 0; floor < Math.min(3, Math.floor(h/12)); floor++) {
+      const y = 5.4 + floor * 7.2;
+      box(g, w * 0.58, 0.16, 1.25, 0x75858a, 0, y, -d/2-0.58, 0.7, 0.18);
+      box(g, w * 0.58, 0.12, 0.12, 0xc6c9c2, 0, y+0.48, -d/2-1.12, 0.65, 0.18);
+    }
+  }
+  if (style % 3 === 1 && h > 20) {
+    box(g, w*0.86, 0.22, d*0.88, 0x667579, 0, h+0.12, 0, 0.8, 0.1);
+    box(g, 2.2, 1.1, 2.2, 0x515e61, -w*0.22, h+0.75, d*0.18, 0.82, 0.08);
+  }
   if (style % 3 === 0 && h > 14) {
     for (let i = 0; i < 2; i++) {
       box(g, w * 0.72, 0.2, 0.55, 0x7b8584, 0, h + 0.04 + i * 0.55, -d * 0.16, 0.8);
@@ -292,54 +350,45 @@ function addBuilding(x, z, w, d, h, color, style) {
     box(g, 2.8, 1.2, 2.8, 0x59636a, w * 0.2, h + 0.6, d * 0.12, 0.75);
   }
 }
-function addCity() {
-  const palette = [0xb7b4aa,0x9ba8a8,0xc2b6a2,0x77888d,0xd4c4ad,0x87969a,0xaea99c,0x687c84];
-  for (let ix = 0; ix < 7; ix++) {
-    for (let iz = 0; iz < 7; iz++) {
-      const cx = -240 + ix * 80;
-      const cz = -240 + iz * 80;
-      if (cx > 165) continue;
-      const lotW = 57, lotD = 57;
-      const count = (ix > 1 && ix < 5 && iz > 1 && iz < 5) ? 2 : (Math.random() > 0.55 ? 2 : 1);
-      const downtown = Math.abs(cx) < 95 && Math.abs(cz) < 110;
-      for (let b = 0; b < count; b++) {
-        let placed = false;
-        for(let attempt=0;attempt<10&&!placed;attempt++){
-          const bw = Math.min(rand(15, 27),lotW), bd = Math.min(rand(15, 27),lotD);
-          const bx = cx + (b === 0 ? -13 : 14) + rand(-3, 3);
-          const bz = cz + (count === 1 ? 0 : (b === 0 ? -12 : 12)) + rand(-3, 3);
-          const candidate={x:bx-bw/2-1,z:bz-bd/2-1,w:bw+2,d:bd+2};
-          const overlaps=buildings.some(old=>
-            candidate.x<old.x+old.w+3&&candidate.x+candidate.w+3>old.x&&
-            candidate.z<old.z+old.d+3&&candidate.z+candidate.d+3>old.z
-          );
-          if(overlaps)continue;
-          let height = downtown ? rand(25, 66) : rand(8, 29);
-          if (Math.random() > 0.82) height = rand(38, 76);
-          if (ix === 0 || iz === 0 || iz === 6) height *= 0.7;
-          addBuilding(bx,bz,bw,bd,height,
-            palette[Math.floor(rand(0,palette.length))],Math.floor(rand(0,8)));
-          placed=true;
-        }
-      }
-    }
+function addWaterfrontDistrict() {
+  const boardwalk=group(scene,120,0,350);
+  box(boardwalk,44,0.48,64,0x8b6949,0,-0.16,0,0.92);
+  for(let z=-29;z<=29;z+=4)box(boardwalk,43,0.05,0.13,0x604b37,0,0.11,z,0.95);
+  for(const x of [-20,20]){
+    for(let z=-28;z<=28;z+=14)box(boardwalk,0.35,2.2,0.35,0x6e533c,x,1.0,z,0.9);
+    box(boardwalk,0.25,0.22,62,0x71583f,x,2.0,0,0.85);
   }
-  const winGeo = new T.BoxGeometry(1.18, 1.36, 0.11);
-  const winMat = new T.MeshStandardMaterial({color:0x183d4b,roughness:0.24,metalness:0.16,emissive:0x102936,emissiveIntensity:0.34});
-  cityWindowMaterial=winMat;
-  const windows = new T.InstancedMesh(winGeo, winMat, buildingWindows.length);
-  const o = new T.Object3D();
-  for (let i = 0; i < buildingWindows.length; i++) {
-    const v = buildingWindows[i];
-    o.position.set(v.x, v.y, v.z);
-    o.rotation.set(0, v.ry, 0);
-    o.scale.set(v.scaleX, 1, 1);
-    o.updateMatrix();
-    windows.setMatrixAt(i, o.matrix);
-    const tint = new T.Color(Math.random() > 0.88 ? 0xe3bd78 : 0x8db8c3);
-    windows.setColorAt(i, tint);
+  for(const z of [-18,0,18]){
+    box(boardwalk,5.2,0.3,1.0,0x4d4d45,-7,0.34,z,0.9);
+    box(boardwalk,5.2,0.3,1.0,0x4d4d45,7,0.34,z,0.9);
   }
-  scene.add(windows);
+  addBuilding(78,350,22,22,32,0xa8a49a,2);
+  addWorldSign("SUNSET PIER",120,310,"#f0c56e");
+  const mount=group(scene,150,0,350);mount.rotation.y=Math.PI/2;
+  const supportL=box(mount,0.9,19,0.9,0x53636a,-8,9.0,0,0.72,0.22);supportL.rotation.z=-0.42;
+  const supportR=box(mount,0.9,19,0.9,0x53636a,8,9.0,0,0.72,0.22);supportR.rotation.z=0.42;
+  box(mount,22,0.8,4,0x53636a,0,0.7,0,0.8,0.12);
+  ferrisWheelSpin=group(mount,0,18,0);
+  ferrisWheelSpin.add(new T.Mesh(new T.TorusGeometry(15,0.72,8,48),material(0xd6d8d1,0.52,0.42)));
+  for(let i=0;i<10;i++){
+    const a=i*Math.PI/10;
+    const spoke=new T.Mesh(new T.CylinderGeometry(0.14,0.14,29,7),material(0xb8c0bd,0.56,0.35));
+    spoke.rotation.z=a;ferrisWheelSpin.add(spoke);
+    box(ferrisWheelSpin,2.0,1.7,1.6,[0xe2a45b,0x4f9ba3,0xd46d65,0x7e719e][i%4],
+      Math.cos(a*2)*15,Math.sin(a*2)*15,0,0.5,0.16);
+  }
+  ferrisWheelSpin.add(new T.Mesh(new T.SphereGeometry(1.35,16,12),material(0xe8bf70,0.35,0.35)));
+  scene.add(mount);
+  for(let i=0;i<4;i++){
+    const lamp=group(scene,95+i*15,0,390);
+    const pole=new T.Mesh(new T.CylinderGeometry(0.07,0.09,4.2,7),material(0x3a4547,0.65,0.35));
+    pole.position.y=2.1;lamp.add(pole);
+    const bulb=new T.Mesh(new T.SphereGeometry(0.22,8,8),new T.MeshStandardMaterial({color:0xffe3a5,emissive:0xffc56a,emissiveIntensity:0.7}));
+    bulb.position.y=4.2;lamp.add(bulb);
+  }
+}
+function updateLandmarks(dt) {
+  if(ferrisWheelSpin)ferrisWheelSpin.rotation.z+=dt*0.12;
 }
 function palm(x, z, scale) {
   const g = group(scene, x, 0, z);
@@ -537,11 +586,11 @@ function addVehicles() {
   carYaw=0;
   scene.add(car);
   const palette=[0xe4e0d2,0x386f87,0x4c5154,0xc0a15e,0x7e3d39,0x9ba9a4,0x212a31,0xe1e0d7,0x799b87];
-  for(let i=0;i<8;i++){
+  for(let i=0;i<14;i++){
     const v=createCar(palette[i%palette.length],rand(0.72,0.9));
     const row=roads[(i*2+3)%roads.length];
     v.position.set(rand(-640,180),0.02,row+(i%2?2.8:-2.8));
-    v.rotation.y=Math.PI/2;
+    v.rotation.y=i%2?Math.PI/2:-Math.PI/2;
     scene.add(v);
     traffic.push({mesh:v,speed:rand(5.5,10.5)*(i%3===0?1.3:1),lane:row,dir:i%2?1:-1});
   }
@@ -588,7 +637,7 @@ function updateWantedHud() {
 }
 function addPedestrians() {
   const palette=[0x517c85,0x91664d,0xc0a15e,0x566b50,0x604c73,0xb5b4a9,0x8d4f47];
-  for(let i=0;i<11;i++){
+  for(let i=0;i<24;i++){
     const npc=createPerson(palette[i%palette.length],[0x29313a,0x35434a,0x66594b][i%3]);
     let placed=false;
     for(let attempt=0;attempt<24&&!placed;attempt++){
@@ -623,9 +672,13 @@ function createEasterEggs(){
     {x:-130,z:-455,name:"Стадионный пончик",joke:"Пончик: «Я круглый, но не хожу по кругу»."},
     {x:140,z:390,name:"Краб-блогер",joke:"Краб-блогер: «Подпишись. Я всё равно иду боком»."},
     {x:-620,z:95,name:"Радио 404",joke:"Радио 404: «Ваш любимый хит не найден. Ставим шум океана»."},
-    {x:-330,z:210,name:"Мини-НЛО",joke:"Пилот НЛО: «Мы искали парковку. Тут везде платно»."}
+    {x:-330,z:210,name:"Мини-НЛО",joke:"Пилот НЛО: «Мы искали парковку. Тут везде платно»."},
+    {x:120,z:410,name:"Плеер с кассетой",joke:"Старый плеер: «Перемотай лето назад. Хотя бы на одну сторону»."},
+    {x:-565,z:630,name:"Черепаха-метеоролог",joke:"Черепаха: «На болотах дождь будет. Я это по панцирю чувствую»."},
+    {x:180,z:-590,name:"Пляжный мяч",joke:"Мяч: «Меня унесло ветром. Но я всё ещё в игре»."},
+    {x:-430,z:-610,name:"Маячный фонарь",joke:"Фонарь: «Я освещаю путь. Кроме тех случаев, когда меня выключают»."}
   ];
-  const colors=[0xe7bd43,0x7db7ad,0xd98c4b,0xe3a2c6,0x8bb7df,0xb8a5df];
+  const colors=[0xe7bd43,0x7db7ad,0xd98c4b,0xe3a2c6,0x8bb7df,0xb8a5df,0xd4a85b,0x75a58b,0xe7a85a,0xd9e0d8];
   data.forEach((d,i)=>{
     const root=group(scene,d.x,0,d.z);
     const pedestal=new T.Mesh(new T.CylinderGeometry(1,1.2,0.45,12),material(0x3a464a,0.55,0.4));
@@ -662,7 +715,7 @@ function createEasterEggs(){
       box(root,0.58,0.32,0.08,0x6dd5c2,0,1.2,0.25,0.3,0.2);
       const antenna=new T.Mesh(new T.CylinderGeometry(0.025,0.035,0.85,6),material(0xb9c5c8));
       antenna.position.set(0.38,1.85,-0.12);antenna.rotation.z=-0.2;root.add(antenna);
-    }else{
+    }else if(i===5){
       const saucer=new T.Mesh(new T.CylinderGeometry(0.84,0.84,0.22,18),gold);
       saucer.position.y=1.2;root.add(saucer);
       const dome=new T.Mesh(new T.SphereGeometry(0.42,12,10,0,Math.PI*2,0,Math.PI/2),material(0x8bd6e8,0.18,0.5));
@@ -671,6 +724,30 @@ function createEasterEggs(){
         const light=new T.Mesh(new T.SphereGeometry(0.07,7,7),new T.MeshBasicMaterial({color:k%2?0xffd36d:0x71dcff}));
         const a=k/6*Math.PI*2;light.position.set(Math.cos(a)*0.72,1.05,Math.sin(a)*0.72);root.add(light);
       }
+    }else if(i===6){
+      box(root,1.15,0.72,0.42,0x374b57,0,1.15,0,0.45,0.35);
+      box(root,0.34,0.34,0.08,0xe5c06e,-0.28,1.15,0.24,0.4,0.15);
+      box(root,0.34,0.34,0.08,0xe5c06e,0.28,1.15,0.24,0.4,0.15);
+      box(root,0.5,0.12,0.05,0x172b33,0,1.55,0.23,0.4,0.2);
+    }else if(i===7){
+      const shell=new T.Mesh(new T.SphereGeometry(0.62,12,10),gold);
+      shell.scale.set(1.15,0.62,1.0);shell.position.y=1.0;root.add(shell);
+      const head=new T.Mesh(new T.SphereGeometry(0.27,10,8),material(0x5b916d,0.85));
+      head.position.set(0,0.95,0.68);root.add(head);
+      for(const side of [-1,1])for(const z of [-0.34,0.34])
+        box(root,0.25,0.2,0.28,0x5b916d,side*0.46,0.52,z,0.85);
+    }else if(i===8){
+      const ball=new T.Mesh(new T.SphereGeometry(0.82,16,12),gold);
+      ball.position.y=1.1;root.add(ball);
+      const stripe=new T.Mesh(new T.TorusGeometry(0.83,0.08,6,24),material(0xf4e7d0,0.55));
+      stripe.position.y=1.1;root.add(stripe);
+    }else{
+      const tower=new T.Mesh(new T.CylinderGeometry(0.38,0.48,1.65,12),material(0xe1d8c5,0.62));
+      tower.position.y=1.05;root.add(tower);
+      const band=new T.Mesh(new T.CylinderGeometry(0.4,0.4,0.24,12),material(0xc15d4b,0.6));
+      band.position.y=1.45;root.add(band);
+      const lantern=box(root,0.42,0.34,0.42,0xf5d58b,0,2.0,0,0.22,0.12);
+      lantern.material.emissive.setHex(0xffc968);lantern.material.emissiveIntensity=0.45;
     }
     scene.add(root);
     easterEggs.push({root,x:d.x,z:d.z,name:d.name,joke:d.joke,found:!!savedEggs[i]});
@@ -680,7 +757,7 @@ function createEasterEggs(){
 }
 function updateEggCounter(){
   foundEggs=easterEggs.filter(e=>e.found).length;
-  const el=$("eggCount");if(el)el.textContent=foundEggs+"/6";
+  const el=$("eggCount");if(el)el.textContent=foundEggs+"/10";
 }
 function tryCollectEgg(){
   const p=inCar?car.position:playerPos;
@@ -931,8 +1008,8 @@ function updateEnvironment(dt) {
   }
   scene.background.copy(blend);
   scene.fog.color.copy(blend);
-  scene.fog.near=rainMode?125:190;
-  scene.fog.far=rainMode?390:540;
+  scene.fog.near=rainMode===1?125:(rainMode===2?70:190);
+  scene.fog.far=rainMode===1?390:(rainMode===2?235:540);
   sunLight.position.set(Math.cos(angle)*180,Math.max(8,Math.sin(angle)*190),-90);
   sunLight.intensity=0.14+daylight*1.95;
   sunLight.color.setRGB(1,0.76+daylight*0.19,0.60+daylight*0.38);
@@ -940,13 +1017,13 @@ function updateEnvironment(dt) {
   if(cityWindowMaterial)cityWindowMaterial.emissiveIntensity=0.12+night*1.42;
   lampBulbs.forEach(m=>{m.emissiveIntensity=night*1.25;});
   if(roadMaterial)roadMaterial.color.setRGB(
-    rainMode?0.78:1, rainMode?0.82:1, rainMode?0.86:1
+    rainMode===1?0.78:1, rainMode?0.82:1, rainMode?0.86:1
   );
   const minutes=Math.floor(gameTime*24*60);
   const hh=String(Math.floor(minutes/60)%24).padStart(2,"0");
   const mm=String(minutes%60).padStart(2,"0");
   const timeEl=$("timeDisplay");
-  if(timeEl)timeEl.textContent=hh+":"+mm+(rainMode?" · ДОЖДЬ":" · ЯСНО");
+  if(timeEl)timeEl.textContent=hh+":"+mm+(rainMode===1?" · ДОЖДЬ":(rainMode===2?" · ТУМАН":" · ЯСНО"));
 }
 function createWeatherSystem() {
   const count=190;
@@ -990,12 +1067,15 @@ function updateWeather(dt) {
   }
   rainLines.geometry.attributes.position.needsUpdate=true;
 }
+function weatherLabel() {
+  return rainMode===1?"ДОЖДЬ":(rainMode===2?"ТУМАН":"ЯСНО");
+}
 function toggleWeather() {
-  rainMode=rainMode===0?1:0;
+  rainMode=(rainMode+1)%3;
   if(rainLines)rainLines.visible=rainMode===1;
   const button=$("weatherToggle");
-  if(button)button.textContent=rainMode===1?"ПОГОДА: ДОЖДЬ · СМЕНИТЬ":"ПОГОДА: ЯСНО · СМЕНИТЬ";
-  showToast(rainMode===1?"Начался дождь. Дорога стала скользкой.":"Дождь закончился.");
+  if(button)button.textContent="ПОГОДА: "+weatherLabel()+" · СМЕНИТЬ";
+  showToast(rainMode===1?"Начался дождь. Дорога стала скользкой.":(rainMode===2?"С побережья опустился плотный туман.":"Погода прояснилась."));
   saveGame();
 }
 function setupSkyline() {
@@ -1007,9 +1087,28 @@ function setupSkyline() {
     scene.add(m);
   }
 }
+function loadQuality() {
+  try{
+    const value=localStorage.getItem("neoncoast_quality");
+    if(value!==null){const n=parseInt(value,10);if(Number.isFinite(n))qualityLevel=clamp(n,0,2);}
+  }catch(e){}
+}
+function qualityPixelRatio() {
+  const caps=[0.82,1.0,1.22];
+  return Math.min(window.devicePixelRatio||1,caps[qualityLevel]);
+}
+function setQuality(level) {
+  qualityLevel=clamp(level,0,2);
+  try{localStorage.setItem("neoncoast_quality",String(qualityLevel));}catch(e){}
+  if(renderer){renderer.setPixelRatio(qualityPixelRatio());renderer.setSize(window.innerWidth,window.innerHeight,false);}
+  const labels=["ЭКОНОМИЯ","БАЛАНС","КАЧЕСТВО"];
+  const button=$("qualityToggle");
+  if(button)button.textContent="ГРАФИКА: "+labels[qualityLevel];
+  showToast("Режим графики: "+labels[qualityLevel]);
+}
 function setupRenderer() {
   renderer=new T.WebGLRenderer({canvas:canvas,antialias:true,alpha:false,powerPreference:"high-performance"});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.15));
+  renderer.setPixelRatio(qualityPixelRatio());
   renderer.setSize(window.innerWidth,window.innerHeight,false);
   renderer.outputEncoding=T.sRGBEncoding;
   renderer.toneMapping=T.ACESFilmicToneMapping;
@@ -1018,7 +1117,7 @@ function setupRenderer() {
 function resize() {
   if(!renderer||!camera)return;
   const w=window.innerWidth,h=window.innerHeight;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.25));
+  renderer.setPixelRatio(qualityPixelRatio());
   renderer.setSize(w,h,false);
   camera.aspect=w/h;camera.updateProjectionMatrix();
 }
@@ -1244,7 +1343,7 @@ function loadProgress() {
       if(Number.isFinite(d.condition))carCondition=clamp(d.condition,0,100);
       if(Number.isFinite(d.active))activeCharacter=clamp(Math.floor(d.active),0,1);
       if(Number.isFinite(d.time))gameTime=((d.time%1)+1)%1;
-      if(Number.isFinite(d.rain))rainMode=d.rain?1:0;
+      if(Number.isFinite(d.rain))rainMode=clamp(Math.floor(d.rain),0,2);
       if(Number.isFinite(d.paint))carPaintSaved=clamp(Math.floor(d.paint),0,6);
       if(Array.isArray(d.eggs))savedEggs=d.eggs.slice(0,6).map(v=>v?1:0);
       if(Array.isArray(d.vehicle)&&d.vehicle.length>=3&&d.vehicle.every(Number.isFinite)){
@@ -1285,6 +1384,7 @@ function drawMap() {
   ctx.fillText("DOWNTOWN",mapX(-180),mapZ(15));
   ctx.fillText("SPEEDWAY",mapX(-565),mapZ(205));
   ctx.fillText("MARSH",mapX(-580),mapZ(635));
+  ctx.fillText("SUNSET PIER",mapX(95),mapZ(395));
   const pos=inCar?car.position:playerPos,px=mapX(pos.x),pz=mapZ(pos.z);
   if(!raceActive){
     ctx.fillStyle="#ffd36d";ctx.beginPath();ctx.arc(mapX(raceStart.x),mapZ(raceStart.z),4,0,Math.PI*2);ctx.fill();
@@ -1307,7 +1407,23 @@ function drawMap() {
   ctx.beginPath();ctx.arc(px,pz,5,0,Math.PI*2);ctx.fill();ctx.stroke();
 }
 
+function districtNameAt(x,z) {
+  if(x<-370&&z<-380)return "BAYLINE AIRPORT";
+  if(x<-90&&z<-390)return "PALM BAY STADIUM";
+  if(x<-420&&z>430)return "CYPRESS MARSH";
+  if(x<-420&&z>180&&z<390)return "BAYLINE SPEEDWAY";
+  if(x>65&&z>275&&z<430)return "SUNSET PIER";
+  if(x>150)return "BEACHFRONT";
+  if(Math.abs(x)<170&&Math.abs(z)<180)return "DOWNTOWN";
+  if(z>360)return "SOUTH BAY";
+  if(z<-320)return "NORTH BAY";
+  if(x<-420)return "WEST COAST";
+  return "OLD PORT";
+}
 function updateHud() {
+  const areaPos=inCar?car.position:playerPos;
+  const areaName=districtNameAt(areaPos.x,areaPos.z);
+  if(areaName!==lastDistrictLabel){$("district").textContent=areaName;lastDistrictLabel=areaName;}
   $("speedValue").textContent=inCar?String(Math.round(Math.abs(carSpeed)*3.6)):"0";
   const info=$("vehicleInfo");
   if(info){
@@ -1326,6 +1442,7 @@ function loop(now) {
   updatePolice(dt);
   updateEnvironment(dt);
   updateWater(dt);
+  updateLandmarks(dt);
   updateWeather(dt);
   updateCamera(dt);
   updateMarker(dt);
@@ -1392,7 +1509,7 @@ function setupControls() {
     const mission=missionData[Math.min(missionStage,missionData.length-1)];
     $("phoneObjective").textContent=missionStage>=missionData.length?
       "Глава завершена. Берег открыт для исследования." : mission.title;
-    $("weatherToggle").textContent=rainMode===1?"ПОГОДА: ДОЖДЬ · СМЕНИТЬ":"ПОГОДА: ЯСНО · СМЕНИТЬ";
+    $("weatherToggle").textContent="ПОГОДА: "+weatherLabel()+" · СМЕНИТЬ";
   });
   $("weatherToggle").addEventListener("click",toggleWeather);
   $("paintBtn").addEventListener("click",()=>{
@@ -1407,6 +1524,7 @@ function setupControls() {
     showToast("Цвет машины изменён.");
     saveGame();
   });
+  $("qualityToggle").addEventListener("click",()=>{setQuality((qualityLevel+1)%3);});
   $("serviceBtn").addEventListener("click",()=>{
     const nearCar=inCar||dist2(playerPos.x,playerPos.z,car.position.x,car.position.z)<100;
     if(!nearCar){showToast("Подойди к своей машине для обслуживания.");return;}
@@ -1436,6 +1554,7 @@ function setupControls() {
 }
 function init() {
   try {
+    loadQuality();
     setupRenderer();
     scene=new T.Scene();
     setupLighting();
@@ -1444,6 +1563,8 @@ function init() {
     clock=new T.Clock();
     addGround();
     addRoads();
+    addRoadDetails();
+    addWaterfrontDistrict();
     addCity();
     addStreetProps();
     addDistrictLandmarks();
@@ -1465,6 +1586,8 @@ function init() {
     updateEggCounter();
     updateMissionMarker();
     if(rainMode===1)rainLines.visible=true;
+    setQuality(qualityLevel);
+    $("weatherToggle").textContent="ПОГОДА: "+weatherLabel()+" · СМЕНИТЬ";
     setupControls();
     window.addEventListener("resize",resize);
     ready=true;
