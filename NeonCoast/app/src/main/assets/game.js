@@ -24,19 +24,61 @@ let yaw = 0, pitch = 0.16, cameraDistance = 8.8;
 let moveX = 0, moveY = 0, stickPointer = null;
 let lookPointer = null, lastLookX = 0, lastLookY = 0;
 let braking = false, nitro = false, inCar = false;
-let player, playerBody, playerHead, playerArms = [], playerLegs = [];
+let player, players = [], activeCharacter = 0;
 let playerPos = new T.Vector3(-177, 0, 105);
+let heroPositions = [new T.Vector3(-177, 0, 105), new T.Vector3(-210, 0, 185)];
 let car, carSpeed = 0, carYaw = 0, cash = 850;
-let traffic = [], pedestrians = [], buildings = [], buildingWindows = [];
+let traffic = [], pedestrians = [], policeCars = [], buildings = [], buildingWindows = [];
 let trafficClock = 0, npcClock = 0, missionStage = 0;
+let wantedLevel = 0, wantedTimer = 0, policePulse = 0;
+let dialogueQueue = [], dialogueIndex = 0, dialogueActive = false;
 let missionMarker, missionRing, missionBeam, missionPulse = 0;
 let toastTimer = 0, cameraTarget = new T.Vector3();
 const worldSize = 620;
 const roads = [-280, -200, -120, -40, 40, 120, 200, 280];
 const missionData = [
-  { x: -120, z: 8, title: "Встреться с Марой у кафе на набережной", district: "OLD PORT", done: "Мара: «На старом рынке лежит конверт. Забери его — там доказательства, что причал хотят продать за нашей спиной»." },
-  { x: 120, z: -160, title: "Забери пакет у старого рынка", district: "MARKET", done: "В конверте — документы на мастерскую. Отнеси их на восточный причал, пока сделка не закрылась." },
-  { x: 218, z: 112, title: "Доставь пакет на восточный причал", district: "MARINA", done: "Доставка завершена. Ты заработал $ 1 200." }
+  {
+    x:-120,z:8,title:"Встреться с Рэй в кафе старого порта",district:"OLD PORT",hero:0,reward:250,
+    scene:[
+      {name:"КАЙ",text:"Ты сказала, что у тебя есть доказательство. Что происходит с портом?"},
+      {name:"РЭЙ",text:"Его хотят закрыть через неделю. Людей выселяют, мастерские сносят, а документы прячут."},
+      {name:"КАЙ",text:"Кто за этим стоит?"},
+      {name:"РЭЙ",text:"Компания Meridian. Забери карту памяти из фотолаборатории на старом рынке. Там запись встречи."}
+    ]
+  },
+  {
+    x:120,z:-160,title:"Забери карту памяти из фотолаборатории",district:"OLD MARKET",hero:0,reward:450,
+    scene:[
+      {name:"ЛИНА · СООБЩЕНИЕ",text:"Кай, на карте есть запись. Но охрана уже заметила пропажу. Патруль едет к рынку."},
+      {name:"КАЙ",text:"Понял. Отвезу карту в старый гараж. Не выходи на связь по обычному каналу."},
+      {name:"РЭЙ · СООБЩЕНИЕ",text:"На карте не только запись. Там список сделок и имена людей, которые продали весь район."}
+    ]
+  },
+  {
+    x:-40,z:-240,title:"Уйди от патруля и доставь улику в гараж",district:"NORTH BAY",hero:0,reward:700,
+    scene:[
+      {name:"ЛИНА · СООБЩЕНИЕ",text:"Я вижу патруль на прибрежной дороге. Не стой на месте — встретимся в гараже."},
+      {name:"КАЙ",text:"Они не получат эту запись. После встречи решим, как её обнародовать."},
+      {name:"ЛИНА",text:"Я заберу вторую копию. Переключись на меня, когда будешь готов."}
+    ]
+  },
+  {
+    x:-220,z:200,title:"Переключись на Лину и встреться у мотеля",district:"MOTEL STRIP",hero:1,reward:550,
+    scene:[
+      {name:"ЛИНА",text:"Пока Кай отвлекал охрану, я нашла исходный архив. В нём видно, как подделали документы на выселение."},
+      {name:"КАЙ · СООБЩЕНИЕ",text:"У нас есть всё необходимое. Но если просто выложить файлы, их назовут подделкой."},
+      {name:"ЛИНА",text:"Тогда покажем запись в прямом эфире. Я знаю журналистку на радиостанции в центре."}
+    ]
+  },
+  {
+    x:40,z:40,title:"Передай архив журналистке на радиостанции",district:"DOWNTOWN",hero:1,reward:1500,
+    scene:[
+      {name:"ЖУРНАЛИСТКА",text:"Если запись настоящая, завтра об этом узнает весь город. Вы понимаете, что назад дороги не будет?"},
+      {name:"ЛИНА",text:"Мы понимаем. Люди должны знать, почему их дома исчезают с карты."},
+      {name:"КАЙ · СООБЩЕНИЕ",text:"Эфир начался. Сохрани копию архива — это только первая глава."},
+      {name:"ЛИНА",text:"Порт ещё можно спасти. Теперь у нас есть шанс."}
+    ]
+  }
 ];
 const colors = {
   asphalt: 0x273238, sidewalk: 0xb7b6aa, lane: 0xd9cda8,
@@ -270,10 +312,38 @@ function createPerson(shirtColor, pantsColor) {
   return root;
 }
 function addPlayer() {
-  player=createPerson(0x2f5964,0x252e38);
+  const kai=createPerson(0x2f5964,0x252e38);
+  kai.position.copy(heroPositions[0]);
+  kai.scale.setScalar(1.02);
+  kai.userData.heroName="KAI";
+  const lina=createPerson(0x74516f,0x292c3b);
+  lina.position.copy(heroPositions[1]);
+  lina.scale.setScalar(1.02);
+  lina.userData.heroName="LINA";
+  lina.visible=false;
+  players=[kai,lina];
+  player=players[0];
+  activeCharacter=0;
+  scene.add(kai,lina);
+  updateHeroLabel();
+}
+function updateHeroLabel() {
+  const tag=$("heroTag");
+  if(tag) tag.textContent=activeCharacter===0?"KAI · КАЙ":"LINA · ЛИНА";
+}
+function switchHero() {
+  if(!ready||paused||inCar||dialogueActive)return;
+  heroPositions[activeCharacter].copy(playerPos);
+  player.visible=false;
+  activeCharacter=1-activeCharacter;
+  player=players[activeCharacter];
+  playerPos.copy(heroPositions[activeCharacter]);
   player.position.copy(playerPos);
-  player.scale.setScalar(1.02);
-  scene.add(player);
+  player.visible=true;
+  yaw=0;
+  pitch=0.16;
+  updateHeroLabel();
+  showToast(activeCharacter===0?"Кай вернулся в город.":"Лина подключилась из района мотелей.");
 }
 function createCar(color, scale) {
   const root=group(null,0,0,0);
@@ -320,6 +390,46 @@ function addVehicles() {
     traffic.push({mesh:v,speed:rand(5.5,10.5)*(i%3===0?1.3:1),lane:row,dir:i%2?1:-1});
   }
 }
+function addPolice() {
+  for(let i=0;i<2;i++){
+    const mesh=createCar(i===0?0x182b37:0x26343c,0.94);
+    const red=new T.Mesh(new T.BoxGeometry(0.54,0.18,0.22),
+      new T.MeshStandardMaterial({color:0xff3030,emissive:0xff1010,emissiveIntensity:0.8}));
+    const blue=new T.Mesh(new T.BoxGeometry(0.54,0.18,0.22),
+      new T.MeshStandardMaterial({color:0x287dff,emissive:0x145dff,emissiveIntensity:0.8}));
+    red.position.set(-0.32,1.83,0);blue.position.set(0.32,1.83,0);
+    mesh.add(red,blue);
+    mesh.visible=false;
+    scene.add(mesh);
+    policeCars.push({mesh,red,blue,phase:i*1.7});
+  }
+}
+function activateWanted(level) {
+  wantedLevel=clamp(level,1,3);
+  wantedTimer=0;
+  const target=inCar?car.position:playerPos;
+  policeCars.forEach((p,i)=>{
+    p.mesh.position.set(
+      clamp(target.x+(i===0?58:-64),-285,285),0,
+      clamp(target.z+(i===0?48:-52),-285,285)
+    );
+    p.mesh.visible=true;
+  });
+  updateWantedHud();
+  showToast("ВНИМАНИЕ: патруль заметил вас. Доберись до гаража.");
+}
+function clearWanted() {
+  wantedLevel=0;
+  wantedTimer=0;
+  policeCars.forEach(p=>p.mesh.visible=false);
+  updateWantedHud();
+}
+function updateWantedHud() {
+  const el=$("wanted");
+  if(!el)return;
+  el.style.display=wantedLevel>0?"block":"none";
+  el.textContent="ПАТРУЛЬ  "+"★".repeat(wantedLevel);
+}
 function addPedestrians() {
   const palette=[0x517c85,0x91664d,0xc0a15e,0x566b50,0x604c73,0xb5b4a9,0x8d4f47];
   for(let i=0;i<8;i++){
@@ -338,7 +448,7 @@ function addPedestrians() {
   pedestrians.push(contact);
 }
 function markerPosition() {
-  const m=missionData[missionStage] || missionData[0];
+  const m=missionData[Math.min(missionStage,missionData.length-1)] || missionData[0];
   return new T.Vector3(m.x,0,m.z);
 }
 function createMissionMarker() {
@@ -357,10 +467,16 @@ function createMissionMarker() {
 }
 function updateMissionMarker() {
   if(!missionMarker)return;
+  if(missionStage>=missionData.length){
+    missionMarker.visible=false;
+    $("objectiveText").textContent="Глава завершена — свободное исследование";
+    $("district").textContent="FREE ROAM";
+    return;
+  }
   const p=markerPosition();
   missionMarker.position.set(p.x,0,p.z);
   missionMarker.visible=true;
-  const data=missionData[missionStage] || missionData[0];
+  const data=missionData[missionStage];
   $("objectiveText").textContent=data.title;
   $("district").textContent=data.district;
 }
@@ -370,41 +486,72 @@ function showToast(text) {
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>toastBox.style.opacity="0",2600);
 }
-function setStage(n) {
-  missionStage=n;
-  try{localStorage.setItem("neoncoast_stage",String(n));}catch(e){}
-  if(n>=missionData.length){
-    missionStage=0;
-    try{localStorage.setItem("neoncoast_stage","0");}catch(e){}
-    cash+=1200;
-    $("cash").textContent="$ "+cash.toLocaleString("en-US");
-    $("objectiveText").textContent="История пройдена — исследуй город!";
-    $("district").textContent="NEON COAST";
-    missionMarker.visible=false;
-    showToast("Задание выполнено! +$ 1 200 · Город открыт для исследования");
-    return;
+function beginStoryScene(index) {
+  const mission=missionData[index];
+  if(!mission)return;
+  dialogueQueue=mission.scene.slice();
+  dialogueIndex=0;
+  dialogueActive=true;
+  paused=true;
+  $("dialoguePanel").style.display="flex";
+  showStoryLine();
+}
+function showStoryLine() {
+  const line=dialogueQueue[dialogueIndex];
+  if(!line)return;
+  $("speaker").textContent=line.name;
+  $("dialogueText").textContent=line.text;
+  $("dialogueCount").textContent=(dialogueIndex+1)+" / "+dialogueQueue.length;
+}
+function advanceStoryScene() {
+  if(!dialogueActive)return;
+  dialogueIndex++;
+  if(dialogueIndex<dialogueQueue.length){showStoryLine();return;}
+  dialogueActive=false;
+  $("dialoguePanel").style.display="none";
+  paused=false;
+  lastTime=performance.now();
+  const completed=missionStage;
+  cash+=missionData[completed].reward;
+  $("cash").textContent="$ "+cash.toLocaleString("en-US");
+  if(completed===2)clearWanted();
+  setStage(completed+1);
+  if(completed===1)activateWanted(2);
+  if(completed===missionData.length-1){
+    showToast("ГЛАВА 1 ЗАВЕРШЕНА · +$ "+missionData[completed].reward+" · Город открыт");
   }
+}
+function setStage(n) {
+  missionStage=clamp(n,0,missionData.length);
+  try{localStorage.setItem("neoncoast_stage",String(missionStage));}catch(e){}
   updateMissionMarker();
-  const data=missionData[n];
-  showToast(data.done);
+  if(missionStage>=missionData.length){
+    clearWanted();
+    showToast("Глава завершена! История сохранена — город открыт для исследования.");
+  }else{
+    showToast("Новое задание: "+missionData[missionStage].title);
+  }
 }
 function doAction() {
+  if(dialogueActive){advanceStoryScene();return;}
   if(!ready||paused)return;
   if(inCar){
     const p=markerPosition();
     const d=dist2(car.position.x,car.position.z,p.x,p.z);
-    if(missionStage<missionData.length&&d<150){
-      if(missionStage===2){
-        cash+=1200;
-        $("cash").textContent="$ "+cash.toLocaleString("en-US");
-        setStage(missionStage+1);
-      } else setStage(missionStage+1);
+    if(missionStage<missionData.length&&d<220){
+      const mission=missionData[missionStage];
+      if(activeCharacter!==mission.hero){
+        showToast("Для этого эпизода переключись на "+(mission.hero===0?"Кая":"Лину")+".");
+        return;
+      }
+      beginStoryScene(missionStage);
       return;
     }
     if(Math.abs(carSpeed)>3){showToast("Сначала останови машину.");return;}
     inCar=false;
     player.visible=true;
     playerPos.set(car.position.x+2.5,0,car.position.z);
+    heroPositions[activeCharacter].copy(playerPos);
     player.position.copy(playerPos);
     showToast("Ты вышел из машины.");
     return;
@@ -415,16 +562,19 @@ function doAction() {
     showToast("Ты за рулём. Джойстик — газ и поворот, NITRO — ускорение.");
     return;
   }
-  const p=markerPosition();
-  const d=dist2(playerPos.x,playerPos.z,p.x,p.z);
-  if(missionStage<missionData.length&&d<150){
-    if(missionStage===2){
-      cash+=1200;
-      $("cash").textContent="$ "+cash.toLocaleString("en-US");
-    }
-    setStage(missionStage+1);
-  } else {
-    showToast("Подойди ближе к жёлтому маркеру.");
+  if(missionStage<missionData.length){
+    const mission=missionData[missionStage];
+    const p=markerPosition();
+    const d=dist2(playerPos.x,playerPos.z,p.x,p.z);
+    if(d<220){
+      if(activeCharacter!==mission.hero){
+        showToast("Для этого эпизода переключись на "+(mission.hero===0?"Кая":"Лину")+".");
+        return;
+      }
+      beginStoryScene(missionStage);
+    }else showToast("Следуй к жёлтому маркеру на карте.");
+  }else{
+    showToast("История завершена. Можно свободно исследовать побережье.");
   }
 }
 function setupLighting() {
@@ -481,6 +631,7 @@ function updatePlayer(dt) {
     player.userData.legs.forEach(a=>a.rotation.x=0);
   }
   player.position.copy(playerPos);
+  heroPositions[activeCharacter].copy(playerPos);
 }
 function hitsBuilding(x,z,r) {
   for(let i=0;i<buildings.length;i++){
@@ -521,6 +672,33 @@ function updateTraffic(dt) {
     if(t.mesh.position.x>300)t.mesh.position.x=-300;
     if(t.mesh.position.x< -300)t.mesh.position.x=300;
     t.mesh.position.z=t.lane+(i%2?2.8:-2.8);
+  }
+}
+function updatePolice(dt) {
+  if(wantedLevel<=0)return;
+  policePulse+=dt;
+  const target=inCar?car.position:playerPos;
+  let nearest=9999;
+  policeCars.forEach((p,i)=>{
+    if(!p.mesh.visible)return;
+    const dx=target.x-p.mesh.position.x,dz=target.z-p.mesh.position.z;
+    const distance=Math.sqrt(dx*dx+dz*dz);
+    nearest=Math.min(nearest,distance);
+    const angle=Math.atan2(dx,dz);
+    p.mesh.rotation.y=angle;
+    if(distance>5){
+      const speed=10+wantedLevel*2.8;
+      p.mesh.position.x+=Math.sin(angle)*speed*dt;
+      p.mesh.position.z+=Math.cos(angle)*speed*dt;
+    }
+    const flash=Math.sin(policePulse*11+p.phase)>0;
+    p.red.material.emissiveIntensity=flash?1.8:0.12;
+    p.blue.material.emissiveIntensity=flash?0.12:1.8;
+  });
+  wantedTimer+=dt;
+  if(nearest>105&&wantedTimer>48){
+    clearWanted();
+    showToast("Патруль потерял след. Погоня окончена.");
   }
 }
 function updatePedestrians(dt) {
@@ -607,6 +785,7 @@ function loop(now) {
   if(inCar)updateCar(dt);else updatePlayer(dt);
   updateTraffic(dt);
   updatePedestrians(dt);
+  updatePolice(dt);
   updateCamera(dt);
   updateMarker(dt);
   drawMap();
@@ -659,6 +838,15 @@ function setupControls() {
   bindButton("action",doAction);
   bindButton("brake",()=>{braking=true;},()=>{braking=false;});
   bindButton("nitro",()=>{nitro=true;},()=>{nitro=false;});
+  $("switchHero").addEventListener("click",switchHero);
+  $("dialogueNext").addEventListener("click",advanceStoryScene);
+  $("phoneBtn").addEventListener("click",()=>{
+    $("phonePanel").style.display="flex";
+    const mission=missionData[Math.min(missionStage,missionData.length-1)];
+    $("phoneObjective").textContent=missionStage>=missionData.length?
+      "Глава завершена. Берег открыт для исследования." : mission.title;
+  });
+  $("phoneClose").addEventListener("click",()=>{$("phonePanel").style.display="none";});
   $("pause").addEventListener("click",()=>{
     paused=true;$("panel").style.display="flex";
   });
@@ -669,7 +857,7 @@ function setupControls() {
 function loadProgress() {
   try{
     const n=parseInt(localStorage.getItem("neoncoast_stage")||"0",10);
-    missionStage=(Number.isFinite(n)&&n>=0&&n<missionData.length)?n:0;
+    missionStage=(Number.isFinite(n)&&n>=0&&n<=missionData.length)?n:0;
   }catch(e){missionStage=0;}
 }
 function init() {
@@ -685,6 +873,7 @@ function init() {
     addStreetProps();
     setupSkyline();
     addVehicles();
+    addPolice();
     addPedestrians();
     addPlayer();
     createMissionMarker();
