@@ -592,6 +592,149 @@ function markerPosition() {
   const m=missionData[Math.min(missionStage,missionData.length-1)] || missionData[0];
   return new T.Vector3(m.x,0,m.z);
 }
+function createEasterEggs(){
+  const data=[
+    {x:-610,z:-470,name:"Утка-пилот",joke:"Утка-пилот: «Посадка прошла мягко. Это была трава»."},
+    {x:-500,z:585,name:"Болотный гусь",joke:"Болотный гусь: «Кря — это мой бизнес-план»."},
+    {x:-130,z:-455,name:"Стадионный пончик",joke:"Пончик: «Я круглый, но не хожу по кругу»."},
+    {x:140,z:390,name:"Краб-блогер",joke:"Краб-блогер: «Подпишись. Я всё равно иду боком»."},
+    {x:-620,z:95,name:"Радио 404",joke:"Радио 404: «Ваш любимый хит не найден. Ставим шум океана»."},
+    {x:-330,z:210,name:"Мини-НЛО",joke:"Пилот НЛО: «Мы искали парковку. Тут везде платно»."}
+  ];
+  const colors=[0xe7bd43,0x7db7ad,0xd98c4b,0xe3a2c6,0x8bb7df,0xb8a5df];
+  data.forEach((d,i)=>{
+    const root=group(scene,d.x,0,d.z);
+    const pedestal=new T.Mesh(new T.CylinderGeometry(1,1.2,0.45,12),material(0x3a464a,0.55,0.4));
+    pedestal.position.y=0.23;root.add(pedestal);
+    const ring=new T.Mesh(new T.TorusGeometry(1.18,0.1,6,20),
+      new T.MeshStandardMaterial({color:0xffd36d,emissive:0xc78b28,emissiveIntensity:0.65}));
+    ring.rotation.x=Math.PI/2;ring.position.y=0.48;root.add(ring);
+    const gold=material(colors[i],0.34,0.48);
+    if(i===0||i===1){
+      const body=new T.Mesh(new T.SphereGeometry(0.64,14,11),gold);
+      body.scale.set(1.1,0.75,1.25);body.position.set(0,1.02,0);root.add(body);
+      const head=new T.Mesh(new T.SphereGeometry(0.38,12,10),gold);
+      head.position.set(0.15,1.58,0.25);root.add(head);
+      const beak=new T.Mesh(new T.ConeGeometry(0.18,0.5,8),material(0xe68b3f,0.65));
+      beak.rotation.x=Math.PI/2;beak.position.set(0.15,1.48,0.62);root.add(beak);
+      for(const side of [-1,1]){
+        const wing=new T.Mesh(new T.SphereGeometry(0.32,9,8),gold);
+        wing.scale.set(0.38,0.82,1);wing.position.set(side*0.62,1.04,-0.02);root.add(wing);
+      }
+    }else if(i===2){
+      const donut=new T.Mesh(new T.TorusGeometry(0.56,0.24,10,28),gold);
+      donut.rotation.x=Math.PI/2;donut.position.y=1.22;root.add(donut);
+      box(root,0.12,0.05,0.28,0xff7194,0.22,1.42,0.1);
+    }else if(i===3){
+      const shell=new T.Mesh(new T.SphereGeometry(0.55,12,10),gold);
+      shell.scale.set(1.25,0.68,1);shell.position.y=1.15;root.add(shell);
+      for(const side of [-1,1]){
+        const claw=new T.Mesh(new T.SphereGeometry(0.2,8,8),gold);
+        claw.position.set(side*0.85,1.05,0.12);root.add(claw);
+        const leg=box(root,0.12,0.12,0.72,0xa64d3b,side*0.6,0.55,0.1);leg.rotation.y=side*0.4;
+      }
+    }else if(i===4){
+      box(root,1.05,0.7,0.46,0x374b57,0,1.15,0,0.45,0.35);
+      box(root,0.58,0.32,0.08,0x6dd5c2,0,1.2,0.25,0.3,0.2);
+      const antenna=new T.Mesh(new T.CylinderGeometry(0.025,0.035,0.85,6),material(0xb9c5c8));
+      antenna.position.set(0.38,1.85,-0.12);antenna.rotation.z=-0.2;root.add(antenna);
+    }else{
+      const saucer=new T.Mesh(new T.CylinderGeometry(0.84,0.84,0.22,18),gold);
+      saucer.position.y=1.2;root.add(saucer);
+      const dome=new T.Mesh(new T.SphereGeometry(0.42,12,10,0,Math.PI*2,0,Math.PI/2),material(0x8bd6e8,0.18,0.5));
+      dome.position.y=1.28;root.add(dome);
+      for(let k=0;k<6;k++){
+        const light=new T.Mesh(new T.SphereGeometry(0.07,7,7),new T.MeshBasicMaterial({color:k%2?0xffd36d:0x71dcff}));
+        const a=k/6*Math.PI*2;light.position.set(Math.cos(a)*0.72,1.05,Math.sin(a)*0.72);root.add(light);
+      }
+    }
+    scene.add(root);
+    easterEggs.push({root,x:d.x,z:d.z,name:d.name,joke:d.joke,found:!!savedEggs[i]});
+    if(savedEggs[i])root.visible=false;
+  });
+  updateEggCounter();
+}
+function updateEggCounter(){
+  foundEggs=easterEggs.filter(e=>e.found).length;
+  const el=$("eggCount");if(el)el.textContent=foundEggs+"/6";
+}
+function tryCollectEgg(){
+  const p=inCar?car.position:playerPos;
+  for(const e of easterEggs){
+    if(e.found)continue;
+    if(dist2(p.x,p.z,e.x,e.z)<64){
+      e.found=true;e.root.visible=false;cash+=300;
+      $("cash").textContent="$ "+cash.toLocaleString("en-US");
+      updateEggCounter();saveGame();
+      showToast("ПАСХАЛКА: "+e.name+" · "+e.joke+" · +$300");
+      return true;
+    }
+  }
+  return false;
+}
+function updateEasterEggs(dt){
+  easterEggs.forEach((e,i)=>{
+    if(!e.found&&e.root.visible){
+      e.root.rotation.y+=dt*0.42;
+      e.root.position.y=0.08+Math.sin(trafficClock*1.8+i)*0.10;
+    }
+  });
+}
+function addSpeedwayActivity(){
+  const points=[{x:-460,z:280},{x:-500,z:320},{x:-540,z:280},{x:-500,z:240}];
+  points.forEach(p=>{
+    const g=group(scene,p.x,0,p.z);
+    const ring=new T.Mesh(new T.TorusGeometry(3.0,0.18,6,20),
+      new T.MeshStandardMaterial({color:0x66e3ff,emissive:0x1c8eaf,emissiveIntensity:0.75}));
+    ring.rotation.x=Math.PI/2;ring.position.y=1.2;g.add(ring);
+    const beam=new T.Mesh(new T.CylinderGeometry(0.1,0.1,4.8,8),
+      new T.MeshBasicMaterial({color:0x65dfff,transparent:true,opacity:0.2}));
+    beam.position.y=2.4;g.add(beam);scene.add(g);
+    raceMarkers.push({root:g,x:p.x,z:p.z});
+    g.visible=false;
+  });
+  const start=group(scene,raceStart.x,0,raceStart.z);
+  const startRing=new T.Mesh(new T.TorusGeometry(4,0.22,7,24),
+    new T.MeshStandardMaterial({color:0xffd36d,emissive:0xa46d18,emissiveIntensity:0.85}));
+  startRing.rotation.x=Math.PI/2;startRing.position.y=0.5;start.add(startRing);
+  const startBeam=new T.Mesh(new T.CylinderGeometry(0.12,0.12,5,8),
+    new T.MeshBasicMaterial({color:0xffd36d,transparent:true,opacity:0.17}));
+  startBeam.position.y=2.5;start.add(startBeam);scene.add(start);
+}
+function startSpeedwayRace(){
+  if(!inCar){showToast("Для гонки сначала сядь в машину.");return;}
+  if(dist2(car.position.x,car.position.z,raceStart.x,raceStart.z)>225){
+    showToast("Старт гонки находится на Bayline Speedway — ищи золотую отметку.");
+    return;
+  }
+  raceActive=true;raceTimer=0;raceIndex=0;
+  raceMarkers.forEach((m,i)=>m.root.visible=i===0);
+  $("raceStatus").style.display="block";
+  showToast("BAYLINE SPEEDWAY · Пройди четыре голубые точки за 100 секунд!");
+}
+function updateRace(dt){
+  if(!raceActive)return;
+  raceTimer+=dt;
+  const marker=raceMarkers[raceIndex];
+  if(marker&&dist2(car.position.x,car.position.z,marker.x,marker.z)<100){
+    marker.root.visible=false;raceIndex++;
+    if(raceIndex>=raceMarkers.length){
+      raceActive=false;cash+=1800;
+      $("cash").textContent="$ "+cash.toLocaleString("en-US");
+      $("raceStatus").style.display="none";
+      raceBest=raceBest?Math.min(raceBest,raceTimer):raceTimer;
+      showToast("ГОНКА ВЫИГРАНА · +$1800 · "+raceTimer.toFixed(1)+" сек.");
+      raceMarkers.forEach(m=>m.root.visible=false);saveGame();return;
+    }
+    raceMarkers[raceIndex].root.visible=true;
+    showToast("Контрольная точка "+raceIndex+"/4");
+  }
+  $("raceStatus").textContent="ГОНКА · "+(raceIndex+1)+"/4 · "+Math.max(0,100-raceTimer).toFixed(0)+" сек.";
+  if(raceTimer>100){
+    raceActive=false;raceMarkers.forEach(m=>m.root.visible=false);
+    $("raceStatus").style.display="none";showToast("Время вышло. Попробуй ещё раз!");
+  }
+}
 function createMissionMarker() {
   const g=group(scene,0,0,0);
   missionRing=new T.Mesh(new T.TorusGeometry(2.3,0.18,8,32),
@@ -677,6 +820,11 @@ function setStage(n) {
 function doAction() {
   if(dialogueActive){advanceStoryScene();return;}
   if(!ready||paused)return;
+  if(tryCollectEgg())return;
+  if(raceActive){showToast("Продолжай гонку и проезжай через голубые маркеры.");return;}
+  if(inCar&&dist2(car.position.x,car.position.z,raceStart.x,raceStart.z)<225){
+    startSpeedwayRace();return;
+  }
   if(inCar){
     const p=markerPosition();
     const d=dist2(car.position.x,car.position.z,p.x,p.z);
@@ -1052,6 +1200,7 @@ function saveGame() {
       active:activeCharacter,time:gameTime,rain:rainMode,
       paint:car&&car.userData?car.userData.paintIndex||0:0,
       vehicle:car?[car.position.x,car.position.z,carYaw]:null,
+      eggs:easterEggs.map(e=>e.found?1:0),
       heroes:heroPositions.map(p=>[p.x,p.y,p.z])
     };
     localStorage.setItem("neoncoast_save_v3",JSON.stringify(data));
@@ -1073,6 +1222,7 @@ function loadProgress() {
       if(Number.isFinite(d.time))gameTime=((d.time%1)+1)%1;
       if(Number.isFinite(d.rain))rainMode=d.rain?1:0;
       if(Number.isFinite(d.paint))carPaintSaved=clamp(Math.floor(d.paint),0,6);
+      if(Array.isArray(d.eggs))savedEggs=d.eggs.slice(0,6).map(v=>v?1:0);
       if(Array.isArray(d.vehicle)&&d.vehicle.length>=3&&d.vehicle.every(Number.isFinite)){
         car.position.set(clamp(d.vehicle[0],-675,215),0,clamp(d.vehicle[1],-675,675));
         carYaw=d.vehicle[2];car.rotation.y=carYaw;
@@ -1094,35 +1244,42 @@ function loadProgress() {
 }
 function drawMap() {
   const ctx=mapCtx,w=mapCanvas.width,h=mapCanvas.height;
+  const mapX=x=>(x+700)/1400*w,mapZ=z=>(z+700)/1400*h;
   ctx.clearRect(0,0,w,h);
   ctx.fillStyle="#142c36";ctx.fillRect(0,0,w,h);
-  ctx.fillStyle="#1e6274";ctx.fillRect(w*0.82,0,w*0.18,h);
-  ctx.fillStyle="#b9a77e";ctx.fillRect(w*0.76,0,w*0.06,h);
-  ctx.strokeStyle="#69777a";ctx.lineWidth=3;
-  for(let i=0;i<roads.length;i++){
-    const p=(roads[i]+310)/620*w;
-    ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,h);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(w*0.82,p);ctx.stroke();
+  ctx.fillStyle="#1e6274";ctx.fillRect(mapX(260),0,w-mapX(260),h);
+  ctx.fillStyle="#b9a77e";ctx.fillRect(mapX(190),0,mapX(260)-mapX(190),h);
+  ctx.strokeStyle="#69777a";ctx.lineWidth=2;
+  for(let i=0;i<roadXs.length;i++){
+    const p=mapX(roadXs[i]);ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,h);ctx.stroke();
   }
-  const pos=inCar?car.position:playerPos;
-  const px=(pos.x+310)/620*w, pz=(pos.z+310)/620*h;
+  for(let i=0;i<roads.length;i++){
+    const p=mapZ(roads[i]);ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(mapX(260),p);ctx.stroke();
+  }
+  ctx.font="bold 8px Arial";ctx.fillStyle="#dce7ddaa";
+  ctx.fillText("AIRPORT",mapX(-590),mapZ(-620));
+  ctx.fillText("DOWNTOWN",mapX(-180),mapZ(15));
+  ctx.fillText("SPEEDWAY",mapX(-565),mapZ(205));
+  ctx.fillText("MARSH",mapX(-580),mapZ(635));
+  const pos=inCar?car.position:playerPos,px=mapX(pos.x),pz=mapZ(pos.z);
   if(missionStage<missionData.length){
-    const m=missionData[missionStage];
-    const mx=(m.x+310)/620*w,mz=(m.z+310)/620*h;
+    const m=missionData[missionStage],mx=mapX(m.x),mz=mapZ(m.z);
     ctx.strokeStyle="#f5c45f";ctx.lineWidth=2;ctx.setLineDash([4,4]);
     ctx.beginPath();ctx.moveTo(px,pz);ctx.lineTo(mx,mz);ctx.stroke();ctx.setLineDash([]);
     ctx.fillStyle="#ffc65c";ctx.beginPath();ctx.arc(mx,mz,5,0,Math.PI*2);ctx.fill();
   }
-  if(wantedLevel>0){
-    policeCars.forEach(p=>{
-      if(!p.mesh.visible)return;
-      ctx.fillStyle="#ff6767";ctx.beginPath();
-      ctx.arc((p.mesh.position.x+310)/620*w,(p.mesh.position.z+310)/620*h,3,0,Math.PI*2);ctx.fill();
-    });
+  if(wantedLevel>0)policeCars.forEach(p=>{
+    if(!p.mesh.visible)return;ctx.fillStyle="#ff6767";ctx.beginPath();
+    ctx.arc(mapX(p.mesh.position.x),mapZ(p.mesh.position.z),3,0,Math.PI*2);ctx.fill();
+  });
+  easterEggs.forEach(e=>{if(!e.found){ctx.fillStyle="#f2ce69";ctx.fillRect(mapX(e.x)-2,mapZ(e.z)-2,4,4);}});
+  if(raceActive&&raceMarkers[raceIndex]){
+    const m=raceMarkers[raceIndex];ctx.fillStyle="#75e6ff";ctx.beginPath();ctx.arc(mapX(m.x),mapZ(m.z),4,0,Math.PI*2);ctx.fill();
   }
-  ctx.fillStyle="#ffffff";ctx.strokeStyle="#15242a";ctx.lineWidth=3;
+  ctx.fillStyle="#fff";ctx.strokeStyle="#15242a";ctx.lineWidth=3;
   ctx.beginPath();ctx.arc(px,pz,5,0,Math.PI*2);ctx.fill();ctx.stroke();
 }
+
 function updateHud() {
   $("speedValue").textContent=inCar?String(Math.round(Math.abs(carSpeed)*3.6)):"0";
   const info=$("vehicleInfo");
@@ -1145,6 +1302,8 @@ function loop(now) {
   updateWeather(dt);
   updateCamera(dt);
   updateMarker(dt);
+  updateEasterEggs(dt);
+  updateRace(dt);
   saveAccumulator+=dt;
   if(saveAccumulator>12){saveAccumulator=0;saveGame();}
   drawMap();
@@ -1275,6 +1434,8 @@ function init() {
     createWeatherSystem();
     addPlayer();
     createMissionMarker();
+    createEasterEggs();
+    updateEggCounter();
     updateMissionMarker();
     if(rainMode===1)rainLines.visible=true;
     setupControls();
