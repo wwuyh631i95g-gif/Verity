@@ -34,8 +34,8 @@ let toastTimer = 0, cameraTarget = new T.Vector3();
 const worldSize = 620;
 const roads = [-280, -200, -120, -40, 40, 120, 200, 280];
 const missionData = [
-  { x: -92, z: 6, title: "Встреться с Марой у кафе на набережной", district: "OLD PORT", done: "Мара передала тебе координаты тайника. Забери пакет." },
-  { x: 94, z: -155, title: "Забери пакет у старого рынка", district: "MARKET", done: "Пакет у тебя. Доставь его на причал до смены охраны." },
+  { x: -120, z: 8, title: "Встреться с Марой у кафе на набережной", district: "OLD PORT", done: "Мара передала тебе координаты тайника. Забери пакет." },
+  { x: 120, z: -160, title: "Забери пакет у старого рынка", district: "MARKET", done: "Пакет у тебя. Доставь его на причал до смены охраны." },
   { x: 218, z: 112, title: "Доставь пакет на восточный причал", district: "MARINA", done: "Доставка завершена. Ты заработал $ 1 200." }
 ];
 const colors = {
@@ -332,7 +332,7 @@ function addPedestrians() {
     pedestrians.push(npc);
   }
   const contact=createPerson(0x8c493f,0x292b36);
-  contact.position.set(-92,0,6);
+  contact.position.set(-120,0,8);
   contact.scale.setScalar(1.03);
   scene.add(contact);
   pedestrians.push(contact);
