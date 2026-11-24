@@ -9,7 +9,7 @@ on:
       - ".github/workflows/build-neon-coast.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -66,6 +66,30 @@ jobs:
           sha256sum "$APK"
           ls -lh "$APK"
 
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Neon-Coast-0.1.0-Android-APK
+          path: NeonCoast/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish direct APK download
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        with:
+          tag_name: neon-coast-v0.1.0
+          name: Neon Coast 0.1.0 — First Playable
+          body: |
+            Neon Coast: Last Run — original compact 3D coastal-city action/driving game for Android.
+            Includes a procedural city, on-foot movement, drivable car, traffic, pedestrians, touch controls and a short original story mission.
+            This is an original game prototype, not a GTA VI port and does not include Rockstar assets.
+          files: NeonCoast/app/build/outputs/apk/debug/app-debug.apk
+          prerelease: true
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Android 14 launch smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -93,10 +117,3 @@ jobs:
             fi
             echo "Neon Coast Android 14 launch smoke test passed"
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Neon-Coast-0.1.0-Android-APK
-          path: NeonCoast/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
