@@ -34,8 +34,8 @@ let toastTimer = 0, cameraTarget = new T.Vector3();
 const worldSize = 620;
 const roads = [-280, -200, -120, -40, 40, 120, 200, 280];
 const missionData = [
-  { x: -120, z: 8, title: "Встреться с Марой у кафе на набережной", district: "OLD PORT", done: "Мара передала тебе координаты тайника. Забери пакет." },
-  { x: 120, z: -160, title: "Забери пакет у старого рынка", district: "MARKET", done: "Пакет у тебя. Доставь его на причал до смены охраны." },
+  { x: -120, z: 8, title: "Встреться с Марой у кафе на набережной", district: "OLD PORT", done: "Мара: «На старом рынке лежит конверт. Забери его — там доказательства, что причал хотят продать за нашей спиной»." },
+  { x: 120, z: -160, title: "Забери пакет у старого рынка", district: "MARKET", done: "В конверте — документы на мастерскую. Отнеси их на восточный причал, пока сделка не закрылась." },
   { x: 218, z: 112, title: "Доставь пакет на восточный причал", district: "MARINA", done: "Доставка завершена. Ты заработал $ 1 200." }
 ];
 const colors = {
@@ -167,7 +167,7 @@ function addCity() {
       const cz = -240 + iz * 80;
       if (cx > 165) continue;
       const lotW = 57, lotD = 57;
-      const count = (ix > 1 && ix < 5 && iz > 1 && iz < 5) ? 2 : (Math.random() > 0.38 ? 2 : 1);
+      const count = (ix > 1 && ix < 5 && iz > 1 && iz < 5) ? 2 : (Math.random() > 0.55 ? 2 : 1);
       for (let b = 0; b < count; b++) {
         const bw = rand(15, 27), bd = rand(15, 27);
         const bx = cx + (b === 0 ? -13 : 14) + rand(-3, 3);
@@ -220,7 +220,7 @@ function streetLamp(x, z) {
   lamp.position.set(0.9,4.9,0);g.add(lamp);
 }
 function addStreetProps() {
-  for (let i=0;i<26;i++) {
+  for (let i=0;i<18;i++) {
     const z=-290+i*22;
     palm(174,z,rand(0.72,1.05));
     if(i%2===0)palm(244,z+8,rand(0.65,0.9));
@@ -311,7 +311,7 @@ function addVehicles() {
   carYaw=0;
   scene.add(car);
   const palette=[0xe4e0d2,0x386f87,0x4c5154,0xc0a15e,0x7e3d39,0x9ba9a4,0x212a31,0xe1e0d7,0x799b87];
-  for(let i=0;i<11;i++){
+  for(let i=0;i<7;i++){
     const v=createCar(palette[i%palette.length],rand(0.72,0.9));
     const row=roads[(i*3+1)%roads.length];
     v.position.set(rand(-295,260),0.02,row+(i%2?2.8:-2.8));
@@ -322,7 +322,7 @@ function addVehicles() {
 }
 function addPedestrians() {
   const palette=[0x517c85,0x91664d,0xc0a15e,0x566b50,0x604c73,0xb5b4a9,0x8d4f47];
-  for(let i=0;i<13;i++){
+  for(let i=0;i<8;i++){
     const npc=createPerson(palette[i%palette.length],[0x29313a,0x35434a,0x66594b][i%3]);
     npc.position.set(rand(-220,150),0,rand(-250,250));
     npc.userData.walkX=rand(-1,1);
@@ -449,7 +449,7 @@ function setupSkyline() {
 }
 function setupRenderer() {
   renderer=new T.WebGLRenderer({canvas:canvas,antialias:true,alpha:false,powerPreference:"high-performance"});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.25));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.15));
   renderer.setSize(window.innerWidth,window.innerHeight,false);
   renderer.outputEncoding=T.sRGBEncoding;
   renderer.toneMapping=T.ACESFilmicToneMapping;
@@ -696,7 +696,7 @@ function init() {
     ready=true;
     loading.style.display="none";
     lastTime=performance.now();
-    showToast("Добро пожаловать в Neon Coast. Найди Мару у старого кафе.");
+    showToast("Мара: «Ты вернулся! Нам нужно спасти старую мастерскую. Встретимся у кафе старого порта».");
     requestAnimationFrame(loop);
   } catch(err) {
     loading.innerHTML="ОШИБКА ЗАПУСКА<small>"+String(err&&err.message?err.message:err)+"</small>";
