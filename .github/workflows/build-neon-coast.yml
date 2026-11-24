@@ -62,14 +62,14 @@ jobs:
           APK="NeonCoast/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           unzip -t "$APK"
-          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep "package: name='com.verity.neoncoast' versionCode='3' versionName='0.3.0'"
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep "package: name='com.verity.neoncoast' versionCode='4' versionName='0.4.0'"
           sha256sum "$APK"
           ls -lh "$APK"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Neon-Coast-0.3.0-Android-APK
+          name: Neon-Coast-0.4.0-Android-APK
           path: NeonCoast/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
@@ -78,12 +78,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         continue-on-error: true
         with:
-          tag_name: neon-coast-v0.3.0
-          name: Neon Coast 0.3.0 — Realism & Stability Update
+          tag_name: neon-coast-v0.4.0
+          name: Neon Coast 0.4.0 — Expanded Coastline & Secrets
           body: |
-            Neon Coast: Last Run — original Android open-world story/driving game.
-            Adds a day-night cycle, rain, wet-road look, improved car geometry and driving, collision/fuel/condition systems, safer vehicle exits, spaced pedestrians, saved hero positions, GPS route and responsive HUD.
-            Original setting and characters; inspired by broad open-world genre conventions, not a GTA VI port and contains no Rockstar assets.
+            Neon Coast: Last Run — original Android coastal open-world story/driving game.
+            Expands the map with airport, stadium, marshland and speedway districts; adds six original hidden collectibles, a timed circuit race, improved mini-map navigation and textured procedural building facades.
+            Original setting, characters and jokes; inspired by broad open-world genre conventions, not a GTA VI port and contains no Rockstar assets.
           files: NeonCoast/app/build/outputs/apk/debug/app-debug.apk
           prerelease: true
           overwrite_files: true
