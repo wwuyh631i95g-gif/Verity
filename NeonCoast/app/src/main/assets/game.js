@@ -121,17 +121,6 @@ function addRoads() {
   }
   scene.add(marks);
 
-  const crossMaterial = material(0xd5d5ca, 0.95);
-  for (let x = 0; x < roads.length; x++) {
-    for (let z = 0; z < roads.length; z++) {
-      for (let k = -3; k <= 3; k++) {
-        box(scene, 1.05, 0.04, 0.42, 0xe7e4d5,
-          roads[x] + k * 1.35, -0.075, roads[z] - 5.1, 0.9);
-        box(scene, 0.42, 0.04, 1.05, 0xe7e4d5,
-          roads[x] - 5.1, -0.075, roads[z] + k * 1.35, 0.9);
-      }
-    }
-  }
 }
 function addBuilding(x, z, w, d, h, color, style) {
   const g = group(scene, x, 0, z);
@@ -421,7 +410,7 @@ function doAction() {
     return;
   }
   const cdist=dist2(playerPos.x,playerPos.z,car.position.x,car.position.z);
-  if(cdist<24){
+  if(cdist<81){
     inCar=true;player.visible=false;carYaw=car.rotation.y;
     showToast("Ты за рулём. Джойстик — газ и поворот, NITRO — ускорение.");
     return;
