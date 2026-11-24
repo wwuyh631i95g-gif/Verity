@@ -1002,6 +1002,7 @@ function saveGame() {
       stage:missionStage,cash:cash,fuel:fuel,condition:carCondition,
       active:activeCharacter,time:gameTime,rain:rainMode,
       paint:car&&car.userData?car.userData.paintIndex||0:0,
+      vehicle:car?[car.position.x,car.position.z,carYaw]:null,
       heroes:heroPositions.map(p=>[p.x,p.y,p.z])
     };
     localStorage.setItem("neoncoast_save_v3",JSON.stringify(data));
@@ -1023,6 +1024,10 @@ function loadProgress() {
       if(Number.isFinite(d.time))gameTime=((d.time%1)+1)%1;
       if(Number.isFinite(d.rain))rainMode=d.rain?1:0;
       if(Number.isFinite(d.paint))carPaintSaved=clamp(Math.floor(d.paint),0,6);
+      if(Array.isArray(d.vehicle)&&d.vehicle.length>=3&&d.vehicle.every(Number.isFinite)){
+        car.position.set(clamp(d.vehicle[0],-295,285),0,clamp(d.vehicle[1],-295,295));
+        carYaw=d.vehicle[2];car.rotation.y=carYaw;
+      }
       if(Array.isArray(d.heroes)&&d.heroes.length===2){
         d.heroes.forEach((v,i)=>{
           if(Array.isArray(v)&&v.length>=3&&v.every(Number.isFinite)){
@@ -1223,7 +1228,6 @@ function init() {
     if(rainMode===1)rainLines.visible=true;
     setupControls();
     window.addEventListener("resize",resize);
-    document.addEventListener("visibilitychange",()=>{if(document.hidden){paused=true;$("panel").style.display="flex";}});
     ready=true;
     loading.style.display="none";
     lastTime=performance.now();
