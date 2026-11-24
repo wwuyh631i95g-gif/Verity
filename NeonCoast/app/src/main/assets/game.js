@@ -1208,15 +1208,15 @@ function init() {
     addStreetProps();
     setupSkyline();
     addVehicles();
-    addPolice();
-    addPedestrians();
-    createWeatherSystem();
     loadProgress();
     if(carPaintSaved>0){
       const paintPalette=[0xb64e3d,0x246b91,0xc2a04e,0x343b42,0x43816e,0xe0ddd3,0x713e68];
       car.userData.paintIndex=carPaintSaved;
       car.userData.bodyMesh.material=material(paintPalette[carPaintSaved],0.3,0.28);
     }
+    addPolice();
+    addPedestrians();
+    createWeatherSystem();
     addPlayer();
     createMissionMarker();
     updateMissionMarker();
