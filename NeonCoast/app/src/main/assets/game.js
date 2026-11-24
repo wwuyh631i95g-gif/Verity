@@ -36,7 +36,8 @@ let missionMarker, missionRing, missionBeam, missionPulse = 0;
 let toastTimer = 0, cameraTarget = new T.Vector3();
 let sunLight, hemiLight, cityWindowMaterial, lampBulbs = [];
 let roadMaterial, rainLines, rainPositions, rainMode = 0, gameTime = 0.36;
-let fuel = 100, carCondition = 100, saveAccumulator = 0, lastCrashToast = 0;
+let waterWaves = [];
+let fuel = 100, carCondition = 100, saveAccumulator = 0, lastCrashToast = 0, carPaintSaved = 0;
 let lastAutoSave = 0;
 const worldSize = 620;
 const roads = [-280, -200, -120, -40, 40, 120, 200, 280];
@@ -170,6 +171,8 @@ function addGround() {
       266 + rand(-6, 6), -0.34, z, 0.3);
     wave.rotation.y = rand(-0.12, 0.12);
     wave.userData.wave = true;
+    wave.userData.phase = rand(0,Math.PI*2);
+    waterWaves.push(wave);
   }
 }
 function addRoads() {
@@ -348,6 +351,14 @@ function createPerson(shirtColor, pantsColor) {
     const foot=new T.Mesh(new T.BoxGeometry(0.25,0.12,0.39),shoe);
     foot.position.set(s*0.17,0.1,0.07);root.add(foot);
   }
+  const shadow=new T.Mesh(
+    new T.CircleGeometry(0.62,18),
+    new T.MeshBasicMaterial({color:0x0b1115,transparent:true,opacity:0.23,depthWrite:false})
+  );
+  shadow.rotation.x=-Math.PI/2;
+  shadow.position.y=0.035;
+  shadow.scale.set(1.0,1.5,1);
+  root.add(shadow);
   root.userData={arms:arms,legs:legs,phase:rand(0,6)};
   return root;
 }
@@ -384,6 +395,7 @@ function switchHero() {
   yaw=0;
   pitch=0.16;
   updateHeroLabel();
+  saveGame();
   showToast(activeCharacter===0?"Кай вернулся в город.":"Лина подключилась из района мотелей.");
 }
 function createCar(color, scale) {
@@ -434,6 +446,14 @@ function createCar(color, scale) {
       wheels.push(wheelRoot);
     }
   }
+  const carShadow=new T.Mesh(
+    new T.CircleGeometry(1.85,22),
+    new T.MeshBasicMaterial({color:0x080d11,transparent:true,opacity:0.25,depthWrite:false})
+  );
+  carShadow.rotation.x=-Math.PI/2;
+  carShadow.position.y=0.025;
+  carShadow.scale.set(0.72,1.42,1);
+  root.add(carShadow);
   root.scale.setScalar(scale||1);
   root.userData={wheelSpin:0,wheels:wheels,headlights:headlights,brakelights:brakelights,bodyMesh:body};
   return root;
@@ -444,10 +464,10 @@ function addVehicles() {
   carYaw=0;
   scene.add(car);
   const palette=[0xe4e0d2,0x386f87,0x4c5154,0xc0a15e,0x7e3d39,0x9ba9a4,0x212a31,0xe1e0d7,0x799b87];
-  for(let i=0;i<10;i++){
+  for(let i=0;i<8;i++){
     const v=createCar(palette[i%palette.length],rand(0.72,0.9));
-    const row=roads[(i*3+1)%roads.length];
-    v.position.set(rand(-295,260),0.02,row+(i%2?2.8:-2.8));
+    const row=roads[i];
+    v.position.set(-270+i*74,0.02,row+(i%2?2.8:-2.8));
     v.rotation.y=Math.PI/2;
     scene.add(v);
     traffic.push({mesh:v,speed:rand(5.5,10.5)*(i%3===0?1.3:1),lane:row,dir:i%2?1:-1});
@@ -500,7 +520,10 @@ function addPedestrians() {
     let placed=false;
     for(let attempt=0;attempt<24&&!placed;attempt++){
       const x=rand(-220,150),z=rand(-250,250);
-      const clear=pedestrians.every(q=>dist2(x,z,q.position.x,q.position.z)>12);
+      const clear=pedestrians.every(q=>dist2(x,z,q.position.x,q.position.z)>12)
+        &&dist2(x,z,-120,8)>20
+        &&dist2(x,z,heroPositions[0].x,heroPositions[0].z)>15
+        &&dist2(x,z,heroPositions[1].x,heroPositions[1].z)>15;
       if(clear&&!hitsBuilding(x,z,0.8)){npc.position.set(x,0,z);placed=true;}
     }
     if(!placed)npc.position.set(rand(-200,120),0,rand(-230,230));
@@ -720,6 +743,14 @@ function createWeatherSystem() {
   rainLines.visible=false;
   scene.add(rainLines);
 }
+function updateWater(dt) {
+  for(let i=0;i<waterWaves.length;i++){
+    const wave=waterWaves[i];
+    const phase=wave.userData.phase;
+    wave.position.y=-0.34+Math.sin(trafficClock*1.15+phase)*0.035;
+    wave.position.x=266+Math.sin(trafficClock*0.42+phase)*1.8;
+  }
+}
 function updateWeather(dt) {
   if(!rainLines||rainMode!==1)return;
   const target=inCar?car.position:playerPos;
@@ -797,7 +828,8 @@ function updatePlayer(dt) {
     const nx=playerPos.x+dx*speed*dt;
     const nz=playerPos.z+dz*speed*dt;
     if(nx>-298&&nx<286&&nz>-298&&nz<298&&
-       !hitsBuilding(nx,nz,0.62)&&!hitsPedestrian(nx,nz,1.05,player)){
+       !hitsBuilding(nx,nz,0.62)&&!hitsPedestrian(nx,nz,1.05,player)&&
+       !hitsOtherVehicle(nx,nz,1.35)&&dist2(nx,nz,car.position.x,car.position.z)>1.8){
       playerPos.x=nx;playerPos.z=nz;
     }
     player.rotation.y=Math.atan2(dx,dz);
@@ -827,8 +859,9 @@ function updateCar(dt) {
   else if(throttle< -0.06)carSpeed-=9.5*(-throttle)*dt;
   else carSpeed*=Math.pow(0.94,dt*10);
   if(braking)carSpeed*=Math.pow(0.48,dt*10);
-  carSpeed=clamp(carSpeed,-8,boost?34:26);
-  const steerPower=clamp(Math.abs(carSpeed)/15,0.08,1.18);
+  const roadLimit=carCondition<25?14:26;
+  carSpeed=clamp(carSpeed,-8,boost?Math.min(34,roadLimit+5):roadLimit);
+  const steerPower=clamp(Math.abs(carSpeed)/15,0.08,1.18)*(rainMode?0.78:1);
   carYaw+=steer*steerPower*dt*(carSpeed>=0?1:-1)*1.38;
   const nx=car.position.x+Math.sin(carYaw)*carSpeed*dt;
   const nz=car.position.z+Math.cos(carYaw)*carSpeed*dt;
@@ -912,7 +945,8 @@ function updatePedestrians(dt) {
     }
     const nearCar=dist2(nx,nz,car.position.x,car.position.z)<8;
     if(nx>-250&&nx<160&&nz>-290&&nz<290&&
-       !hitsBuilding(nx,nz,0.6)&&!crowded&&!nearCar){
+       !hitsBuilding(nx,nz,0.6)&&!crowded&&!nearCar&&
+       !hitsOtherVehicle(nx,nz,1.8)){
       p.position.x=nx;p.position.z=nz;
     }else{
       p.userData.walkX=-p.userData.walkX;
@@ -929,14 +963,22 @@ function updatePedestrians(dt) {
 function updateCamera(dt) {
   const target=inCar?car.position:playerPos;
   const followYaw=inCar?carYaw:yaw;
-  const d=inCar?10.4:cameraDistance;
-  const h=inCar?5.0:4.3+pitch*2;
+  let d=inCar?10.4:cameraDistance;
+  let h=inCar?5.0:4.3+pitch*2;
   cameraTarget.set(target.x, target.y+1.5, target.z);
-  const desired=new T.Vector3(
+  let desired=new T.Vector3(
     target.x-Math.sin(followYaw)*d,
     target.y+h,
     target.z-Math.cos(followYaw)*d
   );
+  if(hitsBuilding(desired.x,desired.z,0.65)){
+    d*=0.58;h+=1.15;
+    desired.set(target.x-Math.sin(followYaw)*d,target.y+h,
+      target.z-Math.cos(followYaw)*d);
+    if(hitsBuilding(desired.x,desired.z,0.55)){
+      desired.set(target.x,target.y+7.4,target.z+1.2);
+    }
+  }
   camera.position.lerp(desired,1-Math.pow(0.001,dt));
   const look=new T.Vector3(
     target.x+Math.sin(followYaw)*2.4,
@@ -959,6 +1001,7 @@ function saveGame() {
     const data={
       stage:missionStage,cash:cash,fuel:fuel,condition:carCondition,
       active:activeCharacter,time:gameTime,rain:rainMode,
+      paint:car&&car.userData?car.userData.paintIndex||0:0,
       heroes:heroPositions.map(p=>[p.x,p.y,p.z])
     };
     localStorage.setItem("neoncoast_save_v3",JSON.stringify(data));
@@ -979,6 +1022,7 @@ function loadProgress() {
       if(Number.isFinite(d.active))activeCharacter=clamp(Math.floor(d.active),0,1);
       if(Number.isFinite(d.time))gameTime=((d.time%1)+1)%1;
       if(Number.isFinite(d.rain))rainMode=d.rain?1:0;
+      if(Number.isFinite(d.paint))carPaintSaved=clamp(Math.floor(d.paint),0,6);
       if(Array.isArray(d.heroes)&&d.heroes.length===2){
         d.heroes.forEach((v,i)=>{
           if(Array.isArray(v)&&v.length>=3&&v.every(Number.isFinite)){
@@ -1043,6 +1087,7 @@ function loop(now) {
   updatePedestrians(dt);
   updatePolice(dt);
   updateEnvironment(dt);
+  updateWater(dt);
   updateWeather(dt);
   updateCamera(dt);
   updateMarker(dt);
@@ -1120,6 +1165,16 @@ function setupControls() {
     car.userData.paintIndex=index%palette.length;
     car.userData.bodyMesh.material=material(palette[car.userData.paintIndex],0.3,0.28);
     showToast("Цвет машины изменён.");
+    saveGame();
+  });
+  $("serviceBtn").addEventListener("click",()=>{
+    const nearCar=inCar||dist2(playerPos.x,playerPos.z,car.position.x,car.position.z)<100;
+    if(!nearCar){showToast("Подойди к своей машине для обслуживания.");return;}
+    if(cash<150){showToast("Не хватает денег на обслуживание.");return;}
+    cash-=150;fuel=100;carCondition=100;
+    $("cash").textContent="$ "+cash.toLocaleString("en-US");
+    updateHud();saveGame();
+    showToast("Машина обслужена · $150");
   });
   $("phoneClose").addEventListener("click",()=>{
     $("phonePanel").style.display="none";
@@ -1157,6 +1212,11 @@ function init() {
     addPedestrians();
     createWeatherSystem();
     loadProgress();
+    if(carPaintSaved>0){
+      const paintPalette=[0xb64e3d,0x246b91,0xc2a04e,0x343b42,0x43816e,0xe0ddd3,0x713e68];
+      car.userData.paintIndex=carPaintSaved;
+      car.userData.bodyMesh.material=material(paintPalette[carPaintSaved],0.3,0.28);
+    }
     addPlayer();
     createMissionMarker();
     updateMissionMarker();
