@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#101820">
+<title>Neon Coast: Last Run</title>
+<style>
+:root{--gold:#f4c56a;--glass:rgba(8,17,24,.74);--line:rgba(255,255,255,.22)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0b1720;color:#fff;font-family:Arial,Helvetica,sans-serif;touch-action:none}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block;outline:none}
+#hud{position:fixed;inset:0;pointer-events:none}
+.glass{background:var(--glass);border:1px solid var(--line);border-radius:13px;box-shadow:0 6px 22px #0005;backdrop-filter:blur(9px)}
+#brand{position:absolute;left:16px;top:13px;padding:9px 14px 8px;letter-spacing:2px;font-weight:900;font-size:15px}
+#brand small{display:block;color:#e5b75b;letter-spacing:3px;font-size:8px;margin-top:3px}
+#objective{position:absolute;left:16px;top:68px;max-width:min(390px,48vw);padding:11px 14px}
+#objective b{display:block;color:var(--gold);font-size:10px;letter-spacing:1.7px;margin-bottom:5px}
+#objective span{display:block;font-size:13px;line-height:1.35;font-weight:700}
+#stats{position:absolute;right:16px;top:14px;display:flex;gap:8px}
+.stat{padding:8px 11px;min-width:82px;text-align:center}
+.stat small{display:block;color:#9aabb4;font-size:8px;letter-spacing:1.5px;margin-bottom:3px}
+.stat strong{font-size:17px;font-weight:900}
+#mapWrap{position:absolute;right:16px;top:67px;width:142px;height:142px;padding:5px;border-radius:16px}
+#map{width:100%;height:100%;display:block;border-radius:12px}
+#hint{position:absolute;left:50%;top:15px;transform:translateX(-50%);padding:8px 12px;white-space:nowrap;font-size:11px;color:#d8e5e9}
+#joystick{position:absolute;left:19px;bottom:19px;width:clamp(104px,16vw,142px);height:clamp(104px,16vw,142px);border-radius:50%;background:#07131d99;border:2px solid #ffffff45;box-shadow:inset 0 0 22px #0005;pointer-events:auto;touch-action:none}
+#stick{position:absolute;width:43%;height:43%;left:28.5%;top:28.5%;border-radius:50%;background:linear-gradient(145deg,#ffe0a0,#d49538);border:2px solid #fff;box-shadow:0 4px 14px #0008;pointer-events:none}
+#actions{position:absolute;right:18px;bottom:18px;display:flex;gap:10px;align-items:flex-end;pointer-events:auto}
+.control{width:clamp(62px,10vw,86px);height:clamp(62px,10vw,86px);border-radius:50%;border:2px solid #ffffffb8;background:linear-gradient(145deg,#2c5665e8,#102632ed);color:white;font-size:10px;font-weight:900;letter-spacing:.6px;touch-action:none;box-shadow:0 5px 18px #0007}
+.control:active{filter:brightness(1.35);transform:scale(.97)}
+#action{width:clamp(78px,12vw,104px);height:clamp(78px,12vw,104px);background:linear-gradient(145deg,#fbd17e,#b87528);color:#17212a;border-color:#fff;font-size:11px}
+#nitro{background:linear-gradient(145deg,#d56b43,#7f3028)}
+#toast{position:absolute;left:50%;bottom:15px;transform:translateX(-50%);padding:9px 15px;border-radius:12px;background:#07141eea;border:1px solid #ffffff35;font-size:12px;font-weight:700;opacity:0;transition:opacity .2s;white-space:nowrap;max-width:80vw;text-align:center}
+#loading{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:17px 22px;text-align:center;min-width:240px;background:#07141eed;border:1px solid #ffffff35;border-radius:16px;font-weight:900;letter-spacing:.7px}
+#loading small{display:block;color:#9db0ba;font-weight:500;font-size:11px;margin-top:7px;letter-spacing:0}
+#pause{position:absolute;right:16px;top:220px;width:38px;height:38px;border-radius:12px;color:#fff;border:1px solid #ffffff44;background:#08151dcc;pointer-events:auto;font-weight:900}
+#panel{display:none;position:absolute;inset:0;align-items:center;justify-content:center;background:#02080dbb;pointer-events:auto}
+#panelCard{width:min(410px,88vw);padding:24px;background:#132832;border:1px solid #ffffff3d;border-radius:20px;text-align:center;box-shadow:0 20px 60px #0009}
+#panelCard h2{margin:0 0 8px;letter-spacing:2px}
+#panelCard p{color:#bacbd1;font-size:13px;line-height:1.55}
+#resume{border:0;border-radius:12px;background:var(--gold);color:#24201a;padding:12px 27px;font-weight:900}
+#speed{position:absolute;right:19px;bottom:clamp(110px,17vw,145px);font-size:11px;color:#fff;text-shadow:0 2px 5px #000;letter-spacing:1px}
+#speed strong{font-size:23px;color:var(--gold);margin-right:4px}
+@media(orientation:portrait){
+ #hint{top:120px;max-width:85vw;white-space:normal;text-align:center}
+ #objective{top:65px;max-width:56vw}
+ #mapWrap{top:120px;width:112px;height:112px}
+ #pause{top:245px}
+ #speed{bottom:150px}
+}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+ <div id="brand" class="glass">NEON COAST<small>LAST RUN · STORY MODE</small></div>
+ <div id="objective" class="glass"><b>ТЕКУЩЕЕ ЗАДАНИЕ</b><span id="objectiveText">Знакомство у старой марины</span></div>
+ <div id="hint" class="glass">Слева — движение · проведи справа — повернуть камеру</div>
+ <div id="stats">
+  <div class="stat glass"><small>НАЛИЧНЫЕ</small><strong id="cash">$ 850</strong></div>
+  <div class="stat glass"><small>РАЙОН</small><strong id="district">PORT</strong></div>
+ </div>
+ <div id="mapWrap" class="glass"><canvas id="map" width="180" height="180"></canvas></div>
+ <button id="pause">Ⅱ</button>
+ <div id="speed"><strong id="speedValue">0</strong> KM/H</div>
+ <div id="joystick"><div id="stick"></div></div>
+ <div id="actions">
+  <button class="control" id="brake">ТОРМОЗ</button>
+  <button class="control" id="nitro">NITRO</button>
+  <button class="control" id="action">ДЕЙСТВИЕ</button>
+ </div>
+ <div id="loading">NEON COAST<small>Загружаем город и трафик…</small></div>
+ <div id="toast"></div>
+ <div id="panel"><div id="panelCard"><h2>ПАУЗА</h2><p>Мир Neon Coast сохранён на устройстве.<br>Проведи пальцем по правой части экрана, чтобы вращать камеру.</p><button id="resume">ПРОДОЛЖИТЬ</button></div></div>
+</div>
+<script src="vendor/three.min.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
