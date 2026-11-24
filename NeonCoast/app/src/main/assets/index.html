@@ -14,6 +14,8 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0b1720;col
 .glass{background:var(--glass);border:1px solid var(--line);border-radius:13px;box-shadow:0 6px 22px #0005;backdrop-filter:blur(9px)}
 #brand{position:absolute;left:16px;top:13px;padding:9px 14px 8px;letter-spacing:2px;font-weight:900;font-size:15px}
 #brand small{display:block;color:#e5b75b;letter-spacing:3px;font-size:8px;margin-top:3px}
+#heroTag{position:absolute;left:16px;top:119px;padding:6px 10px;color:#f4c56a;font-size:10px;font-weight:900;letter-spacing:1.3px}
+#wanted{display:none;position:absolute;right:16px;top:220px;padding:8px 12px;background:#4c1d22dd;border:1px solid #ff7777;color:#ffd5a2;border-radius:10px;font-size:11px;font-weight:900;letter-spacing:1.2px}
 #objective{position:absolute;left:16px;top:68px;max-width:min(390px,48vw);padding:11px 14px}
 #objective b{display:block;color:var(--gold);font-size:10px;letter-spacing:1.7px;margin-bottom:5px}
 #objective span{display:block;font-size:13px;line-height:1.35;font-weight:700}
@@ -42,6 +44,19 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0b1720;col
 #resume{border:0;border-radius:12px;background:var(--gold);color:#24201a;padding:12px 27px;font-weight:900}
 #speed{position:absolute;right:19px;bottom:clamp(110px,17vw,145px);font-size:11px;color:#fff;text-shadow:0 2px 5px #000;letter-spacing:1px}
 #speed strong{font-size:23px;color:var(--gold);margin-right:4px}
+#switchHero{position:absolute;left:18px;bottom:clamp(145px,22vw,176px);pointer-events:auto;border:1px solid #fff8;border-radius:12px;padding:9px 12px;background:#172b36e8;color:#fff;font-size:10px;font-weight:900;letter-spacing:.7px}
+#phoneBtn{position:absolute;right:16px;top:265px;width:38px;height:38px;border-radius:12px;color:#fff;border:1px solid #ffffff44;background:#08151dcc;pointer-events:auto;font-weight:900}
+#dialoguePanel,#phonePanel{display:none;position:absolute;inset:0;align-items:flex-end;justify-content:center;background:#02080d99;pointer-events:auto;padding:18px}
+#dialogueCard{width:min(700px,96vw);padding:19px 20px 16px;background:linear-gradient(135deg,#132a34f5,#07141cf5);border:1px solid #f4c56a88;border-radius:18px;box-shadow:0 15px 45px #000b}
+#speaker{color:#f4c56a;font-size:10px;font-weight:900;letter-spacing:2px;margin-bottom:8px}
+#dialogueText{font-size:15px;line-height:1.5;min-height:65px}
+#dialogueFooter{display:flex;justify-content:space-between;align-items:center;margin-top:12px;color:#a9bbc2;font-size:10px}
+#dialogueNext,#phoneClose{border:0;border-radius:10px;padding:10px 18px;background:var(--gold);color:#24201a;font-weight:900}
+#phoneCard{width:min(340px,88vw);margin:auto;padding:20px;background:linear-gradient(160deg,#1a3a47,#08151e);border:1px solid #ffffff44;border-radius:24px;box-shadow:0 20px 60px #000c}
+#phoneCard small{color:#efbf63;letter-spacing:2px;font-weight:900}
+#phoneCard h2{margin:8px 0 14px;letter-spacing:1.5px}
+.phoneRow{padding:12px;margin:9px 0;background:#ffffff0d;border:1px solid #ffffff1a;border-radius:12px;font-size:12px;line-height:1.45}
+#phoneClose{width:100%;margin-top:10px}
 @media(orientation:portrait){
  #hint{top:120px;max-width:85vw;white-space:normal;text-align:center}
  #objective{top:65px;max-width:56vw}
@@ -54,7 +69,8 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0b1720;col
 <body>
 <canvas id="game"></canvas>
 <div id="hud">
- <div id="brand" class="glass">NEON COAST<small>LAST RUN · STORY MODE</small></div>
+ <div id="brand" class="glass">NEON COAST<small>LAST RUN · CHAPTER ONE</small></div>
+ <div id="heroTag" class="glass">KAI · КАЙ</div>
  <div id="objective" class="glass"><b>ТЕКУЩЕЕ ЗАДАНИЕ</b><span id="objectiveText">Знакомство у старой марины</span></div>
  <div id="hint" class="glass">Слева — движение · проведи справа — повернуть камеру</div>
  <div id="stats">
@@ -62,7 +78,10 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0b1720;col
   <div class="stat glass"><small>РАЙОН</small><strong id="district">PORT</strong></div>
  </div>
  <div id="mapWrap" class="glass"><canvas id="map" width="180" height="180"></canvas></div>
+ <div id="wanted">ПАТРУЛЬ ★★</div>
  <button id="pause">Ⅱ</button>
+ <button id="phoneBtn" aria-label="Телефон">▣</button>
+ <button id="switchHero">СМЕНИТЬ ГЕРОЯ</button>
  <div id="speed"><strong id="speedValue">0</strong> KM/H</div>
  <div id="joystick"><div id="stick"></div></div>
  <div id="actions">
@@ -72,7 +91,9 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0b1720;col
  </div>
  <div id="loading">NEON COAST<small>Загружаем город и трафик…</small></div>
  <div id="toast"></div>
- <div id="panel"><div id="panelCard"><h2>ПАУЗА</h2><p>Мир Neon Coast сохранён на устройстве.<br>Проведи пальцем по правой части экрана, чтобы вращать камеру.</p><button id="resume">ПРОДОЛЖИТЬ</button></div></div>
+ <div id="panel"><div id="panelCard"><h2>ПАУЗА</h2><p>Глава сохраняется на устройстве.<br>Джойстик — движение, правая часть экрана — камера. Кнопка действия запускает диалоги и взаимодействия.</p><button id="resume">ПРОДОЛЖИТЬ</button></div></div>
+ <div id="dialoguePanel"><div id="dialogueCard"><div id="speaker">КАЙ</div><div id="dialogueText"></div><div id="dialogueFooter"><span id="dialogueCount">1 / 3</span><button id="dialogueNext">ДАЛЕЕ ›</button></div></div></div>
+ <div id="phonePanel"><div id="phoneCard"><small>COASTLINE MOBILE</small><h2>ГОРОДСКАЯ СЕТЬ</h2><div class="phoneRow"><b>СООБЩЕНИЯ</b><br>Лина: «Я нашла ещё одну копию архива. Нужно поговорить лично».</div><div class="phoneRow"><b>ТЕКУЩАЯ ЦЕЛЬ</b><br><span id="phoneObjective">Следуй к отмеченному месту.</span></div><div class="phoneRow"><b>НОВОСТИ NEON COAST</b><br>В порту готовят масштабную сделку. Жители требуют публичных слушаний.</div><button id="phoneClose">ЗАКРЫТЬ</button></div></div>
 </div>
 <script src="vendor/three.min.js"></script>
 <script src="game.js"></script>
