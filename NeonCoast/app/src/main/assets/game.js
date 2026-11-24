@@ -95,6 +95,27 @@ const colors = {
   grass: 0x55685a, sand: 0xcab78d, sea: 0x236b83
 };
 const materialCache = new Map();
+const facadeMaterialCache = new Map();
+function facadeMaterial(color){
+  if(facadeMaterialCache.has(color))return facadeMaterialCache.get(color);
+  const c=document.createElement("canvas");c.width=128;c.height=128;
+  const ctx=c.getContext("2d");
+  ctx.fillStyle="#"+color.toString(16).padStart(6,"0");ctx.fillRect(0,0,128,128);
+  for(let i=0;i<520;i++){
+    const v=Math.floor(rand(75,190));
+    ctx.fillStyle="rgba("+v+","+v+","+v+","+rand(0.018,0.075)+")";
+    ctx.fillRect(rand(0,128),rand(0,128),rand(1,3),rand(1,4));
+  }
+  ctx.strokeStyle="rgba(20,30,35,.12)";ctx.lineWidth=2;
+  for(let x=12;x<128;x+=28){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,128);ctx.stroke();}
+  ctx.strokeStyle="rgba(255,255,255,.09)";ctx.lineWidth=1;
+  for(let y=16;y<128;y+=32){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(128,y);ctx.stroke();}
+  const tex=new T.CanvasTexture(c);tex.wrapS=T.RepeatWrapping;tex.wrapT=T.RepeatWrapping;
+  if(renderer&&renderer.capabilities&&renderer.capabilities.getMaxAnisotropy)
+    tex.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+  const mat=new T.MeshStandardMaterial({map:tex,roughness:0.88,metalness:0.04});
+  facadeMaterialCache.set(color,mat);return mat;
+}
 function material(color, roughness, metalness, extra) {
   const key = [color, roughness || 0.85, metalness || 0, extra || ""].join(":");
   if (!materialCache.has(key)) materialCache.set(key, new T.MeshStandardMaterial({
@@ -234,7 +255,10 @@ function addCity() {
 function addBuilding(x, z, w, d, h, color, style) {
   const g = group(scene, x, 0, z);
   const baseH = Math.min(3.2, h * 0.22);
-  box(g, w, h, d, color, 0, h / 2 - 0.4, 0, 0.9);
+  const facade=new T.Mesh(new T.BoxGeometry(w,h,d),facadeMaterial(color));
+  facade.position.set(0,h/2-0.4,0);g.add(facade);
+  box(g,1.25,2.35,0.1,0x263941,-w*0.18,1.18,-d/2-0.07,0.72,0.08);
+  box(g,0.12,0.14,0.12,0xd4b36d,-w*0.18+0.42,1.15,-d/2-0.14,0.4,0.55);
   box(g, w + 0.28, 0.32, d + 0.28, 0x444c4b, 0, h - 0.48, 0, 0.78);
   box(g, w * 0.96, baseH, d * 0.985, 0x243b43, 0, baseH / 2 - 0.38, 0, 0.35, 0.18);
   if (style % 3 === 0 && h > 14) {
@@ -1262,6 +1286,9 @@ function drawMap() {
   ctx.fillText("SPEEDWAY",mapX(-565),mapZ(205));
   ctx.fillText("MARSH",mapX(-580),mapZ(635));
   const pos=inCar?car.position:playerPos,px=mapX(pos.x),pz=mapZ(pos.z);
+  if(!raceActive){
+    ctx.fillStyle="#ffd36d";ctx.beginPath();ctx.arc(mapX(raceStart.x),mapZ(raceStart.z),4,0,Math.PI*2);ctx.fill();
+  }
   if(missionStage<missionData.length){
     const m=missionData[missionStage],mx=mapX(m.x),mz=mapZ(m.z);
     ctx.strokeStyle="#f5c45f";ctx.lineWidth=2;ctx.setLineDash([4,4]);
