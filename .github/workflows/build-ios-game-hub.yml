@@ -51,6 +51,7 @@ jobs:
         with:
           path: touchHLE-src/vendor/boost
           key: ios-game-hub-boost-1.81.0
+          save-always: true
 
       - name: Download and unpack Boost
         if: steps.cache-boost.outputs.cache-hit != 'true'
@@ -66,6 +67,7 @@ jobs:
         with:
           path: touchHLE-src/vendor/cmake
           key: ios-game-hub-cmake-3.31.6-linux
+          save-always: true
 
       - name: Download and unpack CMake
         if: steps.cache-cmake.outputs.cache-hit != 'true'
@@ -86,6 +88,7 @@ jobs:
         with:
           path: touchHLE-src/gradle
           key: ios-game-hub-gradle-8.11.1
+          save-always: true
 
       - name: Download Gradle
         if: steps.cache-gradle.outputs.cache-hit != 'true'
@@ -101,6 +104,7 @@ jobs:
         with:
           path: touchHLE-src/android-ndk
           key: ios-game-hub-android-ndk-r25c
+          save-always: true
 
       - name: Download Android NDK r25c
         if: steps.cache-ndk.outputs.cache-hit != 'true'
@@ -124,6 +128,8 @@ jobs:
           export ANDROID_NDK="$ANDROID_NDK_ROOT"
           export ANDROID_NDK_HOME="$ANDROID_NDK_ROOT"
           export CMAKE="$GITHUB_WORKSPACE/touchHLE-src/vendor/cmake/bin/cmake"
+          # rust-sdl2 also copies SDL2 into Cargo's deps directory from its build script.
+          mkdir -p "$GITHUB_WORKSPACE/touchHLE-src/target/aarch64-linux-android/release/deps"
           ../gradle/gradle-8.11.1/bin/gradle --no-daemon --stacktrace assembleRelease
           cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/iOS-Game-Hub-Android-ARM64.apk"
 
