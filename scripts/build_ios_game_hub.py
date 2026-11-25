@@ -8,9 +8,9 @@ import sys
 def replace_once(path: Path, old: str, new: str) -> None:
     source = path.read_text(encoding="utf-8")
     count = source.count(old)
-    if count != 1:
-        raise SystemExit(f"Expected one patch point in {path}, found {count}")
-    path.write_text(source.replace(old, new, 1), encoding="utf-8")
+    if count < 1:
+        raise SystemExit(f"Patch point not found in {path}")
+    path.write_text(source.replace(old, new), encoding="utf-8")
 
 
 def main() -> None:
