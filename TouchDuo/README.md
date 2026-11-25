@@ -1,6 +1,6 @@
-# TouchDuo 1.2 — Physical Multitouch Check
+# TouchDuo 1.2.1 — Physical Multitouch Check
 
-This version removes the synthetic A+B trigger. It does not generate, repeat, or automate taps.
+This version removes the old accessibility automation code completely. It does not generate, repeat, or inject taps and requests no special permissions.
 
 ## Purpose
 Touch the test screen with two physical fingers at the same time. The app shows the number of pointers Android actually reports to the activity and the maximum count seen during the test.
