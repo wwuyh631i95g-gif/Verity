@@ -5,16 +5,17 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -23,53 +24,91 @@ public class MainActivity extends Activity {
     static final String PREFS = "touchduo_settings";
     static final String ACTION_REFRESH = "app.verity.touchduo.REFRESH_OVERLAY";
 
-    private EditText[] xs = new EditText[4];
-    private EditText[] ys = new EditText[4];
-    private EditText durationField;
-    private CheckBox thirdPoint;
-    private CheckBox fourthPoint;
+    private EditText xA, yA, xB, yB;
+    private SeekBar durationBar;
+    private TextView durationText, statusText;
     private Switch overlaySwitch;
-    private TextView serviceStatus;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    @Override protected void onCreate(Bundle state) {
+        super.onCreate(state);
         buildUi();
-        loadFields();
+        loadSettings();
     }
 
-    @Override
-    protected void onResume() {
+    @Override protected void onResume() {
         super.onResume();
         updateServiceStatus();
     }
 
     private int dp(float value) {
-        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+        return (int)(value * getResources().getDisplayMetrics().density + 0.5f);
     }
 
-    private TextView makeText(String value, int size, int color) {
-        TextView v = new TextView(this);
-        v.setText(value);
-        v.setTextSize(size);
-        v.setTextColor(color);
-        return v;
+    private TextView label(String text, int size, int color, boolean bold) {
+        TextView t = new TextView(this);
+        t.setText(text);
+        t.setTextSize(size);
+        t.setTextColor(color);
+        if (bold) t.setTypeface(null, 1);
+        return t;
     }
 
-    private void addGap(LinearLayout root, int height) {
-        View gap = new View(this);
-        root.addView(gap, new LinearLayout.LayoutParams(1, dp(height)));
+    private GradientDrawable rounded(int color, int radius) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(color);
+        d.setCornerRadius(dp(radius));
+        return d;
     }
 
-    private EditText numberField(String hint) {
-        EditText edit = new EditText(this);
-        edit.setSingleLine(true);
-        edit.setInputType(InputType.TYPE_CLASS_NUMBER);
-        edit.setHint(hint);
-        edit.setTextSize(15);
-        edit.setEms(3);
-        edit.setGravity(Gravity.CENTER);
-        return edit;
+    private EditText number(String hint) {
+        EditText e = new EditText(this);
+        e.setSingleLine(true);
+        e.setInputType(InputType.TYPE_CLASS_NUMBER);
+        e.setTextSize(16);
+        e.setHint(hint);
+        e.setEms(3);
+        e.setGravity(Gravity.CENTER);
+        return e;
+    }
+
+    private void gap(LinearLayout box, int h) {
+        View v = new View(this);
+        box.addView(v, new LinearLayout.LayoutParams(1, dp(h)));
+    }
+
+    private LinearLayout card(LinearLayout parent) {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setPadding(dp(14), dp(12), dp(14), dp(12));
+        c.setBackground(rounded(Color.WHITE, 16));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+        lp.bottomMargin = dp(12);
+        parent.addView(c, lp);
+        return c;
+    }
+
+    private void coordinateRow(LinearLayout box, String title, boolean first) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.addView(label(title, 15, Color.rgb(35, 48, 68), true),
+                new LinearLayout.LayoutParams(0, dp(54), 1));
+        row.addView(label("X", 13, Color.DKGRAY, true));
+        EditText x = number("50");
+        row.addView(x, new LinearLayout.LayoutParams(dp(50), dp(50)));
+        TextView yLabel = label("Y", 13, Color.DKGRAY, true);
+        yLabel.setPadding(dp(8), 0, 0, 0);
+        row.addView(yLabel);
+        EditText y = number("50");
+        row.addView(y, new LinearLayout.LayoutParams(dp(50), dp(50)));
+        box.addView(row);
+        if (first) { xA = x; yA = y; } else { xB = x; yB = y; }
+    }
+
+    private Button button(String text) {
+        Button b = new Button(this);
+        b.setText(text);
+        b.setAllCaps(false);
+        return b;
     }
 
     private void buildUi() {
@@ -77,147 +116,128 @@ public class MainActivity extends Activity {
         scroll.setFillViewport(true);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(16), dp(14), dp(16), dp(20));
-        root.setBackgroundColor(Color.rgb(246, 248, 252));
+        root.setPadding(dp(14), dp(16), dp(14), dp(20));
+        root.setBackgroundColor(Color.rgb(239, 243, 250));
         scroll.addView(root);
         setContentView(scroll);
 
-        TextView title = makeText("TouchDuo", 27, Color.rgb(24, 37, 62));
-        title.setTypeface(null, 1);
-        root.addView(title);
-        root.addView(makeText("Виртуальная комбинация из нескольких касаний", 14, Color.rgb(76, 91, 116)));
-        addGap(root, 10);
+        root.addView(label("TouchDuo", 28, Color.rgb(22, 40, 67), true));
+        root.addView(label("ОДНО НАЖАТИЕ → ДВА КАСАНИЯ ОДНОВРЕМЕННО",
+                11, Color.rgb(35, 105, 195), true));
+        gap(root, 12);
 
-        serviceStatus = makeText("", 14, Color.rgb(31, 112, 71));
-        root.addView(serviceStatus);
-        addGap(root, 10);
+        LinearLayout statusCard = card(root);
+        statusText = label("Проверка службы…", 14, Color.rgb(43, 58, 80), true);
+        statusCard.addView(statusText);
 
-        TextView note = makeText(
-                "TouchDuo не меняет сенсорный контроллер часов. Он отправляет в Android одну виртуальную комбинацию из 2–4 точек, когда ты нажимаешь плавающую кнопку DUO. Точки задаются в процентах от размера экрана.",
-                14, Color.rgb(42, 54, 75));
-        root.addView(note);
-        addGap(root, 14);
+        LinearLayout intro = card(root);
+        intro.addView(label("Это не автокликер", 18, Color.rgb(22, 40, 67), true));
+        gap(intro, 5);
+        intro.addView(label(
+                "Плавающая кнопка A+B отправляет в игру две виртуальные точки одним общим жестом. Обе точки нажимаются в один момент и удерживаются заданное время. Повторных нажатий и автоматического цикла нет.",
+                14, Color.rgb(62, 75, 96), false));
 
-        root.addView(makeText("Координаты касаний", 18, Color.rgb(24, 37, 62)));
-        root.addView(makeText("X — слева направо, Y — сверху вниз. 0–100%.", 12, Color.DKGRAY));
-        addGap(root, 6);
+        LinearLayout coords = card(root);
+        coords.addView(label("1. Укажи две кнопки игры", 18, Color.rgb(22, 40, 67), true));
+        gap(coords, 3);
+        coords.addView(label(
+                "Введи положение центров игровых кнопок в процентах от всего экрана: X — слева направо, Y — сверху вниз.",
+                13, Color.rgb(82, 94, 112), false));
+        gap(coords, 6);
+        coordinateRow(coords, "Точка A", true);
+        coordinateRow(coords, "Точка B", false);
 
-        int[] defaultsX = {0, 18, 82, 50, 50};
-        int[] defaultsY = {0, 82, 82, 48, 68};
-        for (int i = 0; i < 4; i++) {
-            LinearLayout row = new LinearLayout(this);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            TextView label = makeText("Точка " + (i + 1), 14, Color.rgb(42, 54, 75));
-            row.addView(label, new LinearLayout.LayoutParams(0, dp(48), 1));
-            row.addView(makeText("X", 13, Color.DKGRAY));
-            xs[i] = numberField("18");
-            xs[i].setText(String.valueOf(defaultsX[i + 1]));
-            row.addView(xs[i], new LinearLayout.LayoutParams(dp(48), dp(48)));
-            TextView yLabel = makeText("Y", 13, Color.DKGRAY);
-            yLabel.setPadding(dp(6), 0, 0, 0);
-            row.addView(yLabel);
-            ys[i] = numberField("82");
-            ys[i].setText(String.valueOf(defaultsY[i + 1]));
-            row.addView(ys[i], new LinearLayout.LayoutParams(dp(48), dp(48)));
-            root.addView(row);
-        }
+        LinearLayout hold = card(root);
+        hold.addView(label("2. Время одновременного удержания", 17, Color.rgb(22, 40, 67), true));
+        durationText = label("300 мс", 15, Color.rgb(35, 105, 195), true);
+        hold.addView(durationText);
+        durationBar = new SeekBar(this);
+        durationBar.setMax(1900);
+        durationBar.setProgress(200);
+        durationBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
+                durationText.setText((progress + 100) + " мс");
+            }
+            @Override public void onStartTrackingTouch(SeekBar bar) {}
+            @Override public void onStopTrackingTouch(SeekBar bar) {}
+        });
+        hold.addView(durationBar);
 
-        thirdPoint = new CheckBox(this);
-        thirdPoint.setText("Использовать третью точку");
-        root.addView(thirdPoint);
-        fourthPoint = new CheckBox(this);
-        fourthPoint.setText("Использовать четвёртую точку");
-        root.addView(fourthPoint);
+        LinearLayout options = card(root);
+        overlaySwitch = new Switch(this);
+        overlaySwitch.setText("Показывать кнопку A+B поверх игры");
+        overlaySwitch.setTextSize(14);
+        options.addView(overlaySwitch);
+        overlaySwitch.setOnCheckedChangeListener((view, checked) -> {
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putBoolean("overlay_enabled", checked).apply();
+            refreshOverlay();
+        });
+        gap(options, 5);
+        options.addView(label(
+                "Кнопку A+B можно перетаскивать по экрану. Один короткий тап по ней отправляет пару точек A и B одновременно.",
+                13, Color.rgb(82, 94, 112), false));
 
-        LinearLayout durationRow = new LinearLayout(this);
-        durationRow.setGravity(Gravity.CENTER_VERTICAL);
-        durationRow.addView(makeText("Длительность касания (мс)", 14, Color.rgb(42, 54, 75)),
-                new LinearLayout.LayoutParams(0, dp(48), 1));
-        durationField = numberField("180");
-        durationField.setText("180");
-        durationRow.addView(durationField, new LinearLayout.LayoutParams(dp(66), dp(48)));
-        root.addView(durationRow);
-        addGap(root, 10);
-
-        Button save = new Button(this);
-        save.setText("Сохранить настройки");
-        root.addView(save, new LinearLayout.LayoutParams(-1, dp(48)));
+        Button save = button("СОХРАНИТЬ КОМБИНАЦИЮ");
+        root.addView(save, new LinearLayout.LayoutParams(-1, dp(50)));
         save.setOnClickListener(v -> saveSettings());
 
-        Button accessibility = new Button(this);
-        accessibility.setText("Включить TouchDuo в специальных возможностях");
-        root.addView(accessibility, new LinearLayout.LayoutParams(-1, dp(52)));
-        accessibility.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
+        Button enable = button("ВКЛЮЧИТЬ СЛУЖБУ TOUCHDUO");
+        root.addView(enable, new LinearLayout.LayoutParams(-1, dp(50)));
+        enable.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
 
-        Button test = new Button(this);
-        test.setText("Открыть экран проверки");
-        root.addView(test, new LinearLayout.LayoutParams(-1, dp(48)));
+        Button test = button("ПРОВЕРИТЬ ДВЕ ТОЧКИ");
+        root.addView(test, new LinearLayout.LayoutParams(-1, dp(50)));
         test.setOnClickListener(v -> startActivity(new Intent(this, TestActivity.class)));
 
-        overlaySwitch = new Switch(this);
-        overlaySwitch.setText("Показывать плавающую кнопку DUO");
-        root.addView(overlaySwitch);
-        overlaySwitch.setOnCheckedChangeListener((buttonView, checked) -> {
-            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean("overlay_enabled", checked).apply();
-            refreshServiceOverlay();
-        });
-
-        addGap(root, 12);
-        TextView limitation = makeText(
-                "Важно: Android отменяет уже идущие касания, когда AccessibilityService отправляет виртуальный жест. Поэтому это помощник для заранее настроенных одновременных комбинаций, а не полноценное превращение одноточечного экрана в настоящий мультитач. Нельзя одновременно удерживать палец на экране и добавить к нему виртуальный палец.",
-                13, Color.rgb(135, 68, 42));
-        root.addView(limitation);
+        gap(root, 10);
+        root.addView(label(
+                "Важно: служба Android отправляет пару касаний программно. Она отменяет касания, которые уже выполняются в этот момент. Поэтому нажимать нужно именно плавающую кнопку A+B — не держать один физический палец в игре и пытаться добавить второй. Работоспособность зависит от того, принимает ли конкретная игра виртуальные мультитач-события.",
+                12, Color.rgb(143, 72, 42), false));
     }
 
-    private void loadFields() {
+    private void loadSettings() {
         SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
-        int[] dx = {18, 82, 50, 50};
-        int[] dy = {82, 82, 48, 68};
-        for (int i = 0; i < 4; i++) {
-            xs[i].setText(String.valueOf(p.getInt("x" + (i + 1), dx[i])));
-            ys[i].setText(String.valueOf(p.getInt("y" + (i + 1), dy[i])));
-        }
-        thirdPoint.setChecked(p.getInt("point_count", 2) >= 3);
-        fourthPoint.setChecked(p.getInt("point_count", 2) >= 4);
-        durationField.setText(String.valueOf(p.getInt("duration_ms", 180)));
+        xA.setText(String.valueOf(p.getInt("x1", 18)));
+        yA.setText(String.valueOf(p.getInt("y1", 82)));
+        xB.setText(String.valueOf(p.getInt("x2", 82)));
+        yB.setText(String.valueOf(p.getInt("y2", 82)));
+        durationBar.setProgress(Math.max(0, Math.min(1900, p.getInt("duration_ms", 300) - 100)));
         overlaySwitch.setChecked(p.getBoolean("overlay_enabled", true));
     }
 
-    private int read(EditText field, int fallback, int min, int max) {
+    private int numberValue(EditText field, int fallback) {
         try {
-            int value = Integer.parseInt(field.getText().toString().trim());
-            return Math.max(min, Math.min(max, value));
-        } catch (Exception ignored) {
-            return fallback;
-        }
+            return Math.max(0, Math.min(100,
+                    Integer.parseInt(field.getText().toString().trim())));
+        } catch (Exception ignored) { return fallback; }
     }
 
     private void saveSettings() {
-        int count = fourthPoint.isChecked() ? 4 : (thirdPoint.isChecked() ? 3 : 2);
-        int[] dx = {18, 82, 50, 50};
-        int[] dy = {82, 82, 48, 68};
-        SharedPreferences.Editor editor = getSharedPreferences(PREFS, MODE_PRIVATE).edit();
-        for (int i = 0; i < 4; i++) {
-            editor.putInt("x" + (i + 1), read(xs[i], dx[i], 0, 100));
-            editor.putInt("y" + (i + 1), read(ys[i], dy[i], 0, 100));
-        }
-        editor.putInt("point_count", count);
-        editor.putInt("duration_ms", read(durationField, 180, 80, 700));
-        editor.apply();
-        refreshServiceOverlay();
-        Toast.makeText(this, "Настройки сохранены", Toast.LENGTH_SHORT).show();
+        SharedPreferences.Editor e = getSharedPreferences(PREFS, MODE_PRIVATE).edit();
+        e.putInt("x1", numberValue(xA, 18));
+        e.putInt("y1", numberValue(yA, 82));
+        e.putInt("x2", numberValue(xB, 82));
+        e.putInt("y2", numberValue(yB, 82));
+        e.putInt("duration_ms", durationBar.getProgress() + 100);
+        e.apply();
+        refreshOverlay();
+        Toast.makeText(this, "Пара A+B сохранена", Toast.LENGTH_SHORT).show();
     }
 
-    private void refreshServiceOverlay() {
+    private void refreshOverlay() {
         sendBroadcast(new Intent(ACTION_REFRESH).setPackage(getPackageName()));
     }
 
     private void updateServiceStatus() {
-        String enabled = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-        String component = new ComponentName(this, TouchAccessibilityService.class).flattenToString();
-        boolean active = enabled != null && enabled.toLowerCase().contains(component.toLowerCase());
-        serviceStatus.setText(active
-                ? "Служба включена. Плавающая кнопка должна появиться поверх приложений."
-                : "Служба пока выключена. Нажми кнопку ниже и включи TouchDuo в списке.");
+        String enabled = Settings.Secure.getString(getContentResolver(),
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        String component = new ComponentName(this, TouchAccessibilityService.class)
+                .flattenToString();
+        boolean active = enabled != null &&
+                enabled.toLowerCase().contains(component.toLowerCase());
+        statusText.setText(active
+                ? "Служба включена — кнопку A+B можно использовать поверх игры."
+                : "Служба выключена — включи TouchDuo в специальных возможностях Android.");
     }
 }
