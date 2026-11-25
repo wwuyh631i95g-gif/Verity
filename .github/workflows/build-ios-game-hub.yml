@@ -1,0 +1,144 @@
+name: Build iOS Game Hub APK (touchHLE ARM64)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "IOSGameHub/**"
+      - "scripts/build_ios_game_hub.py"
+      - ".github/workflows/build-ios-game-hub.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Verity
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK platform and archive tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-31 build-tools;31.0.0
+
+      - name: Install 7-Zip
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+
+      - name: Checkout touchHLE v0.3.0 and submodules
+        run: |
+          git clone --depth 1 --branch v0.3.0 https://github.com/touchHLE/touchHLE.git touchHLE-src
+          cd touchHLE-src
+          git submodule update --init --recursive
+
+      - name: Apply Verity launcher integration
+        run: |
+          python3 -m py_compile scripts/build_ios_game_hub.py
+          python3 scripts/build_ios_game_hub.py "$GITHUB_WORKSPACE/touchHLE-src"
+
+      - name: Cache Boost
+        id: cache-boost
+        uses: actions/cache@v4
+        with:
+          path: touchHLE-src/vendor/boost
+          key: ios-game-hub-boost-1.81.0
+
+      - name: Download and unpack Boost
+        if: steps.cache-boost.outputs.cache-hit != 'true'
+        run: |
+          cd touchHLE-src
+          curl -L --fail -o boost_1_81_0.7z https://archives.boost.io/release/1.81.0/source/boost_1_81_0.7z
+          7z -ovendor x boost_1_81_0.7z
+          mv vendor/boost_1_81_0 vendor/boost
+
+      - name: Cache CMake
+        id: cache-cmake
+        uses: actions/cache@v4
+        with:
+          path: touchHLE-src/vendor/cmake
+          key: ios-game-hub-cmake-3.31.6-linux
+
+      - name: Download and unpack CMake
+        if: steps.cache-cmake.outputs.cache-hit != 'true'
+        run: |
+          cd touchHLE-src
+          curl -L --fail -o cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.31.6/cmake-3.31.6-linux-x86_64.tar.gz
+          tar xzf cmake.tar.gz -C vendor
+          mv vendor/cmake-3.31.6-linux-x86_64 vendor/cmake
+
+      - name: Install Rust Android target and cargo-ndk
+        run: |
+          rustup target add aarch64-linux-android
+          cargo install cargo-ndk@3.5.4
+
+      - name: Cache Gradle 8.11.1
+        id: cache-gradle
+        uses: actions/cache@v4
+        with:
+          path: touchHLE-src/gradle
+          key: ios-game-hub-gradle-8.11.1
+
+      - name: Download Gradle
+        if: steps.cache-gradle.outputs.cache-hit != 'true'
+        run: |
+          cd touchHLE-src
+          curl -L --fail -o gradle-8.11.1-bin.zip https://services.gradle.org/distributions/gradle-8.11.1-bin.zip
+          mkdir -p gradle
+          7z -ogradle x gradle-8.11.1-bin.zip
+
+      - name: Cache Android NDK r25c
+        id: cache-ndk
+        uses: actions/cache@v4
+        with:
+          path: touchHLE-src/android-ndk
+          key: ios-game-hub-android-ndk-r25c
+
+      - name: Download Android NDK r25c
+        if: steps.cache-ndk.outputs.cache-hit != 'true'
+        run: |
+          cd touchHLE-src
+          curl -L --fail -o android-ndk-r25c-linux.zip https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+          mkdir -p android-ndk
+          7z -oandroid-ndk -snld x android-ndk-r25c-linux.zip
+
+      - name: Configure Android NDK
+        run: |
+          cd touchHLE-src
+          mkdir -p "$ANDROID_SDK_ROOT/ndk"
+          ln -sfn "$GITHUB_WORKSPACE/touchHLE-src/android-ndk/android-ndk-r25c" "$ANDROID_SDK_ROOT/ndk/25.2.9519653"
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+
+      - name: Build ARM64 APK
+        run: |
+          cd touchHLE-src/android
+          export ANDROID_NDK_ROOT="$GITHUB_WORKSPACE/touchHLE-src/android-ndk/android-ndk-r25c"
+          export ANDROID_NDK="$ANDROID_NDK_ROOT"
+          export ANDROID_NDK_HOME="$ANDROID_NDK_ROOT"
+          export CMAKE="$GITHUB_WORKSPACE/touchHLE-src/vendor/cmake/bin/cmake"
+          ../gradle/gradle-8.11.1/bin/gradle --no-daemon --stacktrace assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/iOS-Game-Hub-Android-ARM64.apk"
+
+      - name: Verify installable ARM64 APK
+        run: |
+          test -s iOS-Game-Hub-Android-ARM64.apk
+          "$ANDROID_SDK_ROOT/build-tools/31.0.0/aapt" dump badging iOS-Game-Hub-Android-ARM64.apk | head -n 15
+          unzip -l iOS-Game-Hub-Android-ARM64.apk | grep -q 'lib/arm64-v8a/libtouchHLE.so'
+          "$ANDROID_SDK_ROOT/build-tools/31.0.0/apksigner" verify iOS-Game-Hub-Android-ARM64.apk
+          ls -lh iOS-Game-Hub-Android-ARM64.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-Game-Hub-Android-ARM64-APK
+          path: iOS-Game-Hub-Android-ARM64.apk
+          if-no-files-found: error
+          retention-days: 30
