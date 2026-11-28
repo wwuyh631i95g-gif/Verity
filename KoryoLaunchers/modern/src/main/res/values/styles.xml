@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="KoryoTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#12A5E0</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#00284C</item>
+        <item name="android:navigationBarColor">#002244</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">#026B9B</item>
+    </style>
+</resources>
