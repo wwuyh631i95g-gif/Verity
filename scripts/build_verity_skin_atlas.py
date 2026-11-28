@@ -3,18 +3,16 @@
 from pathlib import Path
 from urllib.request import Request, urlopen
 from PIL import Image, ImageDraw, ImageFilter
-import io, sys, base64
+import io, sys
 
 root=Path(sys.argv[1]) if len(sys.argv)>1 else Path("Verity-main")
 atlas_path=root/"app/src/main/assets/character_catalog/verity_new_skins_atlas.png"
-atlas_source_b64=Path(__file__).with_name("verity_new_skins_atlas.png.b64")
-if not atlas_source_b64.is_file():
-    raise SystemExit("Base64 source Verity atlas missing: "+str(atlas_source_b64))
-# The original PNG is stored with Git LFS; this text-encoded copy remains available
-# in standard GitHub Actions checkouts even when LFS smudging is disabled.
-atlas_text="".join(atlas_source_b64.read_text(encoding="ascii").split())
-raw_atlas=base64.b64decode(atlas_text, validate=True)
-atlas=Image.open(io.BytesIO(raw_atlas)).convert("RGBA")
+if not atlas_path.is_file():
+    raise SystemExit("Copied Verity skin atlas missing: "+str(atlas_path))
+# The atlas was copied from scripts/verity_new_skins_atlas.png by
+# apply_custom_updates.py. It contains the user's eight source smiley cut-outs
+# and original supporting mascot art; this step adds the real NASA crater photo.
+atlas=Image.open(atlas_path).convert("RGBA")
 atlas_path.parent.mkdir(parents=True, exist_ok=True)
 cell=min(atlas.width//4,atlas.height//4)
 if cell<32: raise SystemExit("Invalid 4x4 skin atlas")
