@@ -14,7 +14,7 @@ import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.graphics.PointerIcon;
+import android.view.PointerIcon;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.BatteryManager;
@@ -86,7 +86,7 @@ public final class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         getWindow().setStatusBarColor(Color.rgb(7, 11, 24));
         getWindow().setNavigationBarColor(Color.rgb(7, 11, 24));
-        if (Build.VERSION.SDK_INT >= 21) getWindow().setNavigationBarDividerColor(0xFF202A43);
+        if (Build.VERSION.SDK_INT >= 28) getWindow().setNavigationBarDividerColor(0xFF202A43);
 
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         selectedSeason = prefs.getString("season", "auto");
@@ -165,7 +165,7 @@ public final class MainActivity extends Activity {
             glass.setText(glassEnabled ? "Стекло: включено  ✓" : "Стекло: выключено");
             Intent i = new Intent(this, DeskOverlayService.class);
             i.setAction(DeskOverlayService.ACTION_REFRESH);
-            startOverlayService(i);
+            if (prefs.getBoolean("overlay_enabled", false)) startOverlayService(i);
             Toast.makeText(this, glassEnabled ? "Стеклянный стиль включён" : "Стеклянный стиль выключен", Toast.LENGTH_SHORT).show();
         });
         dock.addView(glass, spaceTop(7));
@@ -187,7 +187,7 @@ public final class MainActivity extends Activity {
             Intent i = new Intent(this, DeskOverlayService.class);
             i.setAction(DeskOverlayService.ACTION_PET);
             i.putExtra(DeskOverlayService.EXTRA_PET_TYPE, petType);
-            startOverlayService(i);
+            if (prefs.getBoolean("overlay_enabled", false)) startOverlayService(i);
         });
         pet.addView(changePet, spaceTop(5));
         Button showPet = button("Показать питомца поверх приложений", null);
@@ -345,9 +345,6 @@ public final class MainActivity extends Activity {
         selectedSeason = value;
         prefs.edit().putString("season", value).apply();
         if (seasonPreview != null) seasonPreview.setSeason(value);
-        Intent refresh = new Intent(this, DeskOverlayService.class);
-        refresh.setAction(DeskOverlayService.ACTION_REFRESH);
-        startOverlayService(refresh);
         String label = value.equals("auto") ? "Автоматическая смена сезонов включена" : "Выбран сезон: " + value;
         Toast.makeText(this, label, Toast.LENGTH_SHORT).show();
     }
