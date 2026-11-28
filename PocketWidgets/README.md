@@ -1,3 +1,7 @@
 # Pocket Widgets 4.0 — native Android home-screen widgets
 15 separate AppWidgetProvider components using native RemoteViews. Add them from Home screen → Widgets → Pocket Widgets. Includes Quick Settings, New Year countdown, tilt sand controls, Dino Runner, Robo-Vac, Pop-it, excuse generator, aquarium, reactive robot, glass anti-stress, neglected-pet timer, workday countdown, Flip Bottle, 6–7 target game and 4×4 Memory.
 Android 8/API 26 minimum, no internet/storage permissions. The video shows sand responding to rotation; this build approximates that movement with on-widget tilt/shake controls, not an always-on gyro service. Watch widgets depend on the watch launcher supporting Android AppWidget host features.
+
+## Motion Edition
+
+The launch screen opens a local animated gallery inspired by the uploaded video: a tilt-responsive sand simulation, cactus runner, moving robot vacuum, pop-it, excuse generator, aquarium, pet with an inactivity timer, tap-reactive abstract lines, bottle-flip mini-game, 6–7 reaction game, memory pairs, tic-tac-toe, rhythm recall, minesweeper, New Year countdown and configurable workday countdown. Sound effects are synthesized locally. The original 15 Android home-screen AppWidget providers are retained; add them from the launcher's Widgets picker. Detailed animation previews run inside the app because Android home-screen widgets are updated on a restricted schedule.

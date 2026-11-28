@@ -303,12 +303,12 @@ rep(catalog,
 rep(catalog,
     '"Красный сердитый персонаж", "Светлый розовый смайлик"\n)',
     '"Красный сердитый персонаж", "Светлый розовый смайлик",\n'
-    '    "Жёлтый смайлик эмоций", "Коробка-посылка", "Трёхглазый смайлик",\n'
-    '    "Телевизор с антеннами", "Скелетик", "Тыквенная голова"\n)',
+    '    "Первый прототип Verity", "Коробка-посылка", "Трёхглазый смайлик",\n'
+    '    "Телевизор с антеннами", "Скелетик", "Тыквенная голова", "Кратерная улыбка Гейла"\n)',
     "append six exact-image skin groups")
 rep(catalog,
     '"Сердитик", "Розик"\n)',
-    '"Сердитик", "Розик", "Эмоли", "Посылыч", "Трио", "ТВик", "Костик", "Тыквик"\n)',
+    '"Сердитик", "Розик", "Прототип", "Посылыч", "Трио", "ТВик", "Костик", "Тыквик", "Гейл"\n)',
     "append skin nicknames")
 rep(catalog,
 '''        } else {
@@ -320,30 +320,32 @@ rep(catalog,
             path.startsWith("character_catalog/sprites/51/") ||
             path.startsWith("character_catalog/sprites/52/") ||
             path.startsWith("character_catalog/sprites/53/") ||
-            path.startsWith("character_catalog/sprites/54/")) {
+            path.startsWith("character_catalog/sprites/54/") ||
+            path.startsWith("character_catalog/sprites/55/")) {
             runCatching { SkinSheet.loadCatalogSprite(context, path)?.asImageBitmap() }.getOrNull()
         } else {
             runCatching { context.assets.open(path).use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull()
         }
 ''',
     "display exact-image skins in catalog")
-rep(catalog, "(1..48).filter {", "(1..54).filter {", "search six new skin groups")
-rep(catalog, "Встроенные 48 групп нельзя удалить.", "Встроенные 54 группы нельзя удалить.", "catalog group count")
+rep(catalog, "(1..48).filter {", "(1..55).filter {", "search seven new skin groups")
+rep(catalog, "Встроенные 48 групп нельзя удалить.", "Встроенные 55 групп нельзя удалить.", "catalog group count")
 rep(catalog,
 '''                            Text("12 отдельных изображений · выбрать", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 ''',
 '''                            val info = when (id) {
-                                49 -> "8 вырезанных эмоций · выбрать набор"
-                                else -> "Точный вырезанный персонаж · статичный образ"
+                                49 -> "8 выражений · первый прототип Verity"
+                                55 -> "Реальное фото кратера Гейла · круглый вырез"
+                                else -> "Оригинальный статичный образ"
                             }
                             Text(info, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 ''',
     "new skin card descriptions")
-rep(catalog, "Встроенные 48 групп персонажей удалить нельзя.", "Встроенные 54 группы персонажей удалить нельзя.", "custom character delete text")
+rep(catalog, "Встроенные 48 групп персонажей удалить нельзя.", "Встроенные 55 групп персонажей удалить нельзя.", "custom character delete text")
 rep(catalog,
 '''    if (selectedGroup in 1..48) {
 ''',
-'''    if (selectedGroup in 1..54) {
+'''    if (selectedGroup in 1..55) {
 ''',
     "open all 54 skin groups")
 rep(catalog,
@@ -352,7 +354,7 @@ rep(catalog,
 '''                    Text(
                         when (selectedGroup) {
                             49 -> "Восемь исходных эмоций вырезаны отдельно из присланной таблицы и используются как разные выражения персонажа."
-                            in 50..54 -> "Это отдельный вырезанный персонаж из присланных изображений. Исходная форма и прозрачный фон сохранены."
+                            in 50..55 -> if (selectedGroup == 55) "Круглая фотография кратера Гейла на Марсе из архива NASA." else "Оригинальный персонаж с прозрачным фоном."
                             else -> "В каждом исходном наборе 12 вырезанных кадров."
                         },
                         style = MaterialTheme.typography.bodySmall
@@ -370,7 +372,7 @@ rep(catalog,
 ''',
 '''                    val frameCount = when (selectedGroup) {
                         49 -> 8
-                        in 50..54 -> 1
+                        in 50..55 -> 1
                         else -> 12
                     }
                     LazyVerticalGrid(
@@ -394,15 +396,16 @@ rep(lore,
 '''        Entry(48, "Розик", "Розик — мягкий и приветливый спутник. Он любит рисовать сердечки, поддерживать друзей и устраивать тихие праздники.")
 ''',
 '''        Entry(48, "Розик", "Розик — мягкий и приветливый спутник. Он любит рисовать сердечки, поддерживать друзей и устраивать тихие праздники."),
-        Entry(49, "Эмоли", "Эмоли показывает восемь разных эмоций из исходной таблицы. Каждая эмоция остаётся отдельным выражением, без перерисовки."),
+        Entry(49, "Первый прототип Verity", "Восемь эмоций из самой первой таблицы смайликов — первоначальный визуальный прототип Verity."),
         Entry(50, "Посылыч", "Посылыч — небольшая коробка-посылка с запиской. Он любит доставлять добрые идеи и хранить маленькие сюрпризы."),
         Entry(51, "Трио", "Трио — смайлик с тремя глазами. Он любит наблюдать за деталями и сначала смотреть, а потом делать выводы."),
         Entry(52, "ТВик", "ТВик — ретро-телевизор с антеннами. Он хранит смешные передачи и короткие загадки."),
-        Entry(53, "Костик", "Костик — маленький сказочный скелетик с постера. Он любит загадки, карты звёзд и истории о приключениях."),
-        Entry(54, "Тыквик", "Тыквик — персонаж с тыквенной головой. Он любит осенние истории, яркие огоньки и смешные выражения лица.")
+        Entry(53, "Костик", "Костик — оригинальный дружелюбный скелетик, нарисованный специально для каталога Verity."),
+        Entry(54, "Тыквик", "Тыквик — оригинальный персонаж-тыква со светящейся улыбкой, нарисованный для каталога Verity."),
+        Entry(55, "Гейл", "Гейл — круглый снимок кратера Гейла на Марсе, известного как Happy Face Crater. Улыбку создаёт естественный рельеф и иней на поверхности.")
 ''',
     "add six character mini-stories")
-rep(lore, "takeIf { it in 1..48 }", "takeIf { it in 1..54 }", "recognise six new character assets")
+rep(lore, "takeIf { it in 1..48 }", "takeIf { it in 1..55 }", "recognise seven new character assets")
 
 skin = DATA / "SkinSheet.kt"
 new_skin_helper = r'''    private fun loadVerityNewSkin(context: Context, group: Int, variant: Int?, mood: String): Bitmap? {
@@ -428,6 +431,7 @@ new_skin_helper = r'''    private fun loadVerityNewSkin(context: Context, group:
             52 -> 10
             53 -> 11
             54 -> 12
+            55 -> 13
             else -> return null
         }
         val atlas = runCatching {
@@ -461,7 +465,7 @@ rep(skin,
 '''        if (!assetPath.startsWith("character_catalog/sprites/") || assetPath.contains("..")) return null
         val addedMatch = Regex("character_catalog/sprites/(\\\\d{2})(?:/|_)").find(assetPath)
         val addedGroup = addedMatch?.groupValues?.getOrNull(1)?.toIntOrNull()
-        if (addedGroup != null && addedGroup in 49..54) {
+        if (addedGroup != null && addedGroup in 49..55) {
             val variant = Regex("_(\\\\d{2})\\\\.png$").find(assetPath)?.groupValues?.getOrNull(1)?.toIntOrNull()
             return loadVerityNewSkin(context, addedGroup, variant, mood)
         }
@@ -472,14 +476,14 @@ rep(skin,
 # Keep the catalog counts truthful everywhere they are displayed.
 for ui_file in (JAVA / "MainActivity.kt", JAVA / "FeatureListScreen.kt"):
     ui = ui_file.read_text(encoding="utf-8")
-    ui = ui.replace("каталог из 48 групп", "каталог из 54 групп")
-    ui = ui.replace("48 групп из твоей таблицы", "54 встроенные группы из твоих изображений")
-    ui = ui.replace("48 групп / 576 кадров и 48 предысторий", "54 группы / 589 исходных изображений")
+    ui = ui.replace("каталог из 48 групп", "каталог из 55 групп")
+    ui = ui.replace("48 групп из твоей таблицы", "55 встроенных групп, включая фото кратера NASA")
+    ui = ui.replace("48 групп / 576 кадров и 48 предысторий", "55 групп / 590 исходных изображений")
     ui = ui.replace("48 групп разделены на 576 PNG-кадров",
                     "48 исходных групп имеют по 12 кадров; добавлены 8 эмоций, коробка, трёхглазый смайлик, телевизор, скелетик и тыквенная голова")
-    ui = ui.replace("встроенные 48 групп нельзя удалить", "встроенные 54 группы нельзя удалить")
+    ui = ui.replace("встроенные 48 групп нельзя удалить", "встроенные 55 групп нельзя удалить")
     ui_file.write_text(ui, encoding="utf-8")
 
-print("Added six exact-image Verity skin groups (49–54)")
+print("Added seven Verity skin groups (49–55), including NASA Galle Crater")
 
 # Source atlas is a transparent PNG; keep its binary payload intact in the APK.

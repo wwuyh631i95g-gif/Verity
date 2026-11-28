@@ -93,6 +93,8 @@ jobs:
         run: |
           python3 -m py_compile scripts/apply_edition_features.py
           python3 scripts/apply_edition_features.py Verity-main
+          python3 -m py_compile scripts/build_verity_skin_atlas.py
+          python3 scripts/build_verity_skin_atlas.py Verity-main
       - name: Build debug APK
         working-directory: Verity-main
         run: |
