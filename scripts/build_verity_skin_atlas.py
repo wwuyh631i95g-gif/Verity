@@ -1,90 +1,168 @@
 #!/usr/bin/env python3
-"""Replace seasonal mascot atlas cells with original art and add NASA's real Galle crater photo."""
+"""Build Verity's compact 4x4 skin atlas, including source smileys and NASA Galle Crater."""
 from pathlib import Path
 from urllib.request import Request, urlopen
 from PIL import Image, ImageDraw, ImageFilter
-import io, sys
+import io
+import sys
 
-root=Path(sys.argv[1]) if len(sys.argv)>1 else Path("Verity-main")
-atlas_path=root/"app/src/main/assets/character_catalog/verity_new_skins_atlas.png"
-if not atlas_path.is_file():
-    raise SystemExit("Copied Verity skin atlas missing: "+str(atlas_path))
-# The atlas was copied from scripts/verity_new_skins_atlas.png by
-# apply_custom_updates.py. It contains the user's eight source smiley cut-outs
-# and original supporting mascot art; this step adds the real NASA crater photo.
-atlas=Image.open(atlas_path).convert("RGBA")
+root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("Verity-main")
+atlas_path = root / "app/src/main/assets/character_catalog/verity_new_skins_atlas.png"
 atlas_path.parent.mkdir(parents=True, exist_ok=True)
-cell=min(atlas.width//4,atlas.height//4)
-if cell<32: raise SystemExit("Invalid 4x4 skin atlas")
-S=512
+CELL = 96
+atlas = Image.new("RGBA", (CELL * 4, CELL * 4), (0, 0, 0, 0))
 
-def skull():
- im=Image.new("RGBA",(S,S),(0,0,0,0));d=ImageDraw.Draw(im)
- d.ellipse((70,58,442,440),fill=(31,225,199,28))
- d.ellipse((90,58,422,390),fill=(238,243,242,255),outline=(22,36,55,255),width=17)
- d.rounded_rectangle((154,312,358,452),radius=48,fill=(230,237,236,255),outline=(22,36,55,255),width=15)
- d.ellipse((158,190,228,266),fill=(17,25,43,255));d.ellipse((284,190,354,266),fill=(17,25,43,255))
- d.polygon([(255,252),(226,300),(278,300)],fill=(17,25,43,255))
- d.rounded_rectangle((168,340,344,416),radius=12,fill=(22,28,44,255),outline=(22,36,55,255),width=8)
- for x in range(178,344,28): d.line((x,346,x,410),fill=(239,242,238,255),width=7)
- d.line((176,380,336,380),fill=(239,242,238,255),width=7)
- return im
+def put(slot, painter):
+    tile = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
+    painter(ImageDraw.Draw(tile))
+    atlas.alpha_composite(tile, ((slot % 4) * CELL, (slot // 4) * CELL))
 
-def pumpkin():
- im=Image.new("RGBA",(S,S),(0,0,0,0));d=ImageDraw.Draw(im)
- d.ellipse((63,72,449,454),fill=(255,143,54,30))
- d.ellipse((86,118,426,438),fill=(245,125,31,255),outline=(70,37,44,255),width=18)
- d.ellipse((137,124,254,430),fill=(255,164,58,255),outline=(177,75,27,255),width=7)
- d.ellipse((248,124,367,430),fill=(255,164,58,255),outline=(177,75,27,255),width=7)
- d.rounded_rectangle((219,49,291,151),radius=22,fill=(75,135,67,255),outline=(45,66,48,255),width=12)
- d.polygon([(255,56),(318,88),(286,109)],fill=(105,171,79,255))
- d.polygon([(146,232),(224,260),(184,292)],fill=(32,34,41,255))
- d.polygon([(286,260),(367,230),(335,296)],fill=(32,34,41,255))
- d.arc((150,268,365,397),8,172,fill=(33,31,38,255),width=17)
- d.polygon([(184,342),(326,342),(301,383),(209,383)],fill=(38,35,41,255))
- d.polygon([(204,340),(238,340),(224,366)],fill=(255,221,127,255))
- d.polygon([(272,340),(306,340),(288,366)],fill=(255,221,127,255))
- d.line((255,118,255,424),fill=(175,83,27,150),width=5)
- return im
+def base_face(d):
+    d.ellipse((6, 6, 90, 90), fill=(255, 238, 0, 255))
+    d.ellipse((29, 28, 44, 49), fill=(7, 7, 9, 255))
+    d.ellipse((56, 28, 71, 49), fill=(7, 7, 9, 255))
 
-def nasa_happy_face():
- urls=[
-  "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia04/pia04520/PIA04520.jpg?crop=faces%2Cfocalpoint&fit=clip&h=2993&w=1995",
-  "https://photojournal.jpl.nasa.gov/jpeg/PIA04520.jpg"
- ]
- raw=None
- for url in urls:
-  try:
-   req=Request(url,headers={"User-Agent":"Verity-Android-App/1.0; NASA PIA04520 attribution included"})
-   with urlopen(req,timeout=40) as response: raw=response.read()
-   if raw[:2]==b"\xff\xd8" or raw[:8]==b"\x89PNG\r\n\x1a\n": break
-   raw=None
-  except Exception as exc:
-   print("NASA source attempt failed:",type(exc).__name__)
- if raw is None: raise SystemExit("NASA official Galle/Happy Face Crater photo download failed; no generated substitute will be used.")
- photo=Image.open(io.BytesIO(raw)).convert("RGB")
- if photo.height>photo.width*1.15:
-  cx=int(photo.width*.49);cy=int(photo.height*.72);side=int(min(photo.width*.58,photo.height*.36))
- else:
-  cx=photo.width//2;cy=photo.height//2;side=int(min(photo.width,photo.height)*.84)
- half=side//2
- crop=photo.crop((max(0,cx-half),max(0,cy-half),min(photo.width,cx+half),min(photo.height,cy+half)))
- w,h=crop.size;z=min(w,h);crop=crop.crop(((w-z)//2,(h-z)//2,(w-z)//2+z,(h-z)//2+z)).resize((S,S),Image.Resampling.LANCZOS)
- out=Image.new("RGBA",(S,S),(0,0,0,0));mask=Image.new("L",(S*3,S*3),0)
- ImageDraw.Draw(mask).ellipse((5,5,S*3-5,S*3-5),fill=255)
- mask=mask.resize((S,S),Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(.35))
- out.paste(crop,(0,0));out.putalpha(mask);return out
+def smile(d):
+    base_face(d); d.arc((22, 38, 76, 80), 12, 168, fill=(5, 5, 7, 255), width=4)
 
-for slot,sprite in {11:skull(),12:pumpkin(),13:nasa_happy_face()}.items():
- sprite=sprite.resize((cell,cell),Image.Resampling.LANCZOS)
- x=(slot%4)*cell;y=(slot//4)*cell
- atlas.paste(sprite,(x,y),sprite)
-atlas.save(atlas_path,format="PNG",optimize=True)
-credit=root/"app/src/main/assets/character_catalog/skin_sources.txt"
+def wavy(d):
+    base_face(d)
+    d.line([(22, 57), (29, 62), (36, 57), (43, 62), (50, 57),
+            (57, 62), (64, 57), (71, 62), (76, 56)], fill=(5, 5, 7, 255), width=3)
+
+def open_smile(d):
+    base_face(d)
+    d.ellipse((23, 48, 73, 78), fill=(4, 4, 6, 255))
+    d.arc((32, 63, 65, 81), 185, 350, fill=(255, 228, 70, 255), width=5)
+
+def sad(d):
+    base_face(d); d.arc((22, 56, 76, 96), 195, 345, fill=(5, 5, 7, 255), width=3)
+
+def sad_open(d):
+    base_face(d)
+    d.pieslice((22, 46, 76, 86), 185, 355, fill=(5, 5, 7, 255))
+    d.arc((31, 57, 67, 87), 185, 355, fill=(255, 234, 48, 255), width=5)
+
+def angry_teeth(d):
+    base_face(d)
+    d.line((25, 28, 46, 40), fill=(5, 5, 7, 255), width=4)
+    d.line((71, 28, 51, 40), fill=(5, 5, 7, 255), width=4)
+    d.rounded_rectangle((20, 52, 77, 78), radius=9, fill=(255, 255, 255, 255),
+                        outline=(4, 4, 6, 255), width=3)
+    d.line((33, 54, 33, 76), fill=(8, 8, 10, 255), width=2)
+    d.line((47, 53, 47, 77), fill=(8, 8, 10, 255), width=2)
+    d.line((62, 53, 62, 77), fill=(8, 8, 10, 255), width=2)
+    d.line((23, 65, 74, 65), fill=(8, 8, 10, 255), width=2)
+
+def angry_open(d):
+    base_face(d)
+    d.line((23, 28, 46, 42), fill=(5, 5, 7, 255), width=4)
+    d.line((73, 28, 51, 42), fill=(5, 5, 7, 255), width=4)
+    d.ellipse((18, 50, 79, 82), fill=(4, 4, 6, 255))
+    d.arc((34, 65, 64, 87), 185, 355, fill=(255, 227, 66, 255), width=5)
+
+# The eight expressions from the user's first image form one animated skin (group 49).
+for index, painter in enumerate((smile, wavy, smile, open_smile, sad, sad_open, angry_teeth, angry_open)):
+    put(index, painter)
+
+def parcel(d):
+    d.rounded_rectangle((12, 18, 84, 82), radius=5, fill=(237, 174, 113, 255), outline=(42, 29, 25, 255), width=4)
+    d.rectangle((39, 18, 57, 82), fill=(255, 225, 164, 255), outline=(42, 29, 25, 255), width=3)
+    d.rectangle((39, 18, 57, 46), fill=(255, 236, 191, 255), outline=(42, 29, 25, 255), width=2)
+    d.rectangle((61, 56, 80, 74), fill=(245, 246, 242, 255), outline=(22, 27, 34, 255), width=2)
+    d.line((64, 62, 77, 62), fill=(22, 27, 34, 255), width=2)
+    d.line((64, 67, 77, 67), fill=(22, 27, 34, 255), width=2)
+
+def three_eye(d):
+    d.ellipse((6, 6, 90, 90), fill=(255, 230, 0, 255), outline=(224, 190, 0, 255), width=2)
+    for x, y in ((28, 29), (48, 18), (68, 29)):
+        d.ellipse((x - 5, y - 9, x + 5, y + 9), fill=(0, 0, 0, 255))
+    d.arc((25, 42, 72, 76), 5, 175, fill=(0, 0, 0, 255), width=4)
+
+def television(d):
+    d.rounded_rectangle((8, 25, 88, 79), radius=7, fill=(48, 58, 77, 255), outline=(14, 20, 34, 255), width=4)
+    d.rounded_rectangle((16, 33, 67, 70), radius=4, fill=(125, 220, 239, 255), outline=(11, 20, 31, 255), width=2)
+    d.line((37, 25, 27, 10), fill=(30, 35, 43, 255), width=3)
+    d.line((54, 25, 65, 10), fill=(30, 35, 43, 255), width=3)
+    d.ellipse((73, 38, 81, 46), fill=(255, 211, 89, 255))
+    d.ellipse((73, 53, 81, 61), fill=(148, 231, 173, 255))
+
+put(8, parcel)
+put(9, three_eye)
+put(10, television)
+
+def skull(d):
+    d.ellipse((9, 3, 87, 82), fill=(235, 241, 239, 255), outline=(24, 34, 47, 255), width=4)
+    d.rounded_rectangle((24, 57, 72, 93), radius=10, fill=(232, 239, 237, 255), outline=(24, 34, 47, 255), width=3)
+    d.ellipse((23, 34, 39, 51), fill=(15, 22, 34, 255))
+    d.ellipse((57, 34, 73, 51), fill=(15, 22, 34, 255))
+    d.polygon([(48, 50), (42, 60), (54, 60)], fill=(15, 22, 34, 255))
+    d.rounded_rectangle((31, 67, 65, 84), radius=3, fill=(15, 22, 34, 255))
+    for x in range(34, 65, 7):
+        d.line((x, 68, x, 83), fill=(244, 244, 236, 255), width=2)
+
+def pumpkin(d):
+    d.rounded_rectangle((39, 4, 57, 30), radius=5, fill=(77, 144, 75, 255), outline=(40, 72, 41, 255), width=2)
+    d.ellipse((10, 20, 86, 91), fill=(244, 126, 31, 255), outline=(93, 48, 29, 255), width=4)
+    d.ellipse((23, 23, 48, 88), fill=(255, 165, 52, 255), outline=(177, 77, 24, 255), width=2)
+    d.ellipse((47, 23, 73, 88), fill=(255, 165, 52, 255), outline=(177, 77, 24, 255), width=2)
+    d.polygon([(23, 48), (42, 57), (29, 65)], fill=(24, 29, 39, 255))
+    d.polygon([(54, 57), (75, 48), (66, 66)], fill=(24, 29, 39, 255))
+    d.arc((26, 52, 70, 83), 0, 180, fill=(24, 29, 39, 255), width=4)
+    d.polygon([(37, 70), (60, 70), (53, 78), (43, 78)], fill=(255, 224, 127, 255))
+
+put(11, skull)
+put(12, pumpkin)
+
+def nasa_galle_face():
+    urls = (
+        "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia04/pia04520/PIA04520.jpg?crop=faces%2Cfocalpoint&fit=clip&h=2993&w=1995",
+        "https://photojournal.jpl.nasa.gov/jpeg/PIA04520.jpg",
+    )
+    photo = None
+    for url in urls:
+        try:
+            request = Request(url, headers={"User-Agent": "Verity-Android-App/1.0 (NASA image credit in app assets)"})
+            with urlopen(request, timeout=40) as response:
+                raw = response.read()
+            candidate = Image.open(io.BytesIO(raw)).convert("RGB")
+            photo = candidate
+            break
+        except Exception as exc:
+            print("NASA image source failed:", type(exc).__name__)
+    if photo is None:
+        raise SystemExit("Unable to download NASA/JPL PIA04520. No generated substitute will be used.")
+    # NASA's vertical page image has multiple treatments; use the lower crater panel.
+    if photo.height > photo.width * 1.15:
+        cx = int(photo.width * 0.49)
+        cy = int(photo.height * 0.72)
+        side = int(min(photo.width * 0.58, photo.height * 0.36))
+    else:
+        cx = photo.width // 2
+        cy = photo.height // 2
+        side = int(min(photo.width, photo.height) * 0.84)
+    half = side // 2
+    crop = photo.crop((max(0, cx-half), max(0, cy-half), min(photo.width, cx+half), min(photo.height, cy+half)))
+    w, h = crop.size
+    side = min(w, h)
+    crop = crop.crop(((w-side)//2, (h-side)//2, (w-side)//2+side, (h-side)//2+side))
+    crop = crop.resize((CELL, CELL), Image.Resampling.LANCZOS)
+    mask = Image.new("L", (CELL * 3, CELL * 3), 0)
+    ImageDraw.Draw(mask).ellipse((3, 3, CELL*3-3, CELL*3-3), fill=255)
+    mask = mask.resize((CELL, CELL), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(0.25))
+    result = crop.convert("RGBA")
+    result.putalpha(mask)
+    return result
+
+atlas.alpha_composite(nasa_galle_face(), (3 * CELL, 3 * CELL))
+atlas.save(atlas_path, format="PNG", optimize=True)
+
+credit = atlas_path.parent / "skin_sources.txt"
 credit.write_text(
- "Group 49: eight emoji expressions from the user's supplied generic smiley sheet (first Verity prototype concept).\n"
- "Groups 53–54: newly drawn generic skeleton and pumpkin mascots; not copied from the uploaded cartoon poster.\n"
- "Group 55: circular crop of NASA/JPL/Malin Space Science Systems image PIA04520, Galle Crater on Mars, informally called Happy Face.\n"
- "Official NASA source: https://science.nasa.gov/photojournal/happy-face-crater/\n",
- encoding="utf-8")
-print("Verity atlas updated with original pumpkin/skull mascots and NASA PIA04520.")
+    "Group 49: eight separate emoji expression frames based on the user's supplied first smiley image.\\n"
+    "Groups 53–54: newly drawn generic skeleton and pumpkin mascots; not copied from the supplied Spooky Month poster.\\n"
+    "Group 55: circular crop of NASA/JPL/Malin Space Science Systems image PIA04520, Galle Crater on Mars, informally called Happy Face.\\n"
+    "Official NASA source: https://science.nasa.gov/photojournal/happy-face-crater/\\n",
+    encoding="utf-8"
+)
+print("Created 55th skin atlas: eight smiley frames, original skull/pumpkin drawings and NASA Galle Crater.")
