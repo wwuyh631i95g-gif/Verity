@@ -250,7 +250,7 @@ public abstract class BaseLauncherActivity extends Activity {
         dpDock.topMargin = dp(9);
         page.addView(dock, dpDock);
 
-        TextView footer = label(korean ? "홈 화면  ·  안드로이드" : "Главный экран  ·  Android", 9, 0xAADDFFFFFF, false);
+        TextView footer = label(korean ? "홈 화면  ·  안드로이드" : "Главный экран  ·  Android", 9, 0xAAFFFFFF, false);
         footer.setGravity(Gravity.CENTER);
         page.addView(footer, new LinearLayout.LayoutParams(-1, dp(19)));
 
