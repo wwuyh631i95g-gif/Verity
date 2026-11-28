@@ -119,7 +119,7 @@ public abstract class BaseLauncherActivity extends Activity {
 
         TextView language = label(korean ? "한" : "РУ", 12, Color.WHITE, true);
         language.setGravity(Gravity.CENTER);
-        language.setBackground(rounded(0x553FFFFFF, 14));
+        language.setBackground(rounded(0x553F72A4, 14));
         top.addView(language, new LinearLayout.LayoutParams(dp(42), dp(34)));
         language.setOnClickListener(v -> {
             korean = !korean;
@@ -129,7 +129,7 @@ public abstract class BaseLauncherActivity extends Activity {
 
         TextView quick = label("☷", 21, Color.WHITE, true);
         quick.setGravity(Gravity.CENTER);
-        quick.setBackground(rounded(0x553FFFFFF, 14));
+        quick.setBackground(rounded(0x553F72A4, 14));
         LinearLayout.LayoutParams qp = new LinearLayout.LayoutParams(dp(42), dp(34));
         qp.leftMargin = dp(8);
         top.addView(quick, qp);
@@ -137,7 +137,7 @@ public abstract class BaseLauncherActivity extends Activity {
 
         TextView menu = label("⋮", 22, Color.WHITE, true);
         menu.setGravity(Gravity.CENTER);
-        menu.setBackground(rounded(0x553FFFFFF, 14));
+        menu.setBackground(rounded(0x553F72A4, 14));
         LinearLayout.LayoutParams mp = new LinearLayout.LayoutParams(dp(36), dp(34));
         mp.leftMargin = dp(7);
         top.addView(menu, mp);
@@ -175,7 +175,7 @@ public abstract class BaseLauncherActivity extends Activity {
         hero.addView(heroText, new LinearLayout.LayoutParams(0, -2, 1));
         TextView wallpaperButton = label("◈", 20, Color.WHITE, true);
         wallpaperButton.setGravity(Gravity.CENTER);
-        wallpaperButton.setBackground(rounded(0x553FFFFFF, 14));
+        wallpaperButton.setBackground(rounded(0x553F72A4, 14));
         hero.addView(wallpaperButton, new LinearLayout.LayoutParams(dp(42), dp(42)));
         wallpaperButton.setOnClickListener(v -> {
             wallpaperMode = (wallpaperMode + 1) % 3;
