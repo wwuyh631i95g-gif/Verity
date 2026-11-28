@@ -355,21 +355,21 @@ public final class HyperfoldView extends View {
         float lift = tile * 0.74f;
         float topY = cy - lift;
 
-        // Two shaded sides and a luminous top face.
+        // Two shaded sides connect the raised top face to the floor below.
         path.reset();
-        path.moveTo(cx, cy + ay);
+        path.moveTo(cx, topY + ay);
+        path.lineTo(cx + ax, topY);
         path.lineTo(cx + ax, cy);
-        path.lineTo(cx + ax, cy + lift);
-        path.lineTo(cx, cy + ay + lift);
+        path.lineTo(cx, cy + ay);
         path.close();
         p.setColor(0xCC172D4A);
         c.drawPath(path, p);
 
         path.reset();
-        path.moveTo(cx, cy + ay);
+        path.moveTo(cx, topY + ay);
+        path.lineTo(cx - ax, topY);
         path.lineTo(cx - ax, cy);
-        path.lineTo(cx - ax, cy + lift);
-        path.lineTo(cx, cy + ay + lift);
+        path.lineTo(cx, cy + ay);
         path.close();
         p.setColor(0xCC10213B);
         c.drawPath(path, p);
@@ -562,7 +562,7 @@ public final class HyperfoldView extends View {
         p.setStyle(Paint.Style.FILL);
 
         String line = hintText(now);
-        text.setTypeface(Typeface.create("sans-serif", Typeface.MEDIUM));
+        text.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         text.setTextAlign(Paint.Align.CENTER);
         text.setTextSize(dp(10));
         text.setColor(0xFFD5E7FF);
