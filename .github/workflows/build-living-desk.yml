@@ -47,6 +47,14 @@ jobs:
           sha256sum "$APK"
           ls -lh "$APK"
 
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Living-Desk-1.0-Honor-X8b-Android-APK
+          path: LivingDesk/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Android 14 launch smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -72,11 +80,3 @@ jobs:
               exit 1
             fi
             echo "Living Desk Android 14 launch smoke test passed"
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Living-Desk-1.0-Honor-X8b-Android-APK
-          path: LivingDesk/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
