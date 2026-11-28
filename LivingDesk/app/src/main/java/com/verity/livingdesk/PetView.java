@@ -28,6 +28,11 @@ public final class PetView extends View {
         invalidate();
     }
 
+    public void cycleMood() {
+        mood = (mood + 1) % 4;
+        invalidate();
+    }
+
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         float w = getWidth(), h = getHeight();
