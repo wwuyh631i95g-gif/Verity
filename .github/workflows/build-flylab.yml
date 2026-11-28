@@ -1,0 +1,36 @@
+name: Build FlyLab APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, flylab-app ]
+    paths:
+      - "FlyLab/**"
+      - ".github/workflows/build-flylab.yml"
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install Android SDK
+        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+      - name: Build FlyLab
+        run: gradle -p FlyLab --no-daemon :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FlyLab-Honor-X8b-Android-APK
+          path: FlyLab/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
