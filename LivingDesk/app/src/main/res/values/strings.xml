@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Живой стол</string>
+    <string name="new_year_widget_description">Живой отсчёт до Нового года</string>
+</resources>
