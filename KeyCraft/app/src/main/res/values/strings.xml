@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">KeyCraft</string>
+    <string name="accessibility_service_label">KeyCraft — действия кнопок громкости</string>
+    <string name="accessibility_description">Перехватывает только нажатия кнопок увеличения и уменьшения громкости для назначенных пользователем быстрых действий. Не читает содержимое экрана и не собирает данные.</string>
+</resources>
