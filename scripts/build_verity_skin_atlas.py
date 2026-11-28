@@ -12,7 +12,8 @@ if not atlas_source_b64.is_file():
     raise SystemExit("Base64 source Verity atlas missing: "+str(atlas_source_b64))
 # The original PNG is stored with Git LFS; this text-encoded copy remains available
 # in standard GitHub Actions checkouts even when LFS smudging is disabled.
-raw_atlas=base64.b64decode(atlas_source_b64.read_text(encoding="ascii").strip(), validate=True)
+atlas_text="".join(atlas_source_b64.read_text(encoding="ascii").split())
+raw_atlas=base64.b64decode(atlas_text, validate=True)
 atlas=Image.open(io.BytesIO(raw_atlas)).convert("RGBA")
 atlas_path.parent.mkdir(parents=True, exist_ok=True)
 cell=min(atlas.width//4,atlas.height//4)
