@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#126bd1">
+<title>Elmore Pocket</title>
+<style>
+:root{--blue:#1477dc;--deep:#0b2854;--green:#00d35b;--cyan:#41dcff;--paper:#f4f8ff;--ink:#172944;--muted:#7586a2;--line:#dce7f6;--shadow:0 12px 30px #05295a24}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:linear-gradient(145deg,#d9efff,#f7f4ff 42%,#e0f9f0);font-family:Arial,Helvetica,sans-serif;color:var(--ink);min-height:100vh}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+.shell{max-width:980px;margin:0 auto;min-height:100vh;background:#f7faff;box-shadow:0 0 45px #143b6b22}
+.topbar{height:67px;padding:10px 15px;background:linear-gradient(100deg,#13c94f,#00af69 55%,#00a8cb);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-weight:1000;font-size:21px;letter-spacing:1.6px;text-shadow:0 2px 0 #08783e}
+.brand span{display:block;font-size:9px;letter-spacing:3px;opacity:.86;margin-top:1px}
+.online{font-size:10px;font-weight:bold;background:#ffffff24;border:1px solid #ffffff66;padding:7px 9px;border-radius:20px;white-space:nowrap}
+.nav{display:flex;gap:7px;padding:9px 10px;background:#1175dc;overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav button{border:1px solid #ffffff36;color:white;background:#ffffff14;padding:9px 12px;border-radius:11px;font-size:11px;font-weight:800;white-space:nowrap}
+.nav button.active,.nav button:active{background:#063d9f;border-color:#70dfff;box-shadow:inset 0 0 0 1px #ffffff22}
+main{padding:16px;min-height:calc(100vh - 120px)}
+.page{display:none;animation:appear .18s ease-out}
+.page.active{display:block}
+@keyframes appear{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.hero{padding:22px;border-radius:20px;background:linear-gradient(120deg,#0f72d8,#40c6f7);color:white;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;width:170px;height:170px;right:-30px;top:-50px;border-radius:50%;border:24px solid #ffffff22}
+.hero h1{margin:0 0 7px;font-size:25px;line-height:1.1}
+.hero p{margin:0;max-width:480px;line-height:1.45;font-size:13px;color:#e8f7ff}
+.hero-tag{display:inline-block;margin-top:14px;padding:6px 9px;border-radius:20px;background:#ffffff25;font-weight:800;font-size:10px;letter-spacing:1px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin-top:15px}
+.app-card{border:1px solid var(--line);border-radius:16px;background:white;padding:13px;text-align:left;box-shadow:0 4px 14px #143b6b0d;min-height:112px;color:var(--ink)}
+.app-card:active{transform:scale(.985)}
+.app-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:23px;margin-bottom:9px;box-shadow:inset 0 0 0 1px #ffffff85}
+.app-card b{display:block;font-size:13px;margin-bottom:4px}
+.app-card small{color:var(--muted);font-size:10px;line-height:1.35;display:block}
+.icon-green{background:linear-gradient(145deg,#b7ffca,#00ca70)}.icon-map{background:linear-gradient(145deg,#d7e9ff,#4a93f5)}.icon-tweet{background:linear-gradient(145deg,#dff8ff,#52cce9)}.icon-video{background:linear-gradient(145deg,#ffd8ee,#ff6d9d)}.icon-game{background:linear-gradient(145deg,#ffe6ae,#ff9555)}.icon-photo{background:linear-gradient(145deg,#f5ddff,#ac85f9)}
+.notice{margin-top:14px;border:1px dashed #9bb9df;background:#edf6ff;padding:11px 13px;border-radius:13px;color:#4c6383;font-size:11px;line-height:1.45}
+.page-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}
+.page-title h2{margin:0;font-size:22px;color:#145cb6}
+.page-title small{display:block;margin-top:4px;color:var(--muted);font-size:10px}
+.back{border:0;background:#e8f2ff;color:#1767c4;border-radius:10px;font-weight:900;padding:9px 12px}
+.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 4px 13px #143b6b0b}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.field,textarea,select{width:100%;border:1px solid #d5e2f1;background:#fbfdff;border-radius:11px;padding:11px;color:#1b3558;outline:none}
+textarea{min-height:72px;resize:vertical}
+.field:focus,textarea:focus{border-color:#52a7ed;box-shadow:0 0 0 3px #4ba9f21c}
+.primary{border:0;background:linear-gradient(100deg,#1373d8,#18a9e3);color:white;border-radius:10px;padding:10px 14px;font-weight:900;font-size:12px;box-shadow:0 4px 10px #1477dc25}
+.soft{border:1px solid #d8e6f5;background:#f4f8ff;color:#3b5f89;border-radius:10px;padding:9px 12px;font-weight:800;font-size:11px}
+.chip{display:inline-block;border-radius:20px;padding:6px 9px;background:#eaf5ff;color:#3972a9;font-size:10px;font-weight:900;margin:2px}
+.post{padding:13px 0;border-top:1px solid #edf1f7}
+.post:first-child{border-top:0}
+.post-head{display:flex;align-items:center;gap:9px}
+.avatar{width:35px;height:35px;display:grid;place-items:center;border-radius:50%;background:linear-gradient(140deg,#83e6ff,#236bc7);color:white;font-size:12px;font-weight:1000;flex-shrink:0}
+.post-head b{font-size:12px}
+.post-head small{display:block;color:#8a9ab0;font-size:10px;margin-top:3px}
+.post p{font-size:13px;line-height:1.45;margin:10px 0;color:#344a67;white-space:pre-wrap;overflow-wrap:anywhere}
+.post img{max-width:100%;max-height:230px;object-fit:cover;border-radius:12px}
+.actions{display:flex;gap:7px;align-items:center}
+.actions button{border:0;background:#eef6ff;color:#47729f;border-radius:20px;padding:7px 10px;font-size:10px;font-weight:800}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.friend{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid #edf2f8}
+.friend:last-child{border:0}
+.friend b{font-size:12px}.friend small{display:block;color:#8291a7;font-size:10px;margin-top:3px}
+.mapbox{height:295px;position:relative;border-radius:15px;overflow:hidden;background:#d9eedb;border:1px solid #c5ddca}
+.mapbox svg{width:100%;height:100%;display:block}
+.map-pin{cursor:pointer;filter:drop-shadow(0 2px 2px #31573a4a)}
+.map-legend{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.drive-scene{height:220px;border-radius:15px;overflow:hidden;position:relative;background:linear-gradient(#8fd4ff 0 58%,#8bcf71 58% 72%,#566579 72%);margin-top:12px}
+.sun{position:absolute;right:11%;top:19px;width:43px;height:43px;border-radius:50%;background:#ffe97a;box-shadow:0 0 25px #ffe97a88}
+.cloud{position:absolute;top:31px;left:15%;width:65px;height:19px;border-radius:22px;background:#fff;box-shadow:14px -9px 0 2px #fff,30px 1px 0 #fff}
+.town{position:absolute;bottom:61px;left:0;right:0;height:85px;display:flex;align-items:end;gap:9px;justify-content:space-around}
+.building{width:13%;height:65px;background:#f7c27a;border:3px solid #fff;box-shadow:inset 0 -12px #dca35f;position:relative}
+.building:nth-child(2){height:87px;background:#8cb5e9}.building:nth-child(3){height:56px;background:#f29cae}.building:nth-child(4){height:75px;background:#d0b1eb}
+.building:after{content:"";position:absolute;left:18%;right:18%;top:13px;height:17px;background:#b9e8ff;box-shadow:0 28px #b9e8ff}
+.road{position:absolute;bottom:0;height:62px;background:#424d5f;width:100%;border-top:4px solid #e8e4ba}
+.road:after{content:"";position:absolute;left:0;right:0;top:28px;border-top:3px dashed #f7e9a5}
+.car{position:absolute;bottom:31px;left:36%;width:110px;height:36px;border-radius:18px 24px 8px 8px;background:#ffe04e;border:3px solid #d29d27;z-index:2;transition:left .35s ease,transform .25s}
+.car:before{content:"";position:absolute;left:23px;top:-18px;width:54px;height:22px;border-radius:20px 20px 0 0;background:#b9edff;border:3px solid #d29d27}
+.wheel{position:absolute;bottom:-9px;left:15px;width:19px;height:19px;border-radius:50%;background:#293546;border:4px solid #d5dce3}
+.wheel.right{left:77px}
+.drive-moving .car{transform:translateY(-3px) rotate(-1deg)}
+.route-status{font-size:11px;color:#55718f;margin-top:8px}
+.reels{display:grid;gap:12px}
+.reel-card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.reel-art{height:225px;position:relative;display:grid;place-items:center;overflow:hidden;color:#fff;text-align:center;background:linear-gradient(135deg,#fc8abb,#6e70d9)}
+.reel-art:before,.reel-art:after{content:"";position:absolute;border-radius:50%;background:#ffffff25;animation:floaty 4s ease-in-out infinite}
+.reel-art:before{width:180px;height:180px;left:-42px;top:-35px}.reel-art:after{width:130px;height:130px;right:-28px;bottom:-30px;animation-delay:-2s}
+.reel-art .symbol{font-size:65px;z-index:1;filter:drop-shadow(0 8px 5px #0002);animation:bob 2.2s ease-in-out infinite}
+.reel-art strong{position:absolute;bottom:17px;left:15px;right:15px;z-index:2;font-size:14px;text-shadow:0 2px 6px #0008}
+.reel-art.art2{background:linear-gradient(135deg,#00b5a5,#3976dc)}.reel-art.art3{background:linear-gradient(135deg,#ffb73e,#f45d82)}
+.reel-video{width:100%;max-height:260px;display:block;background:#111}
+@keyframes floaty{50%{transform:translateY(13px) scale(1.05)}}@keyframes bob{50%{transform:translateY(-8px) rotate(4deg)}}
+.reel-info{padding:12px}
+.reel-info b{font-size:12px}.reel-info p{margin:6px 0 9px;font-size:12px;color:#667993}
+.game-wrap{background:#101b31;border-radius:16px;padding:8px;box-shadow:var(--shadow)}
+#arena{width:100%;height:auto;display:block;border-radius:10px;touch-action:manipulation;background:#182b4b}
+.game-hud{display:flex;align-items:center;justify-content:space-between;color:#fff;font-size:10px;font-weight:900;padding:7px 4px}
+.energy{height:10px;background:#34445f;border-radius:20px;overflow:hidden;margin:5px 0 9px}
+.energy>span{display:block;height:100%;background:linear-gradient(90deg,#4ce29d,#d7e95e);width:100%;transition:width .15s}
+.energy.enemy>span{background:linear-gradient(90deg,#ffb04e,#ff5e7a)}
+.game-status{color:#d8eaff;text-align:center;font-size:12px;font-weight:900;min-height:18px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.controls button{border:0;border-radius:12px;background:linear-gradient(145deg,#ffd56c,#ff8f54);color:#522f1a;padding:14px 5px;font-weight:1000;font-size:12px;box-shadow:0 4px 0 #a85e38}
+.controls button.blue{background:linear-gradient(145deg,#68dcff,#4380ec);color:#082e68;box-shadow:0 4px 0 #2454a0}
+.controls button:active{transform:translateY(3px);box-shadow:none}
+.filter-row{margin:13px 0}
+.filter-row label{display:flex;justify-content:space-between;font-size:11px;color:#59728e;margin-bottom:5px}
+input[type=range]{width:100%;accent-color:#1477dc}
+.photo-stage{min-height:190px;background:repeating-conic-gradient(#e9eef6 0 25%,#f8faff 0 50%) 0/24px 24px;border-radius:14px;display:grid;place-items:center;overflow:hidden}
+.photo-stage img{max-width:100%;max-height:360px;object-fit:contain}
+.photo-stage .empty{color:#8293aa;font-size:12px;text-align:center;padding:35px}
+.small-muted{font-size:10px;color:#8292a8;line-height:1.45}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#102d52;color:#fff;border-radius:20px;padding:10px 15px;font-size:11px;font-weight:800;box-shadow:0 8px 24px #0003;transition:.2s;z-index:20;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.footer{padding:10px 16px 18px;text-align:center;color:#91a1b7;font-size:9px}
+@media(min-width:700px){main{padding:22px}.grid{grid-template-columns:repeat(3,minmax(0,1fr))}.reels{grid-template-columns:repeat(2,minmax(0,1fr))}.drive-scene{height:270px}}
+@media(max-width:390px){main{padding:11px}.hero{padding:18px}.hero h1{font-size:22px}.app-card{padding:10px;min-height:105px}.app-icon{width:37px;height:37px}.page-title h2{font-size:19px}.mapbox{height:255px}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+  <div class="brand">ELMORE POCKET<span>THE TOWN'S DIGITAL PLAYGROUND</span></div>
+  <div class="online">● LOCAL MODE</div>
+</header>
+<nav class="nav" id="nav">
+  <button class="active" data-open="home">⌂ HOME</button>
+  <button data-open="plus">＋ ELMORE PLUS</button>
+  <button data-open="maps">⌖ MAPS</button>
+  <button data-open="tweetr">♥ TWEETR</button>
+  <button data-open="cliksap">▶ CLIK-SAP</button>
+  <button data-open="fighter">✦ ARCADE</button>
+  <button data-open="shotofop">▧ SHOTOFOP</button>
+</nav>
+<main>
+<section class="page active" id="page-home">
+  <div class="hero">
+    <h1>Welcome to Elmore!</h1>
+    <p>A pocket-sized collection of the town's websites, maps, short clips and arcade games. Pick an icon and explore.</p>
+    <span class="hero-tag">6 MINI APPS · 1 APK · ANDROID 8+</span>
+  </div>
+  <div class="grid">
+    <button class="app-card" data-open="plus"><div class="app-icon icon-green">🟢</div><b>Elmore Plus</b><small>Profiles, friends, status posts and messages.</small></button>
+    <button class="app-card" data-open="maps"><div class="app-icon icon-map">🗺️</div><b>Elmore Maps</b><small>Explore places and take a virtual drive.</small></button>
+    <button class="app-card" data-open="tweetr"><div class="app-icon icon-tweet">🐦</div><b>Tweetr</b><small>Micro-posts, replies and roleplay profiles.</small></button>
+    <button class="app-card" data-open="cliksap"><div class="app-icon icon-video">▶</div><b>Clik-Sap</b><small>A short-video feed with safe trend ideas.</small></button>
+    <button class="app-card" data-open="fighter"><div class="app-icon icon-game">🎮</div><b>Kebab Fighter</b><small>A colorful timing-based arcade duel.</small></button>
+    <button class="app-card" data-open="shotofop"><div class="app-icon icon-photo">🖼️</div><b>Shotofop</b><small>Put filters on a photo and save an edit.</small></button>
+  </div>
+  <div class="notice"><b>Local demo:</b> profiles, posts and likes stay on this phone. Nothing is uploaded to a real social network. Elmore Maps is a fictional tour, not live navigation and does not use your location.</div>
+</section>
+
+<section class="page" id="page-plus">
+  <div class="page-title"><div><h2>ELMOREPLUS</h2><small>Friends · photos · status updates</small></div><button class="back" data-open="home">← HOME</button></div>
+  <div class="panel">
+    <div class="row" style="align-items:flex-start">
+      <div class="avatar" style="width:48px;height:48px;font-size:17px">YOU</div>
+      <div style="flex:1"><b style="font-size:13px">Your Elmore profile</b><div class="small-muted">A little corner of the town's social web.</div><span class="chip">PROFILE</span><span class="chip">MESSAGES</span></div>
+    </div>
+    <form id="plusForm" style="margin-top:12px">
+      <textarea id="plusText" maxlength="300" placeholder="What's happening in Elmore?"></textarea>
+      <div class="row" style="justify-content:space-between;margin-top:8px">
+        <label class="soft">＋ Add photo <input id="plusPhoto" type="file" accept="image/*" hidden></label>
+        <button class="primary" type="submit">Share post</button>
+      </div>
+      <div id="plusPhotoName" class="small-muted" style="margin-top:6px"></div>
+    </form>
+  </div>
+  <div class="two-col">
+    <div class="panel"><b style="font-size:12px">FRIENDS <span id="friendCount">(3)</span></b><div id="friendList" style="margin-top:8px"></div></div>
+    <div class="panel"><b style="font-size:12px">MESSENGER</b><p class="small-muted">Local chat preview</p><div class="friend"><div class="avatar">D</div><div><b>Darwin</b><small>Sent a sticker ★</small></div></div><div class="friend"><div class="avatar">G</div><div><b>Gumball</b><small>Typing…</small></div></div></div>
+  </div>
+  <div class="panel"><b style="font-size:13px">LATEST ACTIVITY</b><div id="plusFeed" style="margin-top:5px"></div></div>
+</section>
+
+<section class="page" id="page-maps">
+  <div class="page-title"><div><h2>ELMORE MAPS</h2><small>Choose a destination · virtual tour mode</small></div><button class="back" data-open="home">← HOME</button></div>
+  <div class="panel">
+    <div class="row" style="justify-content:space-between"><b style="font-size:13px">Explore the map</b><span class="chip">NO GPS USED</span></div>
+    <div class="mapbox">
+      <svg viewBox="0 0 700 420" preserveAspectRatio="xMidYMid slice" aria-label="Fictional town map">
+        <rect width="700" height="420" fill="#d9efd9"/>
+        <path d="M-20 100 L720 340 M40 -20 L530 440 M-10 340 L720 80" stroke="#fff" stroke-width="46" fill="none"/>
+        <path d="M-20 100 L720 340 M40 -20 L530 440 M-10 340 L720 80" stroke="#e4d7ae" stroke-width="4" stroke-dasharray="14 12" fill="none"/>
+        <path d="M70 70h120v65H70z M270 40h95v80h-95z M510 260h125v90H510z M90 260h120v75H90z M440 50h110v80H440z" fill="#a5d49c" stroke="#79b779" stroke-width="4"/>
+        <path d="M20 200 Q150 140 270 210 T700 180" stroke="#91c5ed" stroke-width="34" fill="none"/>
+        <g fill="#4a8cc7" font-size="15" font-weight="bold"><text x="78" y="58">PARK</text><text x="275" y="28">SCHOOL</text><text x="515" y="245">DOWNTOWN</text><text x="85" y="248">LAKE</text><text x="445" y="38">STATION</text></g>
+        <g class="map-pin" data-map-place="Elmore Center"><circle cx="340" cy="210" r="19" fill="#1477dc" stroke="white" stroke-width="5"/><text x="340" y="216" text-anchor="middle" fill="white" font-size="17">★</text></g>
+        <g class="map-pin" data-map-place="Elmore Junior High"><circle cx="315" cy="75" r="13" fill="#f3a347" stroke="white" stroke-width="4"/></g>
+        <g class="map-pin" data-map-place="Downtown"><circle cx="570" cy="300" r="13" fill="#e86b9b" stroke="white" stroke-width="4"/></g>
+        <g class="map-pin" data-map-place="Rainbow Park"><circle cx="125" cy="95" r="13" fill="#29b78a" stroke="white" stroke-width="4"/></g>
+      </svg>
+    </div>
+    <div class="map-legend">
+      <button class="soft" data-place="Elmore Center">★ Center</button>
+      <button class="soft" data-place="Elmore Junior High">School</button>
+      <button class="soft" data-place="Downtown">Downtown</button>
+      <button class="soft" data-place="Rainbow Park">Park</button>
+    </div>
+    <div class="small-muted" id="selectedPlace" style="margin-top:9px">Selected destination: Elmore Center</div>
+  </div>
+  <div class="panel">
+    <div class="row" style="justify-content:space-between"><b style="font-size:13px">STREET VIEW · VIRTUAL DRIVE</b><span class="chip" id="driveProgress">0 / 4</span></div>
+    <div class="drive-scene" id="driveScene"><div class="sun"></div><div class="cloud"></div><div class="town"><div class="building"></div><div class="building"></div><div class="building"></div><div class="building"></div></div><div class="road"></div><div class="car"><i class="wheel"></i><i class="wheel right"></i></div></div>
+    <div class="route-status" id="routeStatus">Ready to explore. Choose a destination above, then drive.</div>
+    <div class="row" style="margin-top:10px"><button class="primary" id="driveButton">Start virtual trip →</button><button class="soft" id="driveReset">Reset trip</button></div>
+  </div>
+</section>
+
+<section class="page" id="page-tweetr">
+  <div class="page-title"><div><h2>TWEETR</h2><small>Say it in a tiny post · follow the town</small></div><button class="back" data-open="home">← HOME</button></div>
+  <div class="panel">
+    <div class="row"><span class="chip">ROLEPLAY PROFILE: @akane</span><span class="chip">@slevemcdichael</span></div>
+    <form id="tweetForm" style="margin-top:10px">
+      <textarea id="tweetText" maxlength="280" placeholder="What's on your mind? (280 characters)"></textarea>
+      <div class="row" style="justify-content:space-between;margin-top:8px"><span class="small-muted" id="tweetCount">0 / 280</span><button class="primary" type="submit">Post to Tweetr</button></div>
+    </form>
+  </div>
+  <div class="panel"><b style="font-size:13px">TOWN TIMELINE</b><div id="tweetFeed" style="margin-top:8px"></div></div>
+</section>
+
+<section class="page" id="page-cliksap">
+  <div class="page-title"><div><h2>CLIK-SAP</h2><small>Quick clips · creative trends · endless scroll</small></div><button class="back" data-open="home">← HOME</button></div>
+  <div class="panel">
+    <div class="row" style="justify-content:space-between"><div><b style="font-size:13px">YOUR CLIP STUDIO</b><div class="small-muted">Add a short video from your gallery.</div></div><label class="primary">＋ Upload clip <input id="clipUpload" type="file" accept="video/*" hidden></label></div>
+  </div>
+  <div class="panel">
+    <b style="font-size:12px">TODAY'S SAFE TRENDS</b>
+    <div class="row" style="margin-top:7px"><span class="chip">#TinyDrawing</span><span class="chip">#DeskTour</span><span class="chip">#SilentReaction</span><span class="chip">#PetPortrait</span></div>
+  </div>
+  <div id="clipFeed" class="reels"></div>
+  <div class="notice">Clik-Sap is a local fan-made mock-up inspired by the fictional app in the episode “The App”. Clips stay on this device unless you choose to share them elsewhere yourself.</div>
+</section>
+
+<section class="page" id="page-fighter">
+  <div class="page-title"><div><h2>KEBAB FIGHTER</h2><small>Cartoon timing arcade · 1 player vs CPU</small></div><button class="back" data-open="home">← HOME</button></div>
+  <div class="panel">
+    <div class="small-muted">Send a sparkle pulse back when it reaches the ring. This is a timing game with silly effects, not real fighting moves.</div>
+    <div class="game-wrap" style="margin-top:10px">
+      <div class="game-hud"><span>1P · MOSSBALL</span><span id="gameClock">60</span><span>CPU · SUNBUN</span></div>
+      <div class="game-hud"><span>ENERGY</span><span>ENERGY</span></div>
+      <div class="energy"><span id="playerEnergyBar"></span></div>
+      <div class="energy enemy"><span id="cpuEnergyBar"></span></div>
+      <canvas id="arena" width="820" height="360"></canvas>
+      <div class="game-status" id="gameStatus">Press START, then POP when the sparkle reaches the ring.</div>
+      <div class="controls">
+        <button class="blue" id="dodgeButton">↗ DODGE</button>
+        <button id="popButton">✦ POP!</button>
+        <button class="blue" id="guardButton">◉ GUARD</button>
+      </div>
+    </div>
+    <div class="row" style="justify-content:space-between;margin-top:12px"><button class="primary" id="startGame">START / PLAY AGAIN</button><span class="chip">BEST: <b id="bestScore">0</b></span></div>
+  </div>
+</section>
+
+<section class="page" id="page-shotofop">
+  <div class="page-title"><div><h2>SHOTOFOP</h2><small>Photo filters · brightness · contrast</small></div><button class="back" data-open="home">← HOME</button></div>
+  <div class="panel">
+    <div class="row" style="justify-content:space-between"><b style="font-size:13px">PHOTO WORKSHOP</b><label class="primary">＋ Choose photo <input id="photoPick" type="file" accept="image/*" hidden></label></div>
+    <div class="photo-stage" style="margin-top:12px"><div class="empty" id="photoEmpty">Choose an image from your gallery to start editing.</div><img id="photoPreview" alt="Photo preview" style="display:none"></div>
+    <div class="filter-row"><label>Brightness <b id="brightVal">100%</b></label><input id="bright" type="range" min="50" max="160" value="100"></div>
+    <div class="filter-row"><label>Contrast <b id="contrastVal">100%</b></label><input id="contrast" type="range" min="50" max="180" value="100"></div>
+    <div class="filter-row"><label>Color <b id="saturateVal">100%</b></label><input id="saturate" type="range" min="0" max="200" value="100"></div>
+    <div class="row"><button class="soft" id="resetFilters">Reset filters</button><button class="primary" id="savePhoto">Save edited photo</button></div>
+    <div class="small-muted" id="photoStatus" style="margin-top:9px">Edits are processed on this phone.</div>
+  </div>
+</section>
+</main>
+<div class="footer">ELMORE POCKET · FAN-MADE MINI APP COLLECTION · OFFLINE-FIRST</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+const $=function(id){return document.getElementById(id)};
+const escapeHTML=function(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})};
+const readStore=function(key,fallback){try{const v=localStorage.getItem(key);return v?JSON.parse(v):fallback}catch(e){return fallback}};
+const writeStore=function(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch(e){toast("Storage is full. Try a smaller photo.")}};
+let toastTimer;
+function toast(message){$("toast").textContent=message;$("toast").classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(function(){$("toast").classList.remove("show")},2200)}
+function openPage(id){
+  document.querySelectorAll(".page").forEach(function(p){p.classList.remove("active")});
+  const target=$("page-"+id);if(target)target.classList.add("active");
+  document.querySelectorAll(".nav button").forEach(function(b){b.classList.toggle("active",b.getAttribute("data-open")===id)});
+  window.scrollTo(0,0);
+}
+document.addEventListener("click",function(e){
+  const opener=e.target.closest("[data-open]");
+  if(opener){openPage(opener.getAttribute("data-open"));return}
+  const pin=e.target.closest("[data-place],[data-map-place]");
+  if(pin){selectPlace(pin.getAttribute("data-place")||pin.getAttribute("data-map-place"))}
+});
+
+let plusPosts=readStore("ep_plus_posts",[
+ {id:1,name:"Gumball",initial:"G",time:"A little while ago",text:"The town's internet is surprisingly busy today. Anyone seen my missing shoe?",likes:8},
+ {id:2,name:"Darwin",initial:"D",time:"Earlier today",text:"I found a tiny leaf that looks like a map. It might be a very small map.",likes:12}
+]);
+let friends=readStore("ep_friends",["Gumball","Darwin","Anais"]);
+function renderFriends(){
+  $("friendCount").textContent="("+friends.length+")";
+  $("friendList").innerHTML=friends.map(function(n){return '<div class="friend"><div class="avatar">'+escapeHTML(n.slice(0,1))+'</div><div><b>'+escapeHTML(n)+'</b><small>Elmore friend</small></div></div>'}).join("");
+}
+function renderPlus(){
+  $("plusFeed").innerHTML=plusPosts.slice().reverse().map(function(p){
+    return '<article class="post"><div class="post-head"><div class="avatar">'+escapeHTML(p.initial||p.name.slice(0,1))+'</div><div><b>'+escapeHTML(p.name)+'</b><small>'+escapeHTML(p.time||"Just now")+'</small></div></div><p>'+escapeHTML(p.text)+'</p>'+(p.image?'<img src="'+p.image+'" alt="Shared photo">':"")+'<div class="actions"><button data-plus-like="'+p.id+'">♥ '+(p.likes||0)+' likes</button><button data-plus-reply="'+p.id+'">Reply</button></div></article>'
+  }).join("")||'<p class="small-muted">No posts yet. Share the first update!</p>';
+}
+renderFriends();renderPlus();
+let pendingPlusImage="";
+$("plusPhoto").addEventListener("change",function(){
+  const f=this.files&&this.files[0];pendingPlusImage="";
+  if(!f){$("plusPhotoName").textContent="";return}
+  if(f.size>450000){$("plusPhotoName").textContent="Photo is large; it can be posted without saving the image.";return}
+  const r=new FileReader();r.onload=function(ev){pendingPlusImage=ev.target.result;$("plusPhotoName").textContent="Photo ready: "+f.name};r.readAsDataURL(f);
+});
+$("plusForm").addEventListener("submit",function(e){
+  e.preventDefault();const text=$("plusText").value.trim();
+  if(!text&&!pendingPlusImage){toast("Write a status or add a photo first.");return}
+  plusPosts.push({id:Date.now(),name:"You",initial:"Y",time:"Just now",text:text||"Shared a photo from Elmore.",likes:0,image:pendingPlusImage});
+  writeStore("ep_plus_posts",plusPosts);$("plusText").value="";$("plusPhoto").value="";$("plusPhotoName").textContent="";pendingPlusImage="";renderPlus();toast("Posted to Elmore Plus!");
+});
+$("plusFeed").addEventListener("click",function(e){
+  const like=e.target.closest("[data-plus-like]");if(like){const id=Number(like.dataset.plusLike);const p=plusPosts.find(function(x){return x.id===id});if(p){p.likes=(p.likes||0)+1;writeStore("ep_plus_posts",plusPosts);renderPlus()}return}
+  const reply=e.target.closest("[data-plus-reply]");if(reply)toast("Messenger is a local demo.");
+});
+
+let tweets=readStore("ep_tweets",[
+ {id:11,user:"@akane",name:"Akane Ryuuku",text:"A tiny hello to everyone in Elmore. I hope you have a lovely day!",likes:6},
+ {id:12,user:"@slevemcdichael",name:"Sleve McDichael",text:"Important update: I have discovered a very interesting sandwich.",likes:3},
+ {id:13,user:"@darwin",name:"Darwin",text:"Has anyone else noticed how quiet the library gets at lunchtime?",likes:9}
+]);
+function renderTweets(){
+ $("tweetFeed").innerHTML=tweets.slice().reverse().map(function(t){return '<article class="post"><div class="post-head"><div class="avatar">'+escapeHTML(t.name.slice(0,1))+'</div><div><b>'+escapeHTML(t.name)+'</b><small>'+escapeHTML(t.user)+'</small></div></div><p>'+escapeHTML(t.text)+'</p><div class="actions"><button data-tweet-like="'+t.id+'">♥ '+(t.likes||0)+'</button><button data-tweet-reply="'+t.id+'">Reply</button></div></article>'}).join("");
+}
+renderTweets();
+$("tweetText").addEventListener("input",function(){$("tweetCount").textContent=this.value.length+" / 280"});
+$("tweetForm").addEventListener("submit",function(e){e.preventDefault();const text=$("tweetText").value.trim();if(!text){toast("Write a post first.");return}tweets.push({id:Date.now(),user:"@you",name:"You",text:text,likes:0});writeStore("ep_tweets",tweets);$("tweetText").value="";$("tweetCount").textContent="0 / 280";renderTweets();toast("Posted to Tweetr!")});
+$("tweetFeed").addEventListener("click",function(e){const like=e.target.closest("[data-tweet-like]");if(like){const t=tweets.find(function(x){return x.id===Number(like.dataset.tweetLike)});if(t){t.likes++;writeStore("ep_tweets",tweets);renderTweets()}return}if(e.target.closest("[data-tweet-reply]"))toast("Replies are saved locally in this demo.")});
+
+const clips=[
+ {user:"@penny",title:"A tiny drawing challenge",caption:"Three shapes, one little character. #TinyDrawing",symbol:"🎨",art:""},
+ {user:"@banana_joe",title:"My very serious desk tour",caption:"Everything has a place. Mostly.",symbol:"🪴",art:"art2"},
+ {user:"@carrie",title:"Silent reaction of the day",caption:"When the bell rings and you are still on page one.",symbol:"👀",art:"art3"}
+];
+function renderClips(){
+ $("clipFeed").innerHTML=clips.map(function(c,i){
+  const media=c.url?'<video class="reel-video" controls playsinline src="'+c.url+'"></video>':'<div class="reel-art '+(c.art||"")+'"><div class="symbol">'+escapeHTML(c.symbol||"▶")+'</div><strong>'+escapeHTML(c.title)+'</strong></div>';
+  return '<article class="reel-card">'+media+'<div class="reel-info"><b>'+escapeHTML(c.user)+'</b><p>'+escapeHTML(c.caption)+'</p><div class="actions"><button data-clip-like="'+i+'">♥ '+(c.likes||0)+'</button><button data-clip-share="'+i+'">Share</button></div></div></article>'
+ }).join("");
+}
+renderClips();
+$("clipUpload").addEventListener("change",function(){
+ const f=this.files&&this.files[0];if(!f)return;
+ if(f.size>30000000){toast("Choose a video smaller than 30 MB.");return}
+ clips.unshift({user:"@you",title:f.name,caption:"My new local clip",url:URL.createObjectURL(f),likes:0});
+ renderClips();this.value="";toast("Clip added to your local feed.");
+});
+$("clipFeed").addEventListener("click",function(e){const like=e.target.closest("[data-clip-like]");if(like){const c=clips[Number(like.dataset.clipLike)];if(c){c.likes=(c.likes||0)+1;renderClips()}return}if(e.target.closest("[data-clip-share]"))toast("This clip stays in your local demo feed.")});
+
+const places=["Elmore Center","Elmore Junior High","Downtown","Rainbow Park","Sunny Beach","Snowfield","Tokyo","Orbit"];
+let selectedPlace="Elmore Center",driveStep=0;
+function selectPlace(name){selectedPlace=name;$("selectedPlace").textContent="Selected destination: "+name;$("routeStatus").textContent="Destination set to "+name+". Start your virtual trip when ready.";driveStep=0;$("driveProgress").textContent="0 / 4"}
+document.querySelectorAll("[data-map-place]").forEach(function(el){el.addEventListener("click",function(){selectPlace(el.getAttribute("data-map-place"))})});
+$("driveButton").addEventListener("click",function(){
+ if(driveStep===0){driveStep=1;$("routeStatus").textContent="Leaving Elmore Center. Keep tapping to travel through the virtual streets.";$("driveButton").textContent="Continue →"}
+ else if(driveStep<4){driveStep++;$("routeStatus").textContent=["","Passing the town park…","Crossing the bridge…","Almost there…","Arrived at "+selectedPlace+"!"][driveStep];$("driveButton").textContent=driveStep===4?"Choose another destination":"Continue →"}
+ else{toast("You arrived! Choose a new place.");return}
+ $("driveProgress").textContent=driveStep+" / 4";$("driveScene").classList.add("drive-moving");
+ const car=$("driveScene").querySelector(".car");car.style.left=(36+driveStep*10)+"%";
+ setTimeout(function(){$("driveScene").classList.remove("drive-moving")},300);
+});
+$("driveReset").addEventListener("click",function(){driveStep=0;$("driveProgress").textContent="0 / 4";$("driveButton").textContent="Start virtual trip →";$("routeStatus").textContent="Trip reset. Choose a destination.";const car=$("driveScene").querySelector(".car");car.style.left="36%"});
+
+const photo=$("photoPreview");
+let photoReady=false;
+function applyFilters(){
+ const b=Number($("bright").value),c=Number($("contrast").value),s=Number($("saturate").value);
+ photo.style.filter="brightness("+b+"%) contrast("+c+"%) saturate("+s+"%)";
+ $("brightVal").textContent=b+"%";$("contrastVal").textContent=c+"%";$("saturateVal").textContent=s+"%";
+}
+["bright","contrast","saturate"].forEach(function(id){$(id).addEventListener("input",applyFilters)});
+$("photoPick").addEventListener("change",function(){
+ const f=this.files&&this.files[0];if(!f)return;
+ const r=new FileReader();r.onload=function(ev){photo.src=ev.target.result;photo.style.display="block";$("photoEmpty").style.display="none";photoReady=true;applyFilters();$("photoStatus").textContent="Loaded: "+f.name};r.readAsDataURL(f);
+});
+$("resetFilters").addEventListener("click",function(){$("bright").value=100;$("contrast").value=100;$("saturate").value=100;applyFilters();toast("Filters reset.")});
+$("savePhoto").addEventListener("click",function(){
+ if(!photoReady||!photo.naturalWidth){toast("Choose a photo first.");return}
+ const canvas=document.createElement("canvas");canvas.width=photo.naturalWidth;canvas.height=photo.naturalHeight;
+ const ctx=canvas.getContext("2d");ctx.filter="brightness("+$("bright").value+"%) contrast("+$("contrast").value+"%) saturate("+$("saturate").value+"%)";ctx.drawImage(photo,0,0);
+ const data=canvas.toDataURL("image/png");
+ if(window.Android&&window.Android.saveImage){$("photoStatus").textContent=window.Android.saveImage(data);toast("Edited photo saved.");}
+ else{$("photoStatus").textContent="Your browser can save the edited picture from the preview.";const a=document.createElement("a");a.href=data;a.download="shotofop-edit.png";a.click();}
+});
+
+const canvas=$("arena"),ctx=canvas.getContext("2d");
+const game={running:false,player:100,cpu:100,time:60,orb:false,orbX:600,launch:1.2,resolved:false,guard:false,dodge:0,particles:[],status:"Press START, then POP when the sparkle reaches the ring.",best:readStore("ep_game_best",0)};
+$("bestScore").textContent=game.best;
+function status(text){game.status=text;$("gameStatus").textContent=text}
+function startGame(){game.running=true;game.player=100;game.cpu=100;game.time=60;game.orb=false;game.orbX=600;game.launch=1.1;game.resolved=false;game.guard=false;game.dodge=0;game.particles=[];status("Ready! Watch the sparkle and time your POP.");updateHUD()}
+function updateHUD(){$("playerEnergyBar").style.width=Math.max(0,game.player)+"%";$("cpuEnergyBar").style.width=Math.max(0,game.cpu)+"%";$("gameClock").textContent=Math.max(0,Math.ceil(game.time))}
+function particles(x,y,color){for(let i=0;i<12;i++){game.particles.push({x:x,y:y,vx:(Math.random()-.5)*210,vy:(Math.random()-.6)*180,life:.65,color:color})}}
+function finishGame(){
+ game.running=false;
+ if(game.cpu<=0){status("YOU WIN! Perfect timing, Elmore champion!");const score=Math.max(game.best,Math.ceil(game.time*10));if(score>game.best){game.best=score;writeStore("ep_game_best",score);$("bestScore").textContent=score}}
+ else if(game.player<=0){status("SUNBUN WINS THIS ROUND. Try another timing run!")}
+ else{status(game.player>=game.cpu?"TIME! YOU WIN!":"TIME! CPU WINS THIS ROUND.")}
+}
+function pop(){
+ if(!game.running){startGame();return}
+ if(!game.orb||game.resolved){status("Wait for the sparkle to enter the ring.");return}
+ if(game.orbX<410&&game.orbX>280){game.cpu=Math.max(0,game.cpu-13);game.orb=false;game.resolved=true;particles(510,170,"#ffe66e");status("PERFECT POP! A burst of stars!")}
+ else if(game.orbX>=410){status("A little early! Watch the ring.");}
+ else{game.player=Math.max(0,game.player-5);game.orb=false;particles(260,175,"#78d8ff");status("Just late! Try the next sparkle.");}
+ updateHUD();if(game.cpu<=0||game.player<=0)finishGame();
+}
+$("startGame").addEventListener("click",startGame);
+$("popButton").addEventListener("click",pop);
+$("guardButton").addEventListener("pointerdown",function(){game.guard=true});
+["pointerup","pointercancel","pointerleave"].forEach(function(ev){$("guardButton").addEventListener(ev,function(){game.guard=false})});
+$("dodgeButton").addEventListener("click",function(){game.dodge=.8;status("Quick sidestep ready!")});
+function ellipse(x,y,rx,ry,color){ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill()}
+function drawFighter(x,y,type,pose){
+ if(type==="moss"){
+  ellipse(x,y+21,51,60,"#6b8d39");ellipse(x-14,y-28,32,31,"#789b42");ellipse(x+17,y-30,31,30,"#789b42");
+  ellipse(x-10,y-35,7,9,"#fff");ellipse(x+14,y-35,7,9,"#fff");ellipse(x-9,y-34,3,5,"#24334b");ellipse(x+15,y-34,3,5,"#24334b");
+  ctx.strokeStyle="#304a25";ctx.lineWidth=4;ctx.beginPath();ctx.arc(x+1,y-18,12,0.2,2.7);ctx.stroke();
+  ctx.fillStyle="#f1c84e";ctx.fillRect(x-37,y+47,74,13);
+  ctx.strokeStyle="#49682c";ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(x-20,y+65);ctx.lineTo(x-26,y+87);ctx.moveTo(x+20,y+65);ctx.lineTo(x+27,y+87);ctx.stroke();
+  ellipse(x-45,y+22,15,14,"#ee645a");ellipse(x+45,y+22,15,14,"#ee645a");
+ }else{
+  ellipse(x,y+20,50,66,"#ffcf55");ellipse(x-19,y+10,23,53,"#ffe17d");ellipse(x+19,y+10,23,53,"#ffe17d");
+  ellipse(x,y+10,25,48,"#ef8a47");ellipse(x-10,y-13,7,9,"#fff");ellipse(x+10,y-13,7,9,"#fff");
+  ellipse(x-9,y-13,3,5,"#753e28");ellipse(x+11,y-13,3,5,"#753e28");
+  ctx.strokeStyle="#e66f3d";ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(x-15,y+70);ctx.lineTo(x-21,y+91);ctx.moveTo(x+15,y+70);ctx.lineTo(x+22,y+91);ctx.stroke();
+  ellipse(x-43,y+37,12,12,"#fff1c8");ellipse(x+43,y+37,12,12,"#fff1c8");
+ }
+ if(pose){ctx.fillStyle="#fff";ctx.font="bold 14px Arial";ctx.fillText("✦",x-3,y-65)}
+}
+function drawArena(){
+ const w=canvas.width,h=canvas.height;
+ ctx.clearRect(0,0,w,h);
+ const sky=ctx.createLinearGradient(0,0,0,h);sky.addColorStop(0,"#a4e7ef");sky.addColorStop(.58,"#d4f1d9");sky.addColorStop(1,"#54667c");ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
+ ctx.fillStyle="#263754";ctx.fillRect(0,0,w,48);
+ ctx.fillStyle="#e6faff";ctx.fillRect(22,67,182,105);ctx.fillRect(235,67,125,105);ctx.fillRect(460,67,128,105);ctx.fillRect(614,67,180,105);
+ ctx.fillStyle="#26324c";ctx.fillRect(32,77,162,85);ctx.fillRect(245,77,105,85);ctx.fillRect(470,77,108,85);ctx.fillRect(624,77,160,85);
+ ctx.strokeStyle="#9ecde4";ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(20,120);ctx.lineTo(205,120);ctx.moveTo(100,65);ctx.lineTo(100,175);ctx.moveTo(450,120);ctx.lineTo(595,120);ctx.stroke();
+ ctx.fillStyle="#446aa2";ctx.fillRect(18,211,235,62);ctx.fillRect(567,211,235,62);
+ ctx.fillStyle="#6590c5";ctx.fillRect(22,217,225,48);ctx.fillRect(571,217,225,48);
+ ctx.fillStyle="#7e8d9f";ctx.fillRect(0,300,w,60);
+ ctx.strokeStyle="#d8e2eb";ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(0,300);ctx.lineTo(w,300);ctx.stroke();
+ ctx.fillStyle="#1d3154";ctx.fillRect(312,78,192,99);ctx.fillStyle="#f4f8ff";ctx.font="bold 16px Arial";ctx.fillText("ELMORE METRO",343,105);ctx.font="12px Arial";ctx.fillText("NEXT STOP: FUN",353,128);
+ ctx.fillStyle="#26324c";ctx.font="bold 11px Arial";ctx.fillText("ARCADE LINE",17,32);
+ drawFighter(190,230,"moss",game.orb);
+ drawFighter(630,230,"sun",false);
+ ellipse(190,300,67,11,"#26324c55");ellipse(630,300,67,11,"#26324c55");
+ if(game.orb){ctx.shadowColor="#ffe77a";ctx.shadowBlur=22;ellipse(game.orbX,203,17,17,"#ffe879");ctx.shadowBlur=0;ctx.strokeStyle="#fff";ctx.lineWidth=4;ctx.beginPath();ctx.arc(game.orbX,203,28,0,Math.PI*2);ctx.stroke();}
+ ctx.fillStyle="#fff";ctx.font="bold 14px Arial";ctx.textAlign="center";ctx.fillText("MOSSBALL",190,333);ctx.fillText("SUNBUN",630,333);ctx.textAlign="left";
+ game.particles.forEach(function(p){ctx.globalAlpha=Math.max(0,p.life/.65);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,5,5);ctx.globalAlpha=1});
+}
+let lastFrame=0;
+function gameLoop(now){
+ const dt=Math.min(.05,(now-lastFrame)/1000||0);lastFrame=now;
+ if(game.running){
+  game.time=Math.max(0,game.time-dt);
+  if(game.dodge>0)game.dodge=Math.max(0,game.dodge-dt);
+  if(!game.orb){game.launch-=dt;if(game.launch<=0){game.orb=true;game.orbX=600;game.resolved=false;game.launch=1.5}}
+  else{
+   game.orbX-=250*dt;
+   if(game.orbX<330&&!game.resolved){
+    if(game.dodge>0){game.dodge=0;status("Nice sidestep! No energy lost.");particles(270,200,"#7ce4ff")}
+    else if(game.guard){game.player=Math.max(0,game.player-2);status("Guard absorbed most of the sparkle.");particles(275,200,"#9ae6ff")}
+    else{game.player=Math.max(0,game.player-9);status("Sparkle reached you! Try POP a little sooner.");particles(270,200,"#ffb36b")}
+    game.resolved=true;updateHUD();
+   }
+   if(game.orbX<220){game.orb=false;game.launch=1.25}
+  }
+  game.particles=game.particles.filter(function(p){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;return p.life>0});
+  updateHUD();
+  if(game.player<=0||game.cpu<=0||game.time<=0)finishGame();
+ }
+ drawArena();
+ requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+openPage("home");
+window.goHomeFromAndroid=function(){openPage("home")};
+})();
+</script>
+</body>
+</html>
