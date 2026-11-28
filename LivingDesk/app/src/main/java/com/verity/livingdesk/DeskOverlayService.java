@@ -44,6 +44,7 @@ public final class DeskOverlayService extends Service {
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         glass = getSharedPreferences("living_desk_settings", MODE_PRIVATE).getBoolean("glass", true);
         petType = getSharedPreferences("living_desk_settings", MODE_PRIVATE).getInt("pet_type", 0);
+        getSharedPreferences("living_desk_settings", MODE_PRIVATE).edit().putBoolean("overlay_enabled", true).apply();
         createChannel();
         startAsForeground();
     }
@@ -173,7 +174,10 @@ public final class DeskOverlayService extends Service {
         if (petView != null || !canDraw()) return;
         petView = new PetView(this);
         petView.setPetType(petType);
-        petView.setOnClickListener(v -> Toast.makeText(this, "Мяу! Питомец рад тебя видеть.", Toast.LENGTH_SHORT).show());
+        petView.setOnClickListener(v -> {
+            petView.cycleMood();
+            Toast.makeText(this, "Мяу! Питомец рад тебя видеть.", Toast.LENGTH_SHORT).show();
+        });
         petParams = new WindowManager.LayoutParams(
                 dp(78), dp(78),
                 Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE,
@@ -261,6 +265,7 @@ public final class DeskOverlayService extends Service {
     @Override public void onDestroy() {
         removeDock();
         removePet();
+        getSharedPreferences("living_desk_settings", MODE_PRIVATE).edit().putBoolean("overlay_enabled", false).apply();
         super.onDestroy();
     }
 
