@@ -7,8 +7,13 @@ import io, sys
 
 root=Path(sys.argv[1]) if len(sys.argv)>1 else Path("Verity-main")
 atlas_path=root/"app/src/main/assets/character_catalog/verity_new_skins_atlas.png"
-if not atlas_path.is_file(): raise SystemExit("Verity skin atlas missing: "+str(atlas_path))
-atlas=Image.open(atlas_path).convert("RGBA")
+atlas_source=Path(__file__).with_name("verity_new_skins_atlas.png")
+if not atlas_source.is_file():
+    raise SystemExit("Source Verity atlas missing: "+str(atlas_source))
+# Use the known-good source atlas from scripts/. The extracted Android project can
+# contain a placeholder at the destination path after edition overlays are applied.
+atlas=Image.open(atlas_source).convert("RGBA")
+atlas_path.parent.mkdir(parents=True, exist_ok=True)
 cell=min(atlas.width//4,atlas.height//4)
 if cell<32: raise SystemExit("Invalid 4x4 skin atlas")
 S=512
